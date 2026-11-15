@@ -50,8 +50,8 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
         .027*sin(rSafe*44.0+a*2.7);
       float spine=orientation+TAU*a/arms+winding+feather;
       float gap=abs(angleDelta(angle,spine));
-      float sw=(.095+r*.205)*width;
-      armsBrightness=max(armsBrightness,exp(-.72*pow(gap/max(sw,.02),2.)));
+      float sw=(.17+r*.29)*width;
+      armsBrightness=max(armsBrightness,exp(-.58*pow(gap/max(sw,.02),2.)));
       float dustCenter=spine+handed*(.095+.025*r);
       float d=abs(angleDelta(angle,dustCenter));
       lane=max(lane,exp(-pow(d/max((.030+.028*r)*width,.012),2.)));
@@ -59,25 +59,27 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   }
   float broadNoise=noise(p*15.0+vec2(orientation,1.7));
   float fineNoise=noise(p*37.0+vec2(1.3,orientation));
-  float disk=exp(-r*2.05)*edge*(.80+.40*broadNoise);
+  float disk=exp(-r*1.76)*edge*(.88+.37*broadNoise);
   float arm=armsBrightness*edge*smoothstep(.10,.24,r)*
-    (.62+.36*broadNoise+.20*fineNoise);
-  float obscuration=lane*(dust/60.0)*.72*step(.16,r);
+    (.54+.37*broadNoise+.19*fineNoise);
+  float obscuration=lane*(dust/60.0)*.54*(.68+.32*broadNoise)*step(.16,r);
   arm*=1.0-obscuration;
   disk*=1.0-obscuration*.48;
-  float bulge=exp(-pow(r/.142,1.65))*(.64+.65*coreGlow);
+  float nucleus=exp(-pow(r/.136,1.65))*(.48+.44*coreGlow);
+  float oldStars=exp(-pow(r/.31,1.85))*(.27+.17*coreGlow);
+  float bulge=nucleus+oldStars;
   if(barred>0.5){
     vec2 q=vec2(dot(p,vec2(cos(orientation),sin(orientation))),
       dot(p,vec2(-sin(orientation),cos(orientation))));
     bulge+=exp(-pow(length(q/vec2(.29,.070)),1.6))*.16;
   }
   float hii=smoothstep(.70,.90,noise(p*24.0+vec2(orientation,2.3)))*arm*.9;
-  float alpha=clamp(bulge*.76+disk*.31+arm*.62+hii*.13,0.0,.94);
-  vec3 rgb=bulgeColor*(bulge*1.7)+diskColor*(disk*.48)+
-    youngColor*(arm*1.24)+hiiColor*(hii*.62);
+  float alpha=clamp(bulge*.78+disk*.55+arm*.50+hii*.12,0.0,.93);
+  vec3 rgb=bulgeColor*(bulge*1.22)+diskColor*(disk*.88)+
+    youngColor*(arm*.94)+hiiColor*(hii*.56);
   // The dusty lanes dim the disk; without this the overlaid soft disk
   // would wash out the dark, trailing arm detail.
-  rgb*=1.0-obscuration*.23;
+  rgb*=1.0-obscuration*.29;
   return vec4(rgb,alpha);
 }
 void main(){
