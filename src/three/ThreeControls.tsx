@@ -5,7 +5,8 @@ import {entranceDefaults,threeEntranceStyle,type ThreeEntranceSettings} from './
 import {THREE_KINDS,THREE_CLASSIC_KINDS,THREE_NEW_KINDS,THREE_SPACING_DEFAULT,type ThreeKind} from './model';
 import {CELESTIAL_KINDS, CELESTIAL_LABELS, celestialDefaults} from './celestial';
 import {particleDefaults} from './particle';
-import {GALAXY_PALETTES,galaxyDefaults,type GalaxyPalette} from './galaxy';
+import {GALAXY_PALETTES,GALAXY_TYPES,GALAXY_TYPE_LABELS,galaxyDefaults,type GalaxyPalette,type GalaxyType} from './galaxy';
+import {GALAXY_PRESETS,galaxyWithPreset,type GalaxyPreset} from './galaxy-presets';
 
 export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
   sphere:'球体',cube:'立方体',torus:'トーラス',
@@ -120,6 +121,25 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </label>
       {settings.voidMode?.enabled&&<p className="help">VOIDモードをOFFにすると銀河を生成できます。</p>}
       {galaxy.enabled&&<>
+        <label htmlFor="galaxy-type">銀河タイプ</label>
+        <select id="galaxy-type" aria-label="銀河タイプ" value={galaxy.galaxyType}
+          onChange={event=>{
+            const galaxyType=event.target.value as GalaxyType;
+            onChange({...settings,galaxy:{...galaxy,galaxyType,
+              barred:galaxyType==='barred_spiral'}});
+          }}>
+          {GALAXY_TYPES.map(type=><option key={type} value={type}>{GALAXY_TYPE_LABELS[type]}</option>)}
+        </select>
+        <label htmlFor="galaxy-preset">銀河プリセット</label>
+        <select id="galaxy-preset" aria-label="銀河プリセット" value=""
+          onChange={event=>{
+            if(event.target.value)
+              onChange({...settings,galaxy:galaxyWithPreset(galaxy,event.target.value as GalaxyPreset)});
+          }}>
+          <option value="">プリセットを選ぶ</option>
+          {(Object.entries(GALAXY_PRESETS) as [GalaxyPreset,typeof GALAXY_PRESETS[GalaxyPreset]][]).map(([id,preset])=>
+            <option key={id} value={id}>{preset.label}</option>)}
+        </select>
         <label className="three-checkbox">
           <input type="checkbox" aria-label="銀河に暗い宇宙背景を使う" checked={galaxy.darkBackground}
             onChange={event=>onChange({...settings,galaxy:{...galaxy,darkBackground:event.target.checked}})}/>
@@ -134,20 +154,51 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         </div>
         <ThreeRange id="galaxy-count" label="星の数" value={galaxy.count} min={1000} max={30000} step={500} unit="個"
           onChange={count=>onChange({...settings,galaxy:{...galaxy,count}})}/>
+        {['grand_design','barred_spiral','flocculent','interacting'].includes(galaxy.galaxyType)&&<>
         <ThreeRange id="galaxy-arms" label="螺旋腕の数" value={galaxy.arms} min={2} max={8} step={1} unit="本"
           onChange={arms=>onChange({...settings,galaxy:{...galaxy,arms}})}/>
         <ThreeRange id="galaxy-twist" label="渦の巻き込み" value={galaxy.twist} min={.4} max={4} step={.1}
           onChange={twist=>onChange({...settings,galaxy:{...galaxy,twist}})}/>
         <ThreeRange id="galaxy-arm-width" label="腕の太さ・広がり" value={galaxy.armWidth} min={.5} max={2.5} step={.05}
           onChange={armWidth=>onChange({...settings,galaxy:{...galaxy,armWidth}})}/>
+        </>}
+        {galaxy.galaxyType==='ring'&&<>
+          <ThreeRange id="galaxy-ring-radius" label="リング半径" value={galaxy.ringRadius} min={.35} max={.90} step={.01}
+            onChange={ringRadius=>onChange({...settings,galaxy:{...galaxy,ringRadius}})}/>
+          <ThreeRange id="galaxy-ring-width" label="リングの太さ" value={galaxy.ringWidth} min={.04} max={.30} step={.01}
+            onChange={ringWidth=>onChange({...settings,galaxy:{...galaxy,ringWidth}})}/>
+        </>}
+        {galaxy.galaxyType==='elliptical'&&
+          <ThreeRange id="galaxy-ellipticity" label="楕円率" value={galaxy.ellipticity} min={.05} max={.85} step={.01}
+            onChange={ellipticity=>onChange({...settings,galaxy:{...galaxy,ellipticity}})}/>}
+        {galaxy.galaxyType==='flocculent'&&<>
+          <ThreeRange id="galaxy-clumpiness" label="星団のまとまり" value={galaxy.clumpiness} min={0} max={1} step={.05}
+            onChange={clumpiness=>onChange({...settings,galaxy:{...galaxy,clumpiness}})}/>
+          <ThreeRange id="galaxy-branchiness" label="小腕の枝分かれ" value={galaxy.branchiness} min={0} max={1} step={.05}
+            onChange={branchiness=>onChange({...settings,galaxy:{...galaxy,branchiness}})}/>
+        </>}
+        {galaxy.galaxyType==='irregular'&&
+          <ThreeRange id="galaxy-irregularity" label="不規則さ" value={galaxy.irregularity} min={0} max={1} step={.05}
+            onChange={irregularity=>onChange({...settings,galaxy:{...galaxy,irregularity}})}/>}
+        {galaxy.galaxyType==='interacting'&&<>
+          <ThreeRange id="galaxy-companion-distance" label="伴銀河の距離" value={galaxy.companionDistance}
+            min={.5} max={1.3} step={.05}
+            onChange={companionDistance=>onChange({...settings,galaxy:{...galaxy,companionDistance}})}/>
+          <ThreeRange id="galaxy-companion-size" label="伴銀河のサイズ" value={galaxy.companionSize}
+            min={.25} max={.7} step={.05}
+            onChange={companionSize=>onChange({...settings,galaxy:{...galaxy,companionSize}})}/>
+          <ThreeRange id="galaxy-tidal" label="潮汐の尾" value={galaxy.tidalStrength} min={0} max={1} step={.05}
+            onChange={tidalStrength=>onChange({...settings,galaxy:{...galaxy,tidalStrength}})}/>
+        </>}
         <ThreeRange id="galaxy-radius" label="銀河の広がり" value={galaxy.radius} min={3} max={10} step={.5}
           onChange={radius=>onChange({...settings,galaxy:{...galaxy,radius}})}/>
         <ThreeRange id="galaxy-inclination" label="円盤の傾き" value={galaxy.inclination} min={0} max={75} step={1} unit="°"
           onChange={inclination=>onChange({...settings,galaxy:{...galaxy,inclination}})}/>
+        {galaxy.galaxyType==='grand_design'&&
         <label className="three-checkbox"><input type="checkbox" aria-label="棒状渦巻銀河にする"
           checked={galaxy.barred} onChange={event=>onChange({...settings,galaxy:{...galaxy,barred:event.target.checked}})}/>
           中心を棒状にする
-        </label>
+        </label>}
         <ThreeRange id="galaxy-core" label="中心核の発光" value={galaxy.coreGlow} min={0} max={200} step={5} unit="%"
           onChange={coreGlow=>onChange({...settings,galaxy:{...galaxy,coreGlow}})}/>
         <ThreeRange id="galaxy-dust" label="星間ダスト" value={galaxy.dust} min={0} max={60} step={5} unit="%"
@@ -168,7 +219,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         {galaxy.seedTransition&&<ThreeRange id="galaxy-transition" label="銀河切替時間" value={galaxy.transitionSeconds}
           min={.5} max={15} step={.5} unit="秒"
           onChange={transitionSeconds=>onChange({...settings,galaxy:{...galaxy,transitionSeconds}})}/>}
-        <HelpInfo>星と光るガスの2層を描き、暗い宇宙背景と組み合わせて銀河の濃淡を再現します。ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
+        <HelpInfo>7種類の銀河タイプで、星の3D配置と光るガスの形の両方を切り替えます。リング、楕円、フロキュレント、不規則、相互作用の専用設定とプリセットを用意しました。星と光るガスの2層を描き、暗い宇宙背景と組み合わせて銀河の濃淡を再現します。ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
       </>}
     </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
