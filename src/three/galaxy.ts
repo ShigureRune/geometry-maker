@@ -7,13 +7,15 @@ export type GalaxySettings={
   enabled:boolean;count:number;arms:number;twist:number;radius:number;
   coreGlow:number;dust:number;rotationSpeed:number;palette:GalaxyPalette;
   seedTransition:boolean;transitionSeconds:number;
+  armWidth:number;inclination:number;barred:boolean;
 };
 export const galaxyDefaults:GalaxySettings={
-  enabled:false,count:12000,arms:4,twist:2.1,radius:5.5,
-  coreGlow:130,dust:20,rotationSpeed:.6,palette:'violet',
+  enabled:false,count:12000,arms:2,twist:1.5,radius:5.5,
+  coreGlow:75,dust:35,rotationSpeed:.6,palette:'violet',
   seedTransition:true,transitionSeconds:3.5,
+  armWidth:1.25,inclination:23,barred:false,
 };
-export const GALAXY_LOW_STAR_LIMIT=3600, GALAXY_HIGH_STAR_LIMIT=30000;
+export const GALAXY_LOW_STAR_LIMIT=3600,GALAXY_HIGH_STAR_LIMIT=30000;
 export function validateGalaxySettings(value:unknown):GalaxySettings{
   const d={...galaxyDefaults,...record(value)};
   return {
@@ -28,72 +30,185 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     palette:enumField(d.palette,GALAXY_PALETTES,'銀河の配色'),
     seedTransition:booleanField(d.seedTransition,'銀河のシード切替演出'),
     transitionSeconds:numberField(d.transitionSeconds,.5,15,'銀河の切替時間'),
+    armWidth:numberField(d.armWidth,.5,2.5,'螺旋腕の太さ'),
+    inclination:numberField(d.inclination,0,75,'銀河円盤の傾き'),
+    barred:booleanField(d.barred,'棒状渦巻銀河'),
   };
 }
 export type GalaxyData={
   count:number;positions:Float32Array;colors:Float32Array;
   sizes:Float32Array;spins:Float32Array;phases:Float32Array;
-  cores:Float32Array;
+  cores:Float32Array;opacities:Float32Array;kinds:Float32Array;
 };
-const PALETTE:Record<GalaxyPalette,readonly [string,string,string,string]>={
-  violet:['#ffe8ba','#b6c7ff','#9d80ff','#f89bff'],
-  blue:['#fef7df','#a8e9ff','#568bff','#a7bdff'],
-  rose:['#fff2cc','#ffc1db','#ef7abc','#9c8dea'],
-  gold:['#fff7dc','#ffe19b','#ffb773','#ffcdb5'],
+type RGB=readonly [number,number,number];
+type Palette={bulge:RGB;disk:RGB;arm:RGB;young:RGB;hii:RGB;cloud:RGB};
+function hexColor(value:string):RGB{
+  return [1,3,5].map(k=>parseInt(value.slice(k,k+2),16)/255) as unknown as RGB;
+}
+function palette(bulge:string,disk:string,arm:string,young:string,hii:string,cloud:string):Palette{
+  return {bulge:hexColor(bulge),disk:hexColor(disk),arm:hexColor(arm),
+    young:hexColor(young),hii:hexColor(hii),cloud:hexColor(cloud)};
+}
+/** Old yellow stars in the bulge, a diffuse stellar disk and blue/pink star-forming arms. */
+const PALETTES:Record<GalaxyPalette,Palette>={
+  violet:palette('#ffd9a0','#d1b9b4','#9b9bdf','#8cbbff','#f68db4','#8973b3'),
+  blue:palette('#ffe6b4','#c8d4df','#8bbce9','#76d9ff','#ff9ac9','#7eacd7'),
+  rose:palette('#ffe0ac','#dfb8bd','#d39cce','#b6b5ff','#ff7eac','#a984a7'),
+  gold:palette('#ffe0a6','#d5b49b','#e1ba9d','#c8ddff','#ffafc0','#b79581'),
 };
-function hexColor(value:string):[number,number,number]{
-  return [1,3,5].map(k=>parseInt(value.slice(k,k+2),16)/255) as [number,number,number];
+function blend(a:RGB,b:RGB,t:number):RGB{
+  const f=Math.max(0,Math.min(1,t));
+  return [a[0]*(1-f)+b[0]*f,a[1]*(1-f)+b[1]*f,a[2]*(1-f)+b[2]*f];
 }
-function tint(a:readonly number[],b:readonly number[],factor:number):[number,number,number]{
-  const t=Math.max(0,Math.min(1,factor));
-  return [a[0]*(1-t)+b[0]*t,a[1]*(1-t)+b[1]*t,a[2]*(1-t)+b[2]*t];
+function gaussian(random:()=>number):number {
+  return random()+random()+random()+random()-2;
 }
-/** All seeded random choices are made exactly once on configuration changes.
- * Camera, render quality and animation time never alter retained star IDs. */
+function wrapAngle(a:number):number{
+  return Math.atan2(Math.sin(a),Math.cos(a));
+}
+const TAU=Math.PI*2;
+
+/** Logarithmic arms inspired by Hubble's grand-design spirals, with
+ * an exponential old-star disk, compact bulge, blue knots and dusty lanes.
+ * This is an artistic structural model, not a physical N-body simulation. */
 export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):GalaxyData{
   const count=Math.min(options.count,low?GALAXY_LOW_STAR_LIMIT:GALAXY_HIGH_STAR_LIMIT);
   const positions=new Float32Array(count*3),colors=new Float32Array(count*3);
   const sizes=new Float32Array(count),spins=new Float32Array(count);
   const phases=new Float32Array(count),cores=new Float32Array(count);
-  const rng=seededRandom('galaxy-v1:'+seed);
-  const palette=PALETTE[options.palette].map(hexColor);
-  const orientation=rng()*Math.PI*2;
-  const handed=rng()<.5?-1:1;
-  const armOffsets=Array.from({length:options.arms},()=> (rng()-.5)*.12);
-  const coreCount=Math.floor(count*.19);
-  const dustCount=Math.round(count*options.dust/100);
-  const armEnd=count-dustCount;
+  const opacities=new Float32Array(count),kinds=new Float32Array(count);
+  const random=seededRandom('galaxy-realism-v2:'+seed);
+  const colorset=PALETTES[options.palette],R=options.radius;
+  const orientation=random()*TAU,handed=random()<.5?-1:1;
+  const barStart=options.barred?.25:.145;
+  // About half-to-one turn from the inner disk to the outskirts: avoids
+  // the tightly wound near-concentric rings of the v1 model.
+  function armAngle(normalizedRadius:number,arm:number):number{
+    const radius=Math.max(barStart,normalizedRadius);
+    const winding=handed*(1.65+options.twist*.35)*Math.log(radius/barStart);
+    const feather=.065*Math.sin(radius*19+arm*3.4+orientation)+
+      .027*Math.sin(radius*44+arm*2.7);
+    return orientation+TAU*arm/options.arms+winding+feather;
+  }
+  type Knot={x:number;y:number;r:number;arm:number;pink:boolean};
+  const knots:Knot[]=Array.from({length:Math.max(16,options.arms*18)},(_,k)=>{
+    const arm=k%options.arms,r=.19+random()*.75;
+    const angle=armAngle(r,arm);
+    return {x:Math.cos(angle)*r*R,y:Math.sin(angle)*r*R,r,
+      arm,pink:random()<.46};
+  });
+  // A broad disk remains visible BETWEEN the arms. Real spirals are not
+  // thin strings of stars separated by completely empty black space.
+  const bulgeEnd=Math.floor(count*.105);
+  const diskEnd=bulgeEnd+Math.floor(count*.305);
+  const knotEnd=diskEnd+Math.floor(count*.12);
+  const cloudCount=Math.floor(count*(.025+options.dust/60*.055));
+  const armEnd=count-cloudCount;
   for(let i=0;i<count;i++){
-    const core=i<coreCount,dust=i>=armEnd;
-    const phase=rng()*Math.PI*2;
-    const r=core?Math.pow(rng(),1.85)*options.radius*.28:
-      dust?Math.sqrt(rng())*options.radius*1.13:
-      (.07+.91*Math.sqrt(rng()))*options.radius;
-    const norm=Math.min(1,r/options.radius);
-    const armIndex=i%options.arms;
-    const armPhase=orientation+(armIndex+armOffsets[armIndex])*(Math.PI*2/options.arms);
-    const spiral=handed*options.twist*norm*Math.PI*1.45;
-    const width=core?Math.PI*2:dust?Math.PI*2:(.09+norm*.20);
-    const angle=(core||dust?phase:armPhase+spiral+(rng()-.5)*width);
-    const spread=dust?(0.15+.22*rng()):(.028+.065*norm);
-    const x=Math.cos(angle)*r+(rng()-.5)*spread;
-    const y=Math.sin(angle)*r+(rng()-.5)*spread;
-    const z=(rng()+rng()+rng()-1.5)*(core?.38:.12+norm*.20);
+    const bulge=i<bulgeEnd,disk=i>=bulgeEnd&&i<diskEnd;
+    const knotStar=i>=diskEnd&&i<knotEnd;
+    const nebula=i>=armEnd;
+    const armStar=!bulge&&!disk&&!knotStar&&!nebula;
+    let x=0,y=0,z=0,radial=0;
+    let pigment:RGB=colorset.disk,lum=.5,opacity=.65,size=1.0;
+    let kind=0,coreStrength=0;
+    if(bulge){
+      const r=Math.sqrt(random())*R*.215,angle=random()*TAU;
+      x=r*Math.cos(angle);y=r*Math.sin(angle);
+      if(options.barred){
+        const bx=x*1.65,by=y*.48;
+        x=bx*Math.cos(orientation)-by*Math.sin(orientation);
+        y=bx*Math.sin(orientation)+by*Math.cos(orientation);
+      }
+      radial=Math.hypot(x,y)/R;
+      z=gaussian(random)*R*.055;
+      pigment=blend(colorset.bulge,colorset.disk,Math.min(1,radial/.28));
+      lum=.37+random()*.42;
+      opacity=.30+random()*.35;
+      size=.65+random()*.9;
+      coreStrength=Math.pow(Math.max(0,1-radial/.29),2);
+    }else if(disk){
+      // Gamma radial profile approximates an exponential stellar disk.
+      const rr=R*.25*(-Math.log(Math.max(1e-6,random()*random())));
+      const r=Math.min(R*1.07,rr);
+      const angle=random()*TAU;
+      x=r*Math.cos(angle);y=r*Math.sin(angle);
+      radial=Math.min(1.15,r/R);
+      z=gaussian(random)*R*.018;
+      pigment=blend(colorset.disk,colorset.arm,Math.min(1,radial*.60));
+      lum=.20+random()*.52;
+      opacity=.18+random()*.36;
+      size=.52+random()*.85;
+    }else if(knotStar||nebula){
+      // Coherent clumps: a cluster is many local points around ONE
+      // selected arm location, not a uniform confetti of bright pink dots.
+      const center=knots[Math.floor(random()*knots.length)];
+      const scale=R*(nebula?.045:.017)*(0.65+center.r*.65);
+      x=center.x+gaussian(random)*scale;
+      y=center.y+gaussian(random)*scale;
+      radial=Math.min(1.2,Math.hypot(x,y)/R);
+      z=gaussian(random)*R*.014;
+      const pink=center.pink;
+      pigment=blend(pink?colorset.hii:colorset.young,colorset.arm,nebula?.35:random()*.24);
+      lum=nebula?.15+random()*.24:.58+random()*.60;
+      opacity=nebula?.09+random()*.15:.45+random()*.43;
+      size=nebula?8+random()*12:.8+random()*1.9;
+      kind=nebula?1:0;
+    }else if(armStar){
+      const arm=i%options.arms;
+      const radialFraction=.15+.84*Math.sqrt(random());
+      radial=radialFraction;
+      const center=armAngle(radialFraction,arm);
+      const width=(.095+radialFraction*.205)*options.armWidth;
+      let angle=center+gaussian(random)*width*.72;
+      // Feathery secondary arm segments and spurs, not regular rings.
+      if(random()<.29)angle+=handed*(.17+.19*radialFraction);
+      const r=R*radialFraction+(random()-.5)*R*.012;
+      x=Math.cos(angle)*r;
+      y=Math.sin(angle)*r;
+      z=gaussian(random)*R*(.010+.012*radialFraction);
+      pigment=blend(colorset.arm,colorset.young,.24+random()*.65);
+      if(random()<.19)pigment=blend(pigment,colorset.disk,.24+random()*.32);
+      lum=.40+random()*.68;
+      opacity=.37+random()*.43;
+      size=.55+random()*1.2;
+    }
+    // Dust lanes: attenuate stellar light in narrow, curved strips along
+    // the leading side of each arm. Additive particle rendering cannot
+    // paint true dark occlusion, so this models the *density/brightness*
+    // contrast of the obscuring lane without fake black particles.
+    if(!nebula&&!bulge&&radial>.17&&options.dust>0){
+      const angle=Math.atan2(y,x);
+      let distance=Infinity;
+      for(let arm=0;arm<options.arms;arm++){
+        const lane=armAngle(radial,arm)+handed*(.095+.025*radial);
+        distance=Math.min(distance,Math.abs(wrapAngle(angle-lane)));
+      }
+      const width=(.030+.028*radial)*options.armWidth;
+      const shade=Math.exp(-Math.pow(distance/width,2))*
+        (.25+.65*options.dust/60);
+      opacity*=1-shade;
+      lum*=1-shade*.28;
+    }
+    // A few brighter blue-white foreground stars, but avoid a giant
+    // saturated white central sphere.
+    if(!bulge&&!nebula&&random()<.012){
+      size*=1.8;lum*=1.22;
+    }
     const p=i*3;
     positions[p]=x;positions[p+1]=y;positions[p+2]=z;
-    const bright=core?Math.pow(1-norm,2):0;
-    const mix=core?tint(palette[0],palette[1],norm*1.4):
-      dust?tint(palette[2],palette[3],rng()):
-        tint(palette[1],palette[2],norm*.90);
-    const color=tint(mix,palette[0],rng()*.18);
-    const luminance=.62+rng()*.65;
-    colors[p]=color[0]*luminance;colors[p+1]=color[1]*luminance;colors[p+2]=color[2]*luminance;
-    cores[i]=bright;
-    sizes[i]=(core?2.0:rng()<.025?2.4:.9)*(0.65+rng()*1.15)*(dust?.75:1);
-    spins[i]=handed*(.035+.105/(.32+norm*1.3));
-    phases[i]=phase;
+    const brightness=Math.min(1.4,lum);
+    colors[p]=pigment[0]*brightness;
+    colors[p+1]=pigment[1]*brightness;
+    colors[p+2]=pigment[2]*brightness;
+    sizes[i]=size;
+    opacities[i]=opacity;
+    kinds[i]=kind;
+    cores[i]=coreStrength;
+    spins[i]=handed*(.025+.08/(.40+radial*1.5));
+    phases[i]=random()*TAU;
   }
-  return {count,positions,colors,sizes,spins,phases,cores};
+  return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds};
 }
 export function galaxyMorphEasing(value:number):number{
   const t=Math.max(0,Math.min(1,value));
