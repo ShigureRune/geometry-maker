@@ -5,6 +5,7 @@ import {entranceDefaults,threeEntranceStyle,type ThreeEntranceSettings} from './
 import {THREE_KINDS,THREE_CLASSIC_KINDS,THREE_NEW_KINDS,THREE_SPACING_DEFAULT,type ThreeKind} from './model';
 import {CELESTIAL_KINDS, CELESTIAL_LABELS, celestialDefaults} from './celestial';
 import {particleDefaults} from './particle';
+import {GALAXY_PALETTES,galaxyDefaults,type GalaxyPalette} from './galaxy';
 
 export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
   sphere:'球体',cube:'立方体',torus:'トーラス',
@@ -26,6 +27,7 @@ export function ThreeRange({id, label, value, min, max, step = .05, unit = '', o
 export function ThreeShapeControls({settings, onChange}: Props) {
   const celestial = settings.celestial ?? celestialDefaults;
   const particle = settings.particle ?? particleDefaults;
+  const galaxy=settings.galaxy??galaxyDefaults;
   return <section className="control-section three-controls">
     <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
       <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
@@ -82,7 +84,8 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       <label className="three-checkbox">
         <input type="checkbox" aria-label="PARTICLE MODEを有効化" checked={particle.enabled}
           disabled={!!settings.voidMode?.enabled}
-          onChange={event=>onChange({...settings,particle:{...particle,enabled:event.target.checked}})}/>
+          onChange={event=>onChange({...settings,particle:{...particle,enabled:event.target.checked},
+             galaxy:{...galaxy,enabled:false}})}/>
         立体を粒子で描く
       </label>
       {settings.voidMode?.enabled&&<p className="help">VOIDをOFFにするとPARTICLE MODEを使用できます。</p>}
@@ -104,6 +107,48 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
           onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
         <HelpInfo>図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。</HelpInfo>
+      </>}
+    </fieldset>
+    <fieldset className="three-kind-fieldset" data-testid="galaxy-mode-controls">
+      <legend>GALAXY MODE · 巨大銀河</legend>
+      <label className="three-checkbox">
+        <input type="checkbox" aria-label="GALAXY MODEを有効化" checked={galaxy.enabled}
+          disabled={!!settings.voidMode?.enabled}
+          onChange={event=>onChange({...settings,galaxy:{...galaxy,enabled:event.target.checked},
+            particle:{...particle,enabled:false}})}/>
+        巨大銀河を生成する
+      </label>
+      {settings.voidMode?.enabled&&<p className="help">VOIDモードをOFFにすると銀河を生成できます。</p>}
+      {galaxy.enabled&&<>
+        <ThreeRange id="galaxy-count" label="星の数" value={galaxy.count} min={1000} max={30000} step={500} unit="個"
+          onChange={count=>onChange({...settings,galaxy:{...galaxy,count}})}/>
+        <ThreeRange id="galaxy-arms" label="螺旋腕の数" value={galaxy.arms} min={2} max={8} step={1} unit="本"
+          onChange={arms=>onChange({...settings,galaxy:{...galaxy,arms}})}/>
+        <ThreeRange id="galaxy-twist" label="渦の巻き込み" value={galaxy.twist} min={.4} max={4} step={.1}
+          onChange={twist=>onChange({...settings,galaxy:{...galaxy,twist}})}/>
+        <ThreeRange id="galaxy-radius" label="銀河の広がり" value={galaxy.radius} min={3} max={10} step={.5}
+          onChange={radius=>onChange({...settings,galaxy:{...galaxy,radius}})}/>
+        <ThreeRange id="galaxy-core" label="中心核の発光" value={galaxy.coreGlow} min={0} max={200} step={10} unit="%"
+          onChange={coreGlow=>onChange({...settings,galaxy:{...galaxy,coreGlow}})}/>
+        <ThreeRange id="galaxy-dust" label="星間ダスト" value={galaxy.dust} min={0} max={60} step={5} unit="%"
+          onChange={dust=>onChange({...settings,galaxy:{...galaxy,dust}})}/>
+        <ThreeRange id="galaxy-spin" label="銀河の回転速度" value={galaxy.rotationSpeed} min={0} max={2} step={.1}
+          onChange={rotationSpeed=>onChange({...settings,galaxy:{...galaxy,rotationSpeed}})}/>
+        <label htmlFor="galaxy-palette">銀河の色テーマ</label>
+        <select id="galaxy-palette" value={galaxy.palette}
+          onChange={event=>onChange({...settings,galaxy:{...galaxy,palette:event.target.value as GalaxyPalette}})}>
+          {GALAXY_PALETTES.map(name=><option key={name} value={name}>{({
+            violet:'紫・青の銀河',blue:'青白い銀河',rose:'ローズ星雲',gold:'黄金銀河',
+          } as Record<GalaxyPalette,string>)[name]}</option>)}
+        </select>
+        <label className="three-checkbox"><input type="checkbox" aria-label="銀河のシード変更アニメーション"
+          checked={galaxy.seedTransition} onChange={event=>onChange({...settings,galaxy:{...galaxy,seedTransition:event.target.checked}})}/>
+          シード変更で別の銀河へ変形
+        </label>
+        {galaxy.seedTransition&&<ThreeRange id="galaxy-transition" label="銀河切替時間" value={galaxy.transitionSeconds}
+          min={.5} max={15} step={.5} unit="秒"
+          onChange={transitionSeconds=>onChange({...settings,galaxy:{...galaxy,transitionSeconds}})}/>}
+        <HelpInfo>中心核・2〜8本の螺旋腕・星間ダストを1つのGPU描画で生成します。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
       </>}
     </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
@@ -139,6 +184,7 @@ export function ThreeAnimationControls({settings, onChange, seed, onReplay}: Pro
     <ThreeRange id="three-float" label="浮かぶ大きさ" value={settings.floatAmount} min={0} max={2} step={.1} onChange={floatAmount => onChange({...settings, floatAmount})}/>
     <ThreeRange id="three-rotation" label="回転の大きさ" value={settings.rotationAmount} min={0} max={2} step={.1} onChange={rotationAmount => onChange({...settings, rotationAmount})}/>
     {settings.particle?.enabled&&<button type="button" onClick={onReplay}>粒子集合を最初から再生</button>}
+    {settings.galaxy?.enabled&&<button type="button" onClick={onReplay}>銀河形成を最初から再生</button>}
     <fieldset className="three-kind-fieldset" data-testid="three-entrance-controls"><legend>最初の登場</legend>
       <label className="three-checkbox"><input type="checkbox" aria-label="3D図形を順番に登場させる" checked={entrance.enabled}
         onChange={event=>onChange({...settings,entrance:{...entrance,enabled:event.target.checked}})}/>
