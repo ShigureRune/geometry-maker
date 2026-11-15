@@ -68,6 +68,14 @@ function wrapAngle(a:number):number{
 }
 const TAU=Math.PI*2;
 
+/** Match the first two random draws used by generateGalaxy.
+ * The diffuse light follows the SAME spiral orientation as the star particles. */
+export function galaxyAppearance(seed:string,theme:GalaxyPalette){
+  const random=seededRandom('galaxy-realism-v2:'+seed);
+  return {orientation:random()*TAU,handed:random()<.5?-1:1,
+    colors:PALETTES[theme]};
+}
+
 /** Logarithmic arms inspired by Hubble's grand-design spirals, with
  * an exponential old-star disk, compact bulge, blue knots and dusty lanes.
  * This is an artistic structural model, not a physical N-body simulation. */
