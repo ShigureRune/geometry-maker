@@ -111,7 +111,7 @@ export function ParticleCloud({objects,seed,background,settings,seconds,low,rest
     const morphProgress=morph?Math.max(0,Math.min(1,time/morph.duration)):1;
     const envelope=morph?particleSeedEnvelope(morphProgress):null;
     const t=Math.max(0,Math.min(1,time/options.duration));
-    const eased=particleEase(t),unformed=1-eased;
+    const eased=morph?1:particleEase(t),unformed=1-eased;
     const poses=objects.map(object=>{
       const pose=threePose(object,time,settings.floatAmount,settings.rotationAmount);
       return {position:pose.position,rotation:new Euler(...pose.rotation),radius:object.radius};
