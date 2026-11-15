@@ -177,7 +177,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
-    <GalaxyDiffuse seed={seed} options={options} seconds={seconds}
+    <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
       animation={settings.animation} morph={isMorph} morphDuration={morphDuration}/>
     <points name="galaxy-mode-cloud" geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
