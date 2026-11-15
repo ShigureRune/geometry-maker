@@ -64,6 +64,7 @@ test('changing the seed morphs the visible cloud, pauses smoothly, then settles'
   await page.getByLabel('3Dアニメーションを有効化').check();
   await page.getByRole('button',{name:'粒子集合を最初から再生'}).click();
   await page.waitForTimeout(3400);
+  await category(page,'図形');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
   await expect.poll(async()=>Number(await preview.getAttribute('data-particle-seed-progress')))
