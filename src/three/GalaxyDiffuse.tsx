@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,Vector3} from 'three';
+import {AdditiveBlending,DoubleSide,Vector3} from 'three';
 import {galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
 
 const vertexShader=String.raw`
@@ -132,7 +132,8 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     uOldYoung:{value:new Vector3()},uOldHii:{value:new Vector3()},
   }),[]);
   useLayoutEffect(()=>{
-    if(lastSeed.current!==seed){
+    const changedSeed=lastSeed.current!==seed;
+    if(changedSeed){
       // Retain the PREVIOUS luminous disk until the shared particle
       // morph clock has finished, rather than popping instantly.
       lastSeed.current=seed;
@@ -168,7 +169,7 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     }
     assign('old',old.current);
     assign('now',now);
-    if(!morph.current)old.current=now;
+    if(!changedSeed&&!morph.current)old.current=now;
   },[seed,now,uniforms,morph]);
   useFrame(()=>{
     const time=seconds.current;
@@ -183,6 +184,6 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
   return <mesh name="galaxy-diffuse-light" position={[0,0,-.13]} renderOrder={0} frustumCulled={false}>
     <planeGeometry args={[options.radius*2.5,options.radius*2.5]}/>
     <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
-      transparent depthWrite={false} depthTest={false} side={2} blending={AdditiveBlending}/>
+      transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={AdditiveBlending}/>
   </mesh>;
 }
