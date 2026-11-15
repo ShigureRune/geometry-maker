@@ -1,9 +1,10 @@
 import {describe,expect,it} from 'vitest';
 import {
-  GALAXY_LOW_STAR_LIMIT,galaxyDefaults,galaxyMorphEasing,
+  GALAXY_TYPES,GALAXY_LOW_STAR_LIMIT,galaxyDefaults,galaxyMorphEasing,
   generateGalaxy,validateGalaxySettings,
 } from './galaxy';
 import {threeDefaults,validateThreeSettings} from './settings';
+import {GALAXY_PRESETS,galaxyWithPreset} from './galaxy-presets';
 
 describe('GALAXY MODE',()=>{
   it('is opt-in and old 3D JSON stays in ordinary 3D mode',()=>{
@@ -15,7 +16,9 @@ describe('GALAXY MODE',()=>{
     expect(validateGalaxySettings(customized)).toEqual(customized);
     expect(validateThreeSettings({...threeDefaults,galaxy:customized}).galaxy).toEqual(customized);
     for(const value of [{count:30001},{count:Infinity},{arms:1},{arms:9},{palette:'unknown'},{radius:100},{coreGlow:-1},{seedTransition:'yes'},
-      {armWidth:0},{armWidth:3},{inclination:-1},{inclination:80},{barred:'yes'},{darkBackground:'bad'}]){
+      {armWidth:0},{armWidth:3},{inclination:-1},{inclination:80},{barred:'yes'},{darkBackground:'bad'},
+      {galaxyType:'banana'},{ringRadius:1},{ringWidth:0},{ellipticity:2},{clumpiness:-1},
+      {branchiness:2},{irregularity:5},{companionDistance:5},{companionSize:2},{tidalStrength:2}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
   });
@@ -81,6 +84,57 @@ describe('GALAXY MODE',()=>{
       .not.toEqual(generateGalaxy('barred',galaxyDefaults,true).positions);
     expect(generateGalaxy('wide',{...galaxyDefaults,armWidth:2.2},true).positions)
       .not.toEqual(generateGalaxy('wide',galaxyDefaults,true).positions);
+  });
+  it('supports all seven deterministic, visibly distinct galaxy morphologies',()=>{
+    const results=GALAXY_TYPES.map(galaxyType=>{
+      const settings={...galaxyDefaults,galaxyType,count:5000};
+      const first=generateGalaxy('seven-types',settings,false);
+      const repeat=generateGalaxy('seven-types',settings,false);
+      const alternate=generateGalaxy('seven-types-other',settings,false);
+      expect(first.count).toBe(5000);
+      expect(first.positions).toEqual(repeat.positions);
+      expect(first.colors).toEqual(repeat.colors);
+      expect(first.positions).not.toEqual(alternate.positions);
+      expect(Array.from(first.positions).every(Number.isFinite)).toBe(true);
+      expect(Array.from(first.opacities).every(x=>Number.isFinite(x)&&x>=0&&x<=1)).toBe(true);
+      return first.positions;
+    });
+    for(let i=0;i<results.length;i++)for(let j=i+1;j<results.length;j++)
+      expect(results[i]).not.toEqual(results[j]);
+  });
+  it('ring creates a radius-concentrated annulus and elliptical galaxy has a flattened envelope',()=>{
+    const ring=generateGalaxy('ring-proof',{...galaxyDefaults,galaxyType:'ring',count:12000},false);
+    const radii=Array.from({length:ring.count},(_,i)=>Math.hypot(ring.positions[i*3],ring.positions[i*3+1])/galaxyDefaults.radius);
+    expect(radii.filter(r=>Math.abs(r-galaxyDefaults.ringRadius)<.20).length/ring.count).toBeGreaterThan(.65);
+    const ellipse=generateGalaxy('ellipse-proof',{...galaxyDefaults,galaxyType:'elliptical',count:8000,ellipticity:.75},false);
+    let xx=0,yy=0;
+    for(let i=0;i<ellipse.count;i++){xx+=ellipse.positions[i*3]**2;yy+=ellipse.positions[i*3+1]**2;}
+    expect(Math.sqrt(yy/xx)).toBeLessThan(.65);
+  });
+  it('the interacting galaxy has spatially separate components plus extended tidal material',()=>{
+    const pair=generateGalaxy('pair-proof',{...galaxyDefaults,galaxyType:'interacting',count:10000},false);
+    const xs=Array.from({length:pair.count},(_,i)=>pair.positions[i*3]/galaxyDefaults.radius);
+    expect(xs.filter(x=>x<-.18).length).toBeGreaterThan(1000);
+    expect(xs.filter(x=>x>.4).length).toBeGreaterThan(1000);
+    expect(xs.filter(x=>Math.abs(x)>.85).length).toBeGreaterThan(20);
+  });
+  it('preset selection preserves shared options, type and enabled state',()=>{
+    expect(Object.keys(GALAXY_PRESETS).length).toBeGreaterThanOrEqual(7);
+    for(const [id,preset] of Object.entries(GALAXY_PRESETS)){
+      const result=galaxyWithPreset({...galaxyDefaults,count:20000,darkBackground:false},id as keyof typeof GALAXY_PRESETS);
+      expect(result.galaxyType).toBe(preset.type);
+      expect(result.enabled).toBe(true);
+      expect(result.count).toBe(20000);
+      expect(result.darkBackground).toBe(false);
+      expect(validateGalaxySettings(result)).toEqual(result);
+    }
+  });
+  it('v3 project without the new galaxy-type fields opens as grand design',()=>{
+    const old={...galaxyDefaults} as Partial<typeof galaxyDefaults>;
+    for(const key of ['galaxyType','ringRadius','ringWidth','ellipticity','clumpiness',
+      'branchiness','irregularity','companionDistance','companionSize','tidalStrength'] as const)
+      delete old[key];
+    expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
   });
   it('ease is seekable and exact at endpoints',()=>{
     expect(galaxyMorphEasing(-4)).toBe(0);
