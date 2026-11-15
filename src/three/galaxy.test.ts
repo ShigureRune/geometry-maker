@@ -15,7 +15,7 @@ describe('GALAXY MODE',()=>{
     expect(validateGalaxySettings(customized)).toEqual(customized);
     expect(validateThreeSettings({...threeDefaults,galaxy:customized}).galaxy).toEqual(customized);
     for(const value of [{count:30001},{count:Infinity},{arms:1},{arms:9},{palette:'unknown'},{radius:100},{coreGlow:-1},{seedTransition:'yes'},
-      {armWidth:0},{armWidth:3},{inclination:-1},{inclination:80},{barred:'yes'}]){
+      {armWidth:0},{armWidth:3},{inclination:-1},{inclination:80},{barred:'yes'},{darkBackground:'bad'}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
   });
@@ -75,7 +75,8 @@ describe('GALAXY MODE',()=>{
     delete (old as Partial<typeof old>).armWidth;
     delete (old as Partial<typeof old>).inclination;
     delete (old as Partial<typeof old>).barred;
-    expect(validateGalaxySettings(old)).toMatchObject({armWidth:1.25,inclination:23,barred:false});
+    delete (old as Partial<typeof old>).darkBackground;
+    expect(validateGalaxySettings(old)).toMatchObject({armWidth:1.25,inclination:23,barred:false,darkBackground:true});
     expect(generateGalaxy('barred',{...galaxyDefaults,barred:true},true).positions)
       .not.toEqual(generateGalaxy('barred',galaxyDefaults,true).positions);
     expect(generateGalaxy('wide',{...galaxyDefaults,armWidth:2.2},true).positions)
