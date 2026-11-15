@@ -1,4 +1,4 @@
-import {useCallback,useEffect,useLayoutEffect,useMemo,type RefObject} from 'react';
+import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {
   AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, CapsuleGeometry,
@@ -9,12 +9,13 @@ import {
 import {MeshSurfaceSampler} from 'three/addons/math/MeshSurfaceSampler.js';
 import {seededRandom,type Background} from '../scene';
 import {threePose,type ThreeKind,type ThreeObject} from './model';
-import {particleEase,particleSwirlDirection,type ParticleSettings} from './particle';
+import {particleEase,particleSeedEnvelope,particleSwirlDirection,type ParticleSettings} from './particle';
 import type {ThreeSettings} from './settings';
 
 type ParticleData={
   geometry:BufferGeometry;
   targets:Float32Array;
+  targetColors:Float32Array;
   starts:Float32Array;
   owners:Uint16Array;
   count:number;
@@ -51,8 +52,8 @@ function createParticleData(
   const starts=new Float32Array(actualCount*4);
   const owners=new Uint16Array(actualCount);
   geometry.setAttribute('position',new BufferAttribute(positions,3).setUsage(DynamicDrawUsage));
-  geometry.setAttribute('color',new BufferAttribute(colors,3));
-  if(!actualCount)return {geometry,targets,starts,owners,count:0};
+  geometry.setAttribute('color',new BufferAttribute(colors,3).setUsage(DynamicDrawUsage));
+  if(!actualCount)return {geometry,targets,targetColors:colors,starts,owners,count:0};
   // Distribute the total count by visible surface area, not count per object.
   const weights=objects.map(o=>o.radius*o.radius);
   const totalWeight=weights.reduce((sum,n)=>sum+n,0);
@@ -84,25 +85,31 @@ function createParticleData(
     }
     surface.dispose();
   });
-  return {geometry,targets,starts,owners,count:actualCount};
+  return {geometry,targets,targetColors:new Float32Array(colors),starts,owners,count:actualCount};
 }
 
 /** One draw call for all visible solids. Every frame depends only on seed,
  * object poses, and the shared (pausable/seekable/exportable) scene clock. */
-export function ParticleCloud({objects,seed,background,settings,seconds,low}:{
+export function ParticleCloud({objects,seed,background,settings,seconds,low,restartKey,transitionDuration,progressHost}:{
   objects:readonly ThreeObject[];seed:string;background:Background;
   settings:ThreeSettings;seconds:RefObject<number>;low:boolean;
+  restartKey:string;transitionDuration?:number;progressHost?:RefObject<HTMLDivElement|null>;
 }) {
   const options=settings.particle!;
   const data=useMemo(()=>createParticleData(objects,seed,background,options.count,low,options),
     [objects,seed,background,options.count,options.spread,options.height,low]);
   const direction=useMemo(()=>particleSwirlDirection(seed),[seed]);
+  const lastScene=useRef<{seed:string;data:ParticleData;restartKey:string}|null>(null);
+  const seedMorph=useRef<{positions:Float32Array;colors:Float32Array;duration:number}|null>(null);
   useEffect(()=>()=>data.geometry.dispose(),[data]);
   const update=useCallback(()=>{
     if(!data.count)return;
     // If reduced motion was requested, show the fully formed static shape.
     // Otherwise pausing freezes the current assembly frame.
-    const time=!settings.animation&&seconds.current===0?options.duration:seconds.current;
+    const time=!settings.animation&&seconds.current===0&&!seedMorph.current?options.duration:seconds.current;
+    const morph=seedMorph.current;
+    const morphProgress=morph?Math.max(0,Math.min(1,time/morph.duration)):1;
+    const envelope=morph?particleSeedEnvelope(morphProgress):null;
     const t=Math.max(0,Math.min(1,time/options.duration));
     const eased=particleEase(t),unformed=1-eased;
     const poses=objects.map(object=>{
@@ -111,6 +118,8 @@ export function ParticleCloud({objects,seed,background,settings,seconds,low}:{
     });
     const attribute=data.geometry.getAttribute('position') as BufferAttribute;
     const output=attribute.array as Float32Array;
+    const colorAttribute=data.geometry.getAttribute('color') as BufferAttribute;
+    const colors=colorAttribute.array as Float32Array;
     const tmp=new Vector3();
     for(let i=0;i<data.count;i++){
       const p=i*3,s=i*4,pose=poses[data.owners[i]];
@@ -122,17 +131,64 @@ export function ParticleCloud({objects,seed,background,settings,seconds,low}:{
         data.targets[p+1]*eased+data.starts[s+2]*unformed,
         data.targets[p+2]*eased+Math.sin(angle)*radius-jitter
       ).multiplyScalar(pose.radius).applyEuler(pose.rotation);
-      output[p]=tmp.x+pose.position[0];
-      output[p+1]=tmp.y+pose.position[1];
-      output[p+2]=tmp.z+pose.position[2];
+      const x=tmp.x+pose.position[0],y=tmp.y+pose.position[1],z=tmp.z+pose.position[2];
+      if(morph&&envelope){
+        const mix=envelope.mix,burst=envelope.burst;
+        // At t=0 retain exactly the previous rendered frame; at t=1 reach
+        // the new geometry's surface. A swirling arc connects the two.
+        const turn=data.starts[s+1]+direction*options.swirl*Math.PI*4*morphProgress;
+        const arc=data.starts[s]*burst;
+        output[p]=morph.positions[p]*(1-mix)+x*mix+Math.cos(turn)*arc;
+        output[p+1]=morph.positions[p+1]*(1-mix)+y*mix+
+          Math.sin(turn*.5+data.starts[s+3])*options.height*.55*burst;
+        output[p+2]=morph.positions[p+2]*(1-mix)+z*mix+Math.sin(turn)*arc;
+        colors[p]=morph.colors[p]*(1-mix)+data.targetColors[p]*mix;
+        colors[p+1]=morph.colors[p+1]*(1-mix)+data.targetColors[p+1]*mix;
+        colors[p+2]=morph.colors[p+2]*(1-mix)+data.targetColors[p+2]*mix;
+      }else{
+        output[p]=x;output[p+1]=y;output[p+2]=z;
+      }
     }
     attribute.needsUpdate=true;
-  },[data,objects,settings.animation,settings.floatAmount,settings.rotationAmount,
-    options.duration,options.swirl,options.jitter,seconds,direction]);
+    if(morph){colorAttribute.needsUpdate=true;}
+    if(progressHost?.current){
+      progressHost.current.dataset.particleSeedPhase=morph&&morphProgress<1?'transition':'settled';
+      progressHost.current.dataset.particleSeedProgress=morph?morphProgress.toFixed(3):'1.000';
+    }
+  },[data,objects,progressHost,settings.animation,settings.floatAmount,settings.rotationAmount,
+    options.duration,options.swirl,options.height,options.jitter,seconds,direction]);
+  // Snapshot the last displayed frame BEFORE React disposes the old geometry.
+  // Repeated edits (including rapid seed typing) always start from what the
+  // viewer actually saw, rather than teleporting from an older seed.
+  useLayoutEffect(()=>{
+    const previous=lastScene.current;
+    if(previous?.seed!==undefined&&previous.seed!==seed){
+      if(options.seedTransition&&settings.animation&&previous.data.count&&data.count){
+        const priorPositions=(previous.data.geometry.getAttribute('position') as BufferAttribute).array;
+        const priorColors=(previous.data.geometry.getAttribute('color') as BufferAttribute).array;
+        const positions=new Float32Array(data.count*3);
+        const colors=new Float32Array(data.count*3);
+        for(let i=0;i<data.count;i++){
+          const from=Math.floor(i*previous.data.count/data.count)*3,into=i*3;
+          positions[into]=Number(priorPositions[from]);
+          positions[into+1]=Number(priorPositions[from+1]);
+          positions[into+2]=Number(priorPositions[from+2]);
+          colors[into]=Number(priorColors[from]);
+          colors[into+1]=Number(priorColors[from+1]);
+          colors[into+2]=Number(priorColors[from+2]);
+        }
+        seedMorph.current={positions,colors,duration:transitionDuration??options.seedDuration};
+      }else seedMorph.current=null;
+    }else if(previous&&(previous.restartKey!==restartKey||previous.data.count!==data.count)){
+      // Replay on the same seed is the ordinary initial assembly, not a morph.
+      seedMorph.current=null;
+    }
+    lastScene.current={seed,data,restartKey};
+    update();
+  },[seed,data,update,restartKey,options.seedTransition,options.seedDuration,settings.animation,transitionDuration]);
   // Prevent an initial scattered/zeroed frame when the canvas is first mounted.
-  useLayoutEffect(update,[update]);
   useFrame(update);
-  return <points geometry={data.geometry} frustumCulled={false}>
+  return <points name="particle-mode-cloud" geometry={data.geometry} frustumCulled={false}>
     <pointsMaterial size={low ? .06 : .045} sizeAttenuation vertexColors
       transparent opacity={.92} depthWrite={false} blending={AdditiveBlending}/>
   </points>;
