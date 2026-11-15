@@ -51,3 +51,48 @@ test('particle settings are saved and restored with 3D project JSON',async({page
   await expect(page.locator('#particle-count')).toHaveValue('1500');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-particle-mode','on');
 });
+
+
+test('changing the seed morphs the visible cloud, pauses smoothly, then settles',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await start(page);
+  const preview=page.getByTestId('three-preview');
+  await page.getByLabel('PARTICLE MODEを有効化').check();
+  await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
+  await page.locator('#particle-seed-duration').fill('2');
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await page.getByRole('button',{name:'粒子集合を最初から再生'}).click();
+  await page.waitForTimeout(3400);
+  await page.getByRole('button',{name:'ランダムシードを生成'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-particle-seed-progress')))
+    .toBeGreaterThan(.03);
+  await category(page,'アニメーション');
+  await page.getByRole('button',{name:'3Dを一時停止'}).click();
+  const stopped=await preview.getAttribute('data-particle-seed-progress');
+  await page.waitForTimeout(250);
+  expect(await preview.getAttribute('data-particle-seed-progress')).toBe(stopped);
+  await page.getByRole('button',{name:'3Dを再生'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:10000});
+  await category(page,'図形');
+  await page.getByLabel('シード変更時に粒子を再集合').uncheck();
+  await page.getByRole('button',{name:'ランダムシードを生成'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
+  expect(errors).toEqual([]);
+});
+
+test('automatic standby seed change uses the same particle morph',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await start(page);
+  await page.getByLabel('PARTICLE MODEを有効化').check();
+  await category(page,'アニメーション');
+  await page.getByLabel('3D待機画面モードを有効化').check();
+  const preview=page.getByTestId('three-preview');
+  const before=await page.getByTestId('current-seed').textContent();
+  await page.getByRole('button',{name:'今すぐ次の3Dシードへ'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
+  expect(await page.getByTestId('current-seed').textContent()).not.toBe(before);
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:12000});
+  expect(errors).toEqual([]);
+});
