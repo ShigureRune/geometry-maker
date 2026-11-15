@@ -217,13 +217,13 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     uDust:{value:35},uBar:{value:0},uCore:{value:.75},
     uBulge:{value:new Vector3()},uDisk:{value:new Vector3()},
     uYoung:{value:new Vector3()},uHii:{value:new Vector3()},
-    uType:{value:0},uExtraA:{value:[.64,.12,.42,.68]},uExtraB:{value:[.55,.7,.9,.45]},uTidal:{value:.65},
+    uType:{value:GALAXY_TYPES.indexOf(options.galaxyType)},uExtraA:{value:[.64,.12,.42,.68]},uExtraB:{value:[.55,.7,.9,.45]},uTidal:{value:.65},
     uOldOrientation:{value:0},uOldHanded:{value:1},uOldArms:{value:2},
     uOldTwist:{value:1.5},uOldWidth:{value:1.25},
     uOldDust:{value:35},uOldBar:{value:0},uOldCore:{value:.75},
     uOldBulge:{value:new Vector3()},uOldDisk:{value:new Vector3()},
     uOldYoung:{value:new Vector3()},uOldHii:{value:new Vector3()},
-    uOldType:{value:0},uOldExtraA:{value:[.64,.12,.42,.68]},
+    uOldType:{value:GALAXY_TYPES.indexOf(options.galaxyType)},uOldExtraA:{value:[.64,.12,.42,.68]},
     uOldExtraB:{value:[.55,.7,.9,.45]},uOldTidal:{value:.65},
   }),[]);
   useLayoutEffect(()=>{
