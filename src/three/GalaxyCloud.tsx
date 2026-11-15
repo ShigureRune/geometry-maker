@@ -14,6 +14,8 @@ attribute float aSize;
 attribute float aSpin;
 attribute float aPhase;
 attribute float aCore;
+attribute float aKind;
+attribute float aOpacity;
 uniform float uTime;
 uniform float uRotationSpeed;
 uniform float uEntrance;
@@ -24,6 +26,7 @@ uniform float uDpr;
 varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
+varying float vKind;
 void main(){
   float spin=aSpin*uRotationSpeed*uTime;
   float c=cos(spin),s=sin(spin);
@@ -38,24 +41,26 @@ void main(){
   vec4 mvPosition=modelViewMatrix*vec4(finalPos,1.0);
   gl_Position=projectionMatrix*mvPosition;
   float distanceScale=clamp(21.0/max(0.5,-mvPosition.z),0.45,3.0);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.4,1.0,21.0);
+  gl_PointSize=clamp(aSize*uDpr*distanceScale*1.9,1.0,44.0);
   vColor=mix(aFromColor,aColor,fade);
   vCore=aCore;
-  vOpacity=uMorphEnabled>0.5?1.0:uEntrance;
+  vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
+  vKind=aKind;
 }
 `;
 const fragmentShader=String.raw`
 varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
+varying float vKind;
 uniform float uGlow;
 void main(){
   float dist=length(gl_PointCoord-vec2(0.5));
-  float halo=exp(-dist*dist*16.0);
-  float center=1.0-smoothstep(0.06,0.25,dist);
-  float alpha=(halo*0.36+center*0.72)*vOpacity;
-  if(alpha<0.012)discard;
-  vec3 rgb=vColor*(0.86+vCore*uGlow*1.8);
+  float halo=exp(-dist*dist*(vKind>0.5?7.0:22.0));
+  float center=1.0-smoothstep(0.035,0.23,dist);
+  float alpha=(vKind>0.5?halo*0.14:(halo*0.16+center*0.60))*vOpacity;
+  if(alpha<0.008)discard;
+  vec3 rgb=vColor*(0.96+vCore*uGlow*0.68);
   gl_FragColor=vec4(rgb,alpha);
 }
 `;
@@ -95,7 +100,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
 }){
   const options=settings.galaxy??galaxyDefaults;
   const data=useMemo(()=>generateGalaxy(seed,options,low),[
-    seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,
+    seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,options.armWidth,options.barred,
   ]);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
@@ -110,6 +115,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     buffer.setAttribute('aSpin',new BufferAttribute(data.spins,1));
     buffer.setAttribute('aPhase',new BufferAttribute(data.phases,1));
     buffer.setAttribute('aCore',new BufferAttribute(data.cores,1));
+    buffer.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
+    buffer.setAttribute('aKind',new BufferAttribute(data.kinds,1));
     // Readable buffers: previous GPU frame is reproduced by the CPU snapshot
     // at seed switches, then the shader smoothly interpolates into new targets.
     buffer.setAttribute('aFrom',new BufferAttribute(new Float32Array(data.positions),3));
@@ -165,8 +172,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   },[seed,restartKey,data,geometry,options.rotationSpeed,options.seedTransition,options.transitionSeconds,
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
-  return <points name="galaxy-mode-cloud" geometry={geometry} frustumCulled={false}>
-    <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
-      uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
-  </points>;
+  return <group rotation={[options.inclination*Math.PI/180,0,0]}>
+    <points name="galaxy-mode-cloud" geometry={geometry} frustumCulled={false}>
+      <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
+        uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
+    </points>
+  </group>;
 }

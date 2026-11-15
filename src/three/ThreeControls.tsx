@@ -120,14 +120,29 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </label>
       {settings.voidMode?.enabled&&<p className="help">VOIDモードをOFFにすると銀河を生成できます。</p>}
       {galaxy.enabled&&<>
+        <div className="three-kind-presets">
+          <button type="button" onClick={()=>onChange({...settings,galaxy:{...galaxy,
+            arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,
+            inclination:23,barred:false,count:Math.max(galaxy.count,18000)}})}>
+            観測写真風（2本腕）に整える
+          </button>
+        </div>
         <ThreeRange id="galaxy-count" label="星の数" value={galaxy.count} min={1000} max={30000} step={500} unit="個"
           onChange={count=>onChange({...settings,galaxy:{...galaxy,count}})}/>
         <ThreeRange id="galaxy-arms" label="螺旋腕の数" value={galaxy.arms} min={2} max={8} step={1} unit="本"
           onChange={arms=>onChange({...settings,galaxy:{...galaxy,arms}})}/>
         <ThreeRange id="galaxy-twist" label="渦の巻き込み" value={galaxy.twist} min={.4} max={4} step={.1}
           onChange={twist=>onChange({...settings,galaxy:{...galaxy,twist}})}/>
+        <ThreeRange id="galaxy-arm-width" label="腕の太さ・広がり" value={galaxy.armWidth} min={.5} max={2.5} step={.05}
+          onChange={armWidth=>onChange({...settings,galaxy:{...galaxy,armWidth}})}/>
         <ThreeRange id="galaxy-radius" label="銀河の広がり" value={galaxy.radius} min={3} max={10} step={.5}
           onChange={radius=>onChange({...settings,galaxy:{...galaxy,radius}})}/>
+        <ThreeRange id="galaxy-inclination" label="円盤の傾き" value={galaxy.inclination} min={0} max={75} step={5} unit="°"
+          onChange={inclination=>onChange({...settings,galaxy:{...galaxy,inclination}})}/>
+        <label className="three-checkbox"><input type="checkbox" aria-label="棒状渦巻銀河にする"
+          checked={galaxy.barred} onChange={event=>onChange({...settings,galaxy:{...galaxy,barred:event.target.checked}})}/>
+          中心を棒状にする
+        </label>
         <ThreeRange id="galaxy-core" label="中心核の発光" value={galaxy.coreGlow} min={0} max={200} step={10} unit="%"
           onChange={coreGlow=>onChange({...settings,galaxy:{...galaxy,coreGlow}})}/>
         <ThreeRange id="galaxy-dust" label="星間ダスト" value={galaxy.dust} min={0} max={60} step={5} unit="%"
@@ -148,7 +163,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         {galaxy.seedTransition&&<ThreeRange id="galaxy-transition" label="銀河切替時間" value={galaxy.transitionSeconds}
           min={.5} max={15} step={.5} unit="秒"
           onChange={transitionSeconds=>onChange({...settings,galaxy:{...galaxy,transitionSeconds}})}/>}
-        <HelpInfo>中心核・2〜8本の螺旋腕・星間ダストを1つのGPU描画で生成します。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
+        <HelpInfo>ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
       </>}
     </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
