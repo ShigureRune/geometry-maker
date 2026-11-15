@@ -35,6 +35,7 @@ import {VoidObjects} from './VoidObjects';
 import {isVoidWeb,visibleVoidObjects,voidWireSteps,matchVoidObjects} from './void-web-runtime';
 import {VoidDepth} from './VoidDepth';
 import {Hybrid2DPlane,type Hybrid2DArtwork} from './Hybrid2DPlane';
+import {ParticleCloud} from './ParticleCloud';
 import {hybrid2DDefaults,hybrid2DInstances} from './hybrid-2d';
 
 type Props = {
@@ -617,6 +618,7 @@ export default function ThreePreview(input: Props) {
   const effectiveSettings=useMemo(()=>voidRenderSettings(input.settings),[input.settings]);
   const props=effectiveSettings===input.settings?input:{...input,settings:effectiveSettings};
   const voidMode=isVoidComposition(props.composition);
+  const particleEnabled=!voidMode&&!!props.settings.particle?.enabled;
   const web=isVoidWeb(props.composition);
   const [supported] = useState(webGLAvailable), [lost, setLost] = useState(false);
   const [softwareDevice,setSoftwareDevice]=useState(false);
@@ -679,12 +681,12 @@ export default function ThreePreview(input: Props) {
     [props.skySeed,hybridOptions,low]);
   // Preserve network topology as the entire figure constellation spreads.
   const spacingFactor=threeSpacingFactor(props.settings.spacingPercent??100);
-  const edges=useMemo(()=>network.enabled?
+  const edges=useMemo(()=>network.enabled&&!particleEnabled?
     isVoidComposition(props.composition)?voidEdges(props.composition,objects):networkConnections(objects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [objects,props.composition,network.enabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
-  const previousEdges=useMemo(()=>props.transition&&network.enabled?
+    [objects,props.composition,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+  const previousEdges=useMemo(()=>props.transition&&network.enabled&&!particleEnabled?
     isVoidComposition(props.transition.fromComposition)?voidEdges(props.transition.fromComposition,previousObjects):networkConnections(previousObjects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [props.transition,previousObjects,network.enabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+    [props.transition,previousObjects,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
   const routes=useMemo(()=>web?voidWireSteps(objects,edges):undefined,[web,objects,edges]);
   const oldRoutes=useMemo(()=>web?voidWireSteps(previousObjects,previousEdges):undefined,[web,previousObjects,previousEdges]);
   const widths=useMemo(()=>web?edges.map(e=>((e as {width?:number}).width??1)*(low?1:2.7)):undefined,[web,edges,low]);
@@ -699,13 +701,14 @@ export default function ThreePreview(input: Props) {
   const previousCelestial=useMemo(()=>props.transition&&!voidMode?
     spaceCelestialBodies(generateCelestialBodies(props.transition.fromSourceComposition,celestial,props.density),props.settings.spacingPercent??100):[],
     [props.transition,voidMode,celestial,props.density,props.settings.spacingPercent]);
-  const outlines=useOutlineGeometry(neon.enabled&&!voidMode,low);
+  const outlines=useOutlineGeometry(neon.enabled&&!voidMode&&!particleEnabled,low);
   const onLost = useMemo(() => () => {props.onReady(false); setLost(true);}, [props.onReady]);
   if (!supported || lost) return <div className="three-fallback" role="alert"><h3>{lost ? '3D描画が中断されました' : 'この環境では3Dを表示できません'}</h3><p>WebGL 2対応ブラウザとハードウェアアクセラレーションが必要です。2Dモードは引き続き利用できます。中断した場合は軽量設定で3Dモードを開き直してください。</p></div>;
   return <div ref={progressHost} className="three-preview" data-testid="three-preview" data-quality={low ? 'low' : 'high'} data-object-count={objects.length}
     data-void-mode={web?'web':voidMode?'prototype':'off'} data-void-filaments={isVoidComposition(props.composition)?props.composition.voidGraph.filaments.length:0}
     data-void-knots={web?objects.filter(o=>o.role==='primary').length:undefined} data-void-candidates={web?props.composition.objects.length:undefined}
     data-network-count={edges.length} data-network-mode={network.mode}
+    data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
     data-hybrid-2d={hybridOptions.enabled?'on':'off'}
     data-hybrid-2d-count={hybridOptions.enabled?Math.min(hybridInstances.length,props.hybridArtworks?.length??0):0}
     data-neural-signals={network.enabled&&network.mode==='neural'&&network.animation==='signal'?'on':'off'}
@@ -750,7 +753,8 @@ export default function ThreePreview(input: Props) {
         <Hybrid2DPlane key={artwork.seed} artwork={artwork} options={hybridOptions}
           index={index} instance={hybridInstances[index]} multiple={hybridInstances.length>1}
           seconds={seconds} low={low}/>)}
-      {voidMode?<VoidObjects web={web} objects={objects} previous={previousObjects} matches={matches} settings={props.settings} background={props.background}
+      {particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}/>:
+      voidMode?<VoidObjects web={web} objects={objects} previous={previousObjects} matches={matches} settings={props.settings} background={props.background}
         visualTheme={props.visualTheme} low={low} seconds={seconds} seed={props.skySeed} skipEntrance={props.skipEntrance} transition={props.transition}/>:
       props.transition ? props.transition.mode==='morph'?
         matches.map(match=><group key={match.id}>
