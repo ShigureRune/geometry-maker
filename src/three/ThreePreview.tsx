@@ -624,6 +624,10 @@ export default function ThreePreview(input: Props) {
   const galaxyDarkBackground=galaxyEnabled&&(props.settings.galaxy??galaxyDefaults).darkBackground;
   const galaxyBackground=galaxyDarkBackground
     ?{...props.background,mode:'solid' as const,solid:'#050917'}:props.background;
+  const galaxyTransition=useMemo(()=>galaxyDarkBackground&&props.transition?{
+    ...props.transition,
+    fromBackground:{...props.transition.fromBackground,mode:'solid' as const,solid:'#050917'},
+  }:props.transition,[galaxyDarkBackground,props.transition]);
   const particleEnabled=!voidMode&&!galaxyEnabled&&!!props.settings.particle?.enabled;
   const web=isVoidWeb(props.composition);
   const [supported] = useState(webGLAvailable), [lost, setLost] = useState(false);
@@ -827,10 +831,7 @@ export default function ThreePreview(input: Props) {
           standby={props.transition?{transition:props.transition,matches}:undefined}
           completionOverride={signalCompletionOverride}/>}
       <SceneRuntime {...props} background={galaxyBackground}
-        transition={galaxyDarkBackground&&props.transition?{
-          ...props.transition,
-          fromBackground:{...props.transition.fromBackground,mode:'solid',solid:'#050917'},
-        }:props.transition}
+        transition={galaxyTransition}
         progressHost={progressHost} low={low} seconds={seconds} floorSeconds={floorSeconds}
         completionFlashAt={completionFlashAt} onLost={onLost}/>
     </Canvas>
