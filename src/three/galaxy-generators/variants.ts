@@ -13,7 +13,6 @@ const COLORS:Record<GalaxySettings['palette'],{old:RGB,disk:RGB,young:RGB,hii:RG
 };
 const gaussian=(random:Random)=>random()+random()+random()+random()-2;
 const mix=(a:number,b:number,t:number)=>a*(1-t)+b*t;
-const soft=(t:number)=>Math.max(0,Math.min(1,t));
 function centerPoint(random:Random,R:number,scale:number):Point{
   const radius=R*scale*Math.sqrt(random()),a=random()*TAU;
   return {x:radius*Math.cos(a),y:radius*Math.sin(a),z:gaussian(random)*R*.025,
