@@ -34,7 +34,7 @@ export function particleSwirlDirection(seed:string):-1|1 {
 /** Smooth endpoints for seed-to-seed morph; the spiral bulges only in the middle. */
 export function particleSeedEnvelope(progress:number):{mix:number;burst:number} {
   const t=Math.min(1,Math.max(0,progress));
-  return {mix:t*t*(3-2*t),burst:Math.sin(Math.PI*t)};
+  return {mix:t*t*(3-2*t),burst:t===0||t===1?0:Math.sin(Math.PI*t)};
 }
 export function particleEase(progress:number):number {
   const t=Math.min(1,Math.max(0,progress));
