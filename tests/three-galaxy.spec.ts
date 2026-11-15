@@ -22,13 +22,19 @@ test('galaxy renders stars, responds to controls and switches cleanly to particl
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-count','3600');
-  await expect(preview).toHaveAttribute('data-galaxy-arms','4');
+  await expect(preview).toHaveAttribute('data-galaxy-arms','2');
+  await expect(preview).toHaveAttribute('data-floor-grid','off');
   const initial=await preview.locator('canvas').screenshot();
   await page.locator('#galaxy-arms').fill('6');
+  await page.locator('#galaxy-arm-width').fill('1.8');
+  await page.locator('#galaxy-inclination').fill('40');
+  await page.getByLabel('棒状渦巻銀河にする').check();
   await page.locator('#galaxy-count').fill('2000');
   await page.locator('#galaxy-palette').selectOption('blue');
   await expect(preview).toHaveAttribute('data-galaxy-arms','6');
   await expect(preview).toHaveAttribute('data-galaxy-count','2000');
+  await expect(page.getByLabel('棒状渦巻銀河にする')).toBeChecked();
+  await expect(page.locator('#galaxy-inclination')).toHaveValue('40');
   const changed=await preview.locator('canvas').screenshot();
   expect(initial.equals(changed)).toBe(false);
   await page.getByLabel('PARTICLE MODEを有効化').check();
@@ -41,17 +47,22 @@ test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await page.locator('#galaxy-arms').fill('5');
   await page.locator('#galaxy-count').fill('5000');
   await page.locator('#galaxy-palette').selectOption('gold');
+  await page.locator('#galaxy-arm-width').fill('2');
+  await page.locator('#galaxy-inclination').fill('35');
+  await page.getByLabel('棒状渦巻銀河にする').check();
   await category(page,'書き出し');
   const pending=page.waitForEvent('download');
   await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();
   const project=JSON.parse((await readFile((await (await pending).path())!)).toString('utf8'));
-  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold'});
+  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:true});
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'galaxy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project)),
   });
   await category(page,'図形');
   await expect(page.getByLabel('GALAXY MODEを有効化')).toBeChecked();
   await expect(page.locator('#galaxy-palette')).toHaveValue('gold');
+  await expect(page.getByLabel('棒状渦巻銀河にする')).toBeChecked();
+  await expect(page.locator('#galaxy-inclination')).toHaveValue('35');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
 });
 test('galaxy morphs when the seed changes and pauses with the 3D clock',async({page})=>{
