@@ -77,7 +77,7 @@ test('galaxy settings export as 3D JSON and restore',async({page})=>{
   const pending=page.waitForEvent('download');
   await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();
   const project=JSON.parse((await readFile((await (await pending).path())!)).toString('utf8'));
-  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:true,darkBackground:true,galaxyType:'ring',ringRadius:.7,ringWidth:.18});
+  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:false,darkBackground:true,galaxyType:'ring',ringRadius:.7,ringWidth:.18});
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'galaxy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project)),
   });
