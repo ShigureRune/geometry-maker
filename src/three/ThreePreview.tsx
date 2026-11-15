@@ -621,6 +621,9 @@ export default function ThreePreview(input: Props) {
   const props=effectiveSettings===input.settings?input:{...input,settings:effectiveSettings};
   const voidMode=isVoidComposition(props.composition);
   const galaxyEnabled=!voidMode&&!!props.settings.galaxy?.enabled;
+  const galaxyDarkBackground=galaxyEnabled&&(props.settings.galaxy??galaxyDefaults).darkBackground;
+  const galaxyBackground=galaxyDarkBackground
+    ?{...props.background,mode:'solid' as const,solid:'#050917'}:props.background;
   const particleEnabled=!voidMode&&!galaxyEnabled&&!!props.settings.particle?.enabled;
   const web=isVoidWeb(props.composition);
   const [supported] = useState(webGLAvailable), [lost, setLost] = useState(false);
@@ -713,7 +716,7 @@ export default function ThreePreview(input: Props) {
     data-network-count={edges.length} data-network-mode={network.mode}
     data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
-    data-galaxy-mode={galaxyEnabled?'on':'off'}
+    data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
     data-galaxy-arms={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).arms:0}
     data-galaxy-seed-phase={galaxyEnabled?'settled':'off'} data-galaxy-seed-progress="1.000"
@@ -823,7 +826,12 @@ export default function ThreePreview(input: Props) {
           background={props.background} low={low} seconds={seconds} skipEntrance={props.skipEntrance}
           standby={props.transition?{transition:props.transition,matches}:undefined}
           completionOverride={signalCompletionOverride}/>}
-      <SceneRuntime {...props} progressHost={progressHost} low={low} seconds={seconds} floorSeconds={floorSeconds}
+      <SceneRuntime {...props} background={galaxyBackground}
+        transition={galaxyDarkBackground&&props.transition?{
+          ...props.transition,
+          fromBackground:{...props.transition.fromBackground,mode:'solid',solid:'#050917'},
+        }:props.transition}
+        progressHost={progressHost} low={low} seconds={seconds} floorSeconds={floorSeconds}
         completionFlashAt={completionFlashAt} onLost={onLost}/>
     </Canvas>
 
