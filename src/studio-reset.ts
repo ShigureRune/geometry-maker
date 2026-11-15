@@ -1,7 +1,9 @@
+import {STUDIO_AUTOSAVE_KEY} from './studio-autosave';
+
 /** The studio's own persisted draft and UI preferences.
  * Never clear the entire localStorage origin: unrelated projects may live there. */
 export const STUDIO_RESET_KEYS=[
-  'geometry-maker-studio-autosave-v1',
+  STUDIO_AUTOSAVE_KEY,
   'geometry-ui-theme',
   'geometry-studio-sidebar-width',
 ] as const;
