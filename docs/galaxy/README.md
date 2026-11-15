@@ -34,3 +34,22 @@ npm run build
 npx playwright test tests/three-galaxy.spec.ts
 
 スマホやGPU性能の低い環境では3D描画品質を「軽量」にすると恒星表示数が3,600個以下になります。設定JSON上の希望恒星数は維持されます。
+
+
+## v2 実際の渦巻銀河に近い構造
+実際のNGC 1566、M51、NGC 1300などのハッブル画像とNASAの解説を参考にした、見た目を優先する近似モデルです。重力を解くN体シミュレーションではありません。
+
+- **対数螺旋の主腕**: 以前の狭く何重にも巻いた同心円状の分布を廃止。デフォルトは「2本の幅広い螺旋腕」で、巻き込みを対数半径に応じて制御します。小さい副腕・分岐・羽毛状のむらも加えます。
+- **星の円盤**: 腕の間を空白にせず、古い星を広く分布させる指数関数に近い半径分布を追加。星の数を維持しつつ、銀河の連続したシルエットにします。
+- **暖色の中心バルジ**: 小さな黄〜薄橙の中心領域と厚みのある古い星。中心のサイズ・不透明度・発光強度を抑えて大きな白飛びを回避。
+- **青い星団・ピンクの星形成領域**: 単純に星を均等配置せず、腕上の複数の星団中心にまとめて配置。大型の弱いスプライトで淡いガス雲を近似します。
+- **暗いダストレーン**: 螺旋腕に沿う一部の星の発光を弱め、暗い曲線が現れるようにします。加算描画の制約上、真の光学的吸収・遮蔽はシミュレートしていません。
+- **角度と棒状構造**: 銀河円盤の傾斜（初期23°）、腕の太さ、棒状銀河のON/OFFを追加。棒状時は中心付近の星を引き延ばし、腕の起点を棒の端側に寄せます。
+- **床を隠す**: 銀河モード中だけ3D床グリッドを描かず、設定値はそのまま保持。通常モードに戻ると元の床設定へ復元。
+- **互換性**: 過去の3D設定JSONに追加項目がなくてもデフォルト値でロード可能。既存のPARTICLE MODE・VOID・3D保存/動画は維持。
+
+参考資料（NASA/ESA公式）:
+- https://science.nasa.gov/mission/hubble/science/universe-uncovered/hubble-galaxies/
+- https://science.nasa.gov/asset/webb/webb-and-hubbles-views-of-spiral-galaxy-ngc-1566/
+- https://science.nasa.gov/asset/hubble/out-of-this-whirl-the-whirlpool-galaxy-m51-and-companion-galaxy/
+- https://science.nasa.gov/asset/hubble/spiral-galaxy-ngc-1300/
