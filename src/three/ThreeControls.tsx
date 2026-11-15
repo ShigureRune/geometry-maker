@@ -4,6 +4,7 @@ import {visibilityDefaults,type ThreeVisibilitySettings} from './visibility';
 import {entranceDefaults,threeEntranceStyle,type ThreeEntranceSettings} from './entrance';
 import {THREE_KINDS,THREE_CLASSIC_KINDS,THREE_NEW_KINDS,THREE_SPACING_DEFAULT,type ThreeKind} from './model';
 import {CELESTIAL_KINDS, CELESTIAL_LABELS, celestialDefaults} from './celestial';
+import {particleDefaults} from './particle';
 
 export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
   sphere:'球体',cube:'立方体',torus:'トーラス',
@@ -24,6 +25,7 @@ export function ThreeRange({id, label, value, min, max, step = .05, unit = '', o
 }
 export function ThreeShapeControls({settings, onChange}: Props) {
   const celestial = settings.celestial ?? celestialDefaults;
+  const particle = settings.particle ?? particleDefaults;
   return <section className="control-section three-controls">
     <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
       <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
@@ -75,6 +77,31 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </div>
       <HelpInfo>5種類の主要天体はほぼ同じ直径、衛星は惑星の約1/4です。ブラックホールには軽量な疑似重力レンズ、中性子星には高速回転する2方向のビームを付けます。天体は既存の13種類と独立して表示されます。</HelpInfo>
     </fieldset>
+    <fieldset className="three-kind-fieldset" data-testid="particle-mode-controls">
+      <legend>PARTICLE MODE · 渦巻き集合</legend>
+      <label className="three-checkbox">
+        <input type="checkbox" aria-label="PARTICLE MODEを有効化" checked={particle.enabled}
+          disabled={!!settings.voidMode?.enabled}
+          onChange={event=>onChange({...settings,particle:{...particle,enabled:event.target.checked}})}/>
+        立体を粒子で描く
+      </label>
+      {settings.voidMode?.enabled&&<p className="help">VOIDをOFFにするとPARTICLE MODEを使用できます。</p>}
+      {particle.enabled&&<>
+        <ThreeRange id="particle-count" label="粒子数" value={particle.count} min={500} max={12000} step={500} unit="個"
+          onChange={count=>onChange({...settings,particle:{...particle,count}})}/>
+        <ThreeRange id="particle-duration" label="集合にかかる時間" value={particle.duration} min={.5} max={15} step={.1} unit="秒"
+          onChange={duration=>onChange({...settings,particle:{...particle,duration}})}/>
+        <ThreeRange id="particle-swirl" label="渦の強さ" value={particle.swirl} min={0} max={3} step={.1}
+          onChange={swirl=>onChange({...settings,particle:{...particle,swirl}})}/>
+        <ThreeRange id="particle-spread" label="最初の広がり" value={particle.spread*100} min={50} max={300} step={10} unit="%"
+          onChange={spread=>onChange({...settings,particle:{...particle,spread:spread/100}})}/>
+        <ThreeRange id="particle-height" label="最初の高さ" value={particle.height*100} min={50} max={300} step={10} unit="%"
+          onChange={height=>onChange({...settings,particle:{...particle,height:height/100}})}/>
+        <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
+          onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
+        <HelpInfo>図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。再生と動画・PNG・JSON保存には既存の3D機能を使います。</HelpInfo>
+      </>}
+    </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
     <select id="three-quality" value={settings.quality} onChange={event => onChange({...settings, quality: event.target.value as ThreeSettings['quality']})}>
       <option value="auto">自動（スマホは軽量）</option><option value="low">軽量</option><option value="high">高品質</option>
@@ -107,6 +134,7 @@ export function ThreeAnimationControls({settings, onChange, seed, onReplay}: Pro
     <ThreeRange id="three-speed" label="動く速さ" value={settings.speed} min={.25} max={4} step={.25} unit="倍" onChange={speed => onChange({...settings, speed})}/>
     <ThreeRange id="three-float" label="浮かぶ大きさ" value={settings.floatAmount} min={0} max={2} step={.1} onChange={floatAmount => onChange({...settings, floatAmount})}/>
     <ThreeRange id="three-rotation" label="回転の大きさ" value={settings.rotationAmount} min={0} max={2} step={.1} onChange={rotationAmount => onChange({...settings, rotationAmount})}/>
+    {settings.particle?.enabled&&<button type="button" onClick={onReplay}>粒子集合を最初から再生</button>}
     <fieldset className="three-kind-fieldset" data-testid="three-entrance-controls"><legend>最初の登場</legend>
       <label className="three-checkbox"><input type="checkbox" aria-label="3D図形を順番に登場させる" checked={entrance.enabled}
         onChange={event=>onChange({...settings,entrance:{...entrance,enabled:event.target.checked}})}/>
