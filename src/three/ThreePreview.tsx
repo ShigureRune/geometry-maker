@@ -734,7 +734,7 @@ export default function ThreePreview(input: Props) {
     data-camera-auto-rotate={(props.settings.standby??standbyDefaults).enabled&&
       (props.settings.standby??standbyDefaults).cameraAutoRotate?'on':'off'}
     data-camera-orbit-mode={(props.settings.standby??standbyDefaults).cameraOrbitMode}
-    data-floor-grid={(props.settings.floorGrid??floorGridDefaults).enabled?'on':'off'} data-floor-style={(props.settings.floorGrid??floorGridDefaults).style}
+    data-floor-grid={!galaxyEnabled&&(props.settings.floorGrid??floorGridDefaults).enabled?'on':'off'} data-floor-style={(props.settings.floorGrid??floorGridDefaults).style}
       data-celestial-count={celestialObjects.length}
     data-sky-kind={(props.settings.sky??skyDefaults).kind} data-navigation="unified">
     <Canvas frameloop="demand" dpr={low ? 1 : [1, 1.75]} shadows={!low} camera={{position: [0, 1, 18], fov: 40, near: .1, far: 1200}}
@@ -756,7 +756,7 @@ export default function ThreePreview(input: Props) {
         castShadow={!low} shadow-mapSize-width={1024} shadow-mapSize-height={1024} shadow-bias={-.001}/>
       <directionalLight position={[-6, -2, 4]} intensity={props.settings.lightIntensity * .7} color={props.background.figureColors?.support ?? '#a4caff'}/>
       <pointLight position={[2, 4, -4]} intensity={props.settings.lightIntensity * 12} color={props.background.figureColors?.accent ?? '#d5b5ff'}/>
-      <FloorGrid grid={props.settings.floorGrid??floorGridDefaults} sceneHeight={props.composition.height} seconds={floorSeconds} view={props.view} low={low}/>
+      {!galaxyEnabled&&<FloorGrid grid={props.settings.floorGrid??floorGridDefaults} sceneHeight={props.composition.height} seconds={floorSeconds} view={props.view} low={low}/>} 
       {hybridOptions.enabled&&props.hybridArtworks?.slice(0,hybridInstances.length).map((artwork,index)=>
         <Hybrid2DPlane key={artwork.seed} artwork={artwork} options={hybridOptions}
           index={index} instance={hybridInstances[index]} multiple={hybridInstances.length>1}
