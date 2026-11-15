@@ -66,7 +66,10 @@ function createParticleData(
     if(counts[objectIndex]===0)return;
     const random=seededRandom('particle-v1:'+seed+':'+object.id+':'+object.kind);
     const surface=surfaceGeometry(object.kind,low);
-    const sampler=new MeshSurfaceSampler(new Mesh(surface)).setRandomGenerator(random).build();
+    const sampler=new MeshSurfaceSampler(new Mesh(surface));
+    // Runtime Three.js provides this API; the pinned @types/three omits its declaration.
+    (sampler as MeshSurfaceSampler & {setRandomGenerator:(randomFn:()=>number)=>MeshSurfaceSampler}).setRandomGenerator(random);
+    sampler.build();
     const color=new Color(background.figureColors?.[object.role]??colorFallback[object.role]);
     for(let j=0;j<counts[objectIndex];j++,index++){
       sampler.sample(position);
