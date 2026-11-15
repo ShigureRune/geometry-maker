@@ -709,6 +709,7 @@ export default function ThreePreview(input: Props) {
     data-void-knots={web?objects.filter(o=>o.role==='primary').length:undefined} data-void-candidates={web?props.composition.objects.length:undefined}
     data-network-count={edges.length} data-network-mode={network.mode}
     data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
+    data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
     data-hybrid-2d={hybridOptions.enabled?'on':'off'}
     data-hybrid-2d-count={hybridOptions.enabled?Math.min(hybridInstances.length,props.hybridArtworks?.length??0):0}
     data-neural-signals={network.enabled&&network.mode==='neural'&&network.animation==='signal'?'on':'off'}
@@ -753,7 +754,8 @@ export default function ThreePreview(input: Props) {
         <Hybrid2DPlane key={artwork.seed} artwork={artwork} options={hybridOptions}
           index={index} instance={hybridInstances[index]} multiple={hybridInstances.length>1}
           seconds={seconds} low={low}/>)}
-      {particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}/>:
+      {particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}
+         restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
       voidMode?<VoidObjects web={web} objects={objects} previous={previousObjects} matches={matches} settings={props.settings} background={props.background}
         visualTheme={props.visualTheme} low={low} seconds={seconds} seed={props.skySeed} skipEntrance={props.skipEntrance} transition={props.transition}/>:
       props.transition ? props.transition.mode==='morph'?
