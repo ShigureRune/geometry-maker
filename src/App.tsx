@@ -442,7 +442,14 @@ export default function App() {
         </section>
         {renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
-        {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={setThreeSettings}/>
+        {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
+          // Switching on the mode starts its one-shot assembly at t=0; ordinary
+          // setting sliders preserve the current scene time.
+          if(!threeSettings.particle?.enabled&&next.particle?.enabled&&next.animation){
+            setStandbyTransition(null);setStandbyFinishedSeed(null);setRegenerations(n=>n+1);
+          }
+          setThreeSettings(next);
+        }}/>
           <Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
             sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/></>}
 
