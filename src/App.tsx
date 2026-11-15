@@ -40,12 +40,16 @@ import {hybrid2DDefaults,hybrid2DSeed} from './three/hybrid-2d';
 import {FloorGridControls} from './three/FloorGridControls';
 import {SkyControls} from './three/SkyControls';
 import {VoidModeControls} from './three/VoidModeControls';
+import {StudioResetControls} from './StudioResetControls';
 import {generateVoidComposition,isVoidComposition,spaceVoidComposition} from './three/void-graph';
 import {generateVoidWeb} from './three/void-web';
-import {VOID_WEB_VERSION,voidDefaults,voidRenderSettings} from './three/void-settings';
+import {VOID_WEB_VERSION,voidDefaults,voidWebDefaults,voidRenderSettings} from './three/void-settings';
+import {galaxyDefaults} from './three/galaxy';
+import {particleDefaults} from './three/particle';
 import {floorGridDefaults} from './three/floor-grid';
 import type {ThreeProject} from './three/project';
 import {loadStudioAutosave,saveStudioAutosave,type StudioAutosave} from './studio-autosave';
+import {clearStudioPreferences} from './studio-reset';
 import type {ProjectSettings} from './settings';
 import './three/three.css';
 import { ExportPanel } from './ExportPanel';
@@ -60,6 +64,7 @@ export default function App() {
   // Read once, synchronously, before any state initializer or effect can
   // overwrite the last draft with a fresh random seed.
   const saved=useMemo(loadStudioAutosave,[]);
+  const resetting=useRef(false);
   const lastProject=saved?.twoD;
   const [renderMode,setRenderMode]=useState<'2d'|'3d'>(saved?.mode??'2d');
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
@@ -210,6 +215,7 @@ export default function App() {
   const playback=usePlayback(animation);
   useEffect(()=>{
     const store=()=>{
+      if(resetting.current)return;
       // Save both editor modes using the same, existing import/export schemas.
       // Resolution controls are separate outputs, not part of this live draft.
       const twoD:ProjectSettings={
@@ -265,6 +271,77 @@ export default function App() {
   useEffect(()=>{playback.restart(true);},[]);
   const cues=useMemo(()=>schedule(candidates,seed,version),[candidates,seed,version]);
   function replayOnRegenerate(){if(renderMode==='2d'&&animation.animationEnabled)playback.restart(true);}
+  function confirmReset(message:string):boolean{
+    return !threeExportBusy&&!standbyTransition&&window.confirm(message);
+  }
+  function resetAllSettings(){
+    if(!confirmReset('2D・3D・シード・配色・画面設定と、この端末の自動保存をすべて初期化します。元に戻せません。実行しますか？'))return;
+    // pagehide/visibilitychange handlers normally autosave; prevent the old
+    // draft from being written back AFTER we have removed its keys.
+    resetting.current=true;
+    try{
+      clearStudioPreferences(window.localStorage);
+      window.location.reload();
+    }catch{
+      resetting.current=false;
+      window.alert('端末の保存データを消去できませんでした。ブラウザの保存設定を確認してください。');
+    }
+  }
+  function resetTwoDSettings(){
+    if(!confirmReset('2D設定を初期化しますか？ シードは保持します。配色・背景・縦横比・密度は3Dとも共通なので、そちらも変わります。'))return;
+    const colors=reseedColors({...legacyColors(initialBackground),mode:'seed'},seed);
+    setVersion(ALGORITHM_VERSION);
+    setEnabledShapeKinds([...ALL_SHAPE_KINDS]);
+    setMagicSettings({...magicDefaults});
+    setAmbient({...ambientDefaults});
+    setAnimation({...defaults,animationEnabled:true});
+    setTextOverlay({...textOverlayDefaults});
+    setVisualTheme('standard');
+    setColorSettings(colors);
+    setBackground({...coloredBackground({...initialBackground,lineWidth:125},colors),lineWidth:125});
+    setRatio('16:9');setDensity(50);lastGlow.current=100;
+    setCategory('shapes');
+    playback.restart(true);
+  }
+  function resetThreeDSettings(){
+    if(!confirmReset('3D設定（GALAXY・PARTICLE・VOID・床・空・光・カメラ・アニメーションなど）をすべて初期化しますか？ シードと2D設定は保持します。'))return;
+    const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setThreeSettings({...threeDefaults,animation:!reduce,
+      entrance:{...threeDefaults.entrance!,enabled:!reduce},
+      galaxy:{...galaxyDefaults},particle:{...particleDefaults}});
+    beforeVoid.current=null;threeView.current=undefined;
+    setThreeReady(false);setVoidVisibleCount(0);
+    setStandbyTransition(null);setStandbyFinishedSeed(null);
+    setThreeRestore(current=>({serial:current.serial+1,time:0,floorTime:0}));
+    setRegenerations(n=>n+1);
+  }
+  function resetGalaxySettings(){
+    if(!confirmReset('GALAXYの設定を初期化しますか？ 現在のシードと他のモード設定は保持します。'))return;
+    setThreeSettings(current=>({...current,galaxy:{...galaxyDefaults,enabled:current.galaxy?.enabled??false}}));
+    setStandbyTransition(null);setStandbyFinishedSeed(null);
+    if(threeSettings.galaxy?.enabled)setRegenerations(n=>n+1);
+  }
+  function resetParticleSettings(){
+    if(!confirmReset('PARTICLEの設定を初期化しますか？ 現在のシードと他のモード設定は保持します。'))return;
+    setThreeSettings(current=>({...current,particle:{...particleDefaults,enabled:current.particle?.enabled??false}}));
+    setStandbyTransition(null);setStandbyFinishedSeed(null);
+    if(threeSettings.particle?.enabled)setRegenerations(n=>n+1);
+  }
+  function resetVoidSettings(){
+    if(!confirmReset('VOIDの設定を初期化しますか？ 大規模コズミックウェブの初期設定に戻ります。現在のシードは保持します。'))return;
+    const wasEnabled=!!threeSettings.voidMode?.enabled;
+    setThreeSettings(current=>({...current,voidMode:{
+      ...voidWebDefaults,enabled:current.voidMode?.enabled??false,
+      network:{...voidWebDefaults.network},neon:{...voidWebDefaults.neon},
+    }}));
+    setStandbyTransition(null);setStandbyFinishedSeed(null);
+    if(wasEnabled){
+      beforeVoid.current=null;threeView.current=undefined;
+      setThreeReady(false);
+      setThreeRestore(current=>({serial:current.serial+1,time:0,floorTime:0}));
+      setRegenerations(n=>n+1);
+    }
+  }
   function switchRenderMode(next:'2d'|'3d'){
     if(threeExportBusy||next===renderMode)return;
     if(next==='2d'){setStandbyTransition(null);setStandbyFinishedSeed(null);}
@@ -472,6 +549,10 @@ export default function App() {
           </div>
           <input id="density" type="range" min="0" max="100" step="5" value={density} onChange={e=>setDensity(Number(e.target.value))}/> 
         </section>
+        <StudioResetControls mode={renderMode} disabled={threeExportBusy||!!standbyTransition}
+          onResetAll={resetAllSettings} onReset2D={resetTwoDSettings}
+          onReset3D={resetThreeDSettings} onResetGalaxy={resetGalaxySettings}
+          onResetParticle={resetParticleSettings} onResetVoid={resetVoidSettings}/>
         <button type="button" className="generate-button" aria-label="同じ設定で再生成" onClick={() => {setStandbyFinishedSeed(null);setRegenerations(n => n + 1);committedSeed.current=seed;replayOnRegenerate();}}><span aria-hidden="true">↻</span> 同じ設定で再生成</button>
         <p className="local-note" data-testid="autosave-status" role="status">
           <span aria-hidden="true">◉</span>
