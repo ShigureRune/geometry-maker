@@ -120,9 +120,14 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </label>
       {settings.voidMode?.enabled&&<p className="help">VOIDモードをOFFにすると銀河を生成できます。</p>}
       {galaxy.enabled&&<>
+        <label className="three-checkbox">
+          <input type="checkbox" aria-label="銀河に暗い宇宙背景を使う" checked={galaxy.darkBackground}
+            onChange={event=>onChange({...settings,galaxy:{...galaxy,darkBackground:event.target.checked}})}/>
+          暗い宇宙背景を使う（推奨）
+        </label>
         <div className="three-kind-presets">
           <button type="button" onClick={()=>onChange({...settings,galaxy:{...galaxy,
-            arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,
+            arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,darkBackground:true,
             inclination:23,barred:false,count:Math.max(galaxy.count,18000)}})}>
             観測写真風（2本腕）に整える
           </button>
@@ -163,7 +168,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         {galaxy.seedTransition&&<ThreeRange id="galaxy-transition" label="銀河切替時間" value={galaxy.transitionSeconds}
           min={.5} max={15} step={.5} unit="秒"
           onChange={transitionSeconds=>onChange({...settings,galaxy:{...galaxy,transitionSeconds}})}/>}
-        <HelpInfo>ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
+        <HelpInfo>星と光るガスの2層を描き、暗い宇宙背景と組み合わせて銀河の濃淡を再現します。ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
       </>}
     </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
