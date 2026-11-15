@@ -720,7 +720,7 @@ export default function ThreePreview(input: Props) {
     data-network-count={edges.length} data-network-mode={network.mode}
     data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
-    data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
+    data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
     data-galaxy-arms={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).arms:0}
     data-galaxy-seed-phase={galaxyEnabled?'settled':'off'} data-galaxy-seed-progress="1.000"
