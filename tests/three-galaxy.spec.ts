@@ -1,5 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
-import {readFile} from 'node:fs/promises';
+import {mkdir,readFile} from 'node:fs/promises';
 test.setTimeout(120_000);
 async function category(page:Page,name:string){
   const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
@@ -19,12 +19,26 @@ async function openGalaxy(page:Page){
 }
 test('galaxy renders stars, responds to controls and switches cleanly to particles',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  const shaderErrors:string[]=[];
+  page.on('console',message=>{
+    if(message.type()==='error'&&/shader error|shader compile|webglprogram/i.test(message.text()))
+      shaderErrors.push(message.text());
+  });
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-count','3600');
   await expect(preview).toHaveAttribute('data-galaxy-arms','2');
+  await expect(preview).toHaveAttribute('data-galaxy-space-background','on');
+  await page.getByLabel('銀河に暗い宇宙背景を使う').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-space-background','off');
+  await page.getByLabel('銀河に暗い宇宙背景を使う').check();
+  await expect(preview).toHaveAttribute('data-galaxy-space-background','on');
   await expect(preview).toHaveAttribute('data-floor-grid','off');
-  const initial=await preview.locator('canvas').screenshot();
+  // Retain a real browser rendering for visual QA, rather than inferring
+  // galaxy realism from settings and geometric unit tests alone.
+  await page.waitForTimeout(500);
+  await mkdir('test-results',{recursive:true});
+  const initial=await preview.locator('canvas').screenshot({path:'test-results/galaxy-v3-visible-disk.png'});
   await page.locator('#galaxy-arms').fill('6');
   await page.locator('#galaxy-arm-width').fill('1.8');
   await page.locator('#galaxy-inclination').fill('40');
@@ -44,6 +58,7 @@ test('galaxy renders stars, responds to controls and switches cleanly to particl
   await page.getByLabel('PARTICLE MODEを有効化').check();
   await expect(preview).toHaveAttribute('data-galaxy-mode','off');
   await expect(preview).toHaveAttribute('data-particle-mode','on');
+  expect(shaderErrors).toEqual([]);
   expect(errors).toEqual([]);
 });
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
@@ -58,7 +73,7 @@ test('galaxy settings export as 3D JSON and restore',async({page})=>{
   const pending=page.waitForEvent('download');
   await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();
   const project=JSON.parse((await readFile((await (await pending).path())!)).toString('utf8'));
-  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:true});
+  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:true,darkBackground:true});
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'galaxy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project)),
   });

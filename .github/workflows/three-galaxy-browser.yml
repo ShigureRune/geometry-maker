@@ -23,6 +23,13 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/three-galaxy.spec.ts
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: galaxy-v3-visual-proof
+          path: test-results/galaxy-v3-visible-disk.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: galaxy-mode-browser-failures

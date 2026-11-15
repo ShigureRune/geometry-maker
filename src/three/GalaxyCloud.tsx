@@ -1,6 +1,7 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
+import {GalaxyDiffuse} from './GalaxyDiffuse';
 import {
   galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -41,7 +42,7 @@ void main(){
   vec4 mvPosition=modelViewMatrix*vec4(finalPos,1.0);
   gl_Position=projectionMatrix*mvPosition;
   float distanceScale=clamp(21.0/max(0.5,-mvPosition.z),0.45,3.0);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale*1.9,1.0,44.0);
+  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,1.5,52.0);
   vColor=mix(aFromColor,aColor,fade);
   vCore=aCore;
   vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
@@ -58,9 +59,9 @@ void main(){
   float dist=length(gl_PointCoord-vec2(0.5));
   float halo=exp(-dist*dist*(vKind>0.5?7.0:22.0));
   float center=1.0-smoothstep(0.035,0.23,dist);
-  float alpha=(vKind>0.5?halo*0.14:(halo*0.16+center*0.60))*vOpacity;
+  float alpha=(vKind>0.5?halo*0.24:(halo*0.29+center*0.92))*min(1.0,vOpacity*1.60);
   if(alpha<0.008)discard;
-  vec3 rgb=vColor*(0.96+vCore*uGlow*0.68);
+  vec3 rgb=vColor*(1.85+vCore*uGlow*1.18);
   gl_FragColor=vec4(rgb,alpha);
 }
 `;
@@ -173,7 +174,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
-    <points name="galaxy-mode-cloud" geometry={geometry} frustumCulled={false}>
+    <GalaxyDiffuse seed={seed} options={options} seconds={seconds}
+      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}/>
+    <points name="galaxy-mode-cloud" geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
     </points>

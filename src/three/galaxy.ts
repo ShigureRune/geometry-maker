@@ -7,13 +7,13 @@ export type GalaxySettings={
   enabled:boolean;count:number;arms:number;twist:number;radius:number;
   coreGlow:number;dust:number;rotationSpeed:number;palette:GalaxyPalette;
   seedTransition:boolean;transitionSeconds:number;
-  armWidth:number;inclination:number;barred:boolean;
+  armWidth:number;inclination:number;barred:boolean;darkBackground:boolean;
 };
 export const galaxyDefaults:GalaxySettings={
   enabled:false,count:12000,arms:2,twist:1.5,radius:5.5,
   coreGlow:75,dust:35,rotationSpeed:.6,palette:'violet',
   seedTransition:true,transitionSeconds:3.5,
-  armWidth:1.25,inclination:23,barred:false,
+  armWidth:1.25,inclination:23,barred:false,darkBackground:true,
 };
 export const GALAXY_LOW_STAR_LIMIT=3600,GALAXY_HIGH_STAR_LIMIT=30000;
 export function validateGalaxySettings(value:unknown):GalaxySettings{
@@ -33,6 +33,7 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     armWidth:numberField(d.armWidth,.5,2.5,'螺旋腕の太さ'),
     inclination:numberField(d.inclination,0,75,'銀河円盤の傾き'),
     barred:booleanField(d.barred,'棒状渦巻銀河'),
+    darkBackground:booleanField(d.darkBackground,'暗い宇宙背景'),
   };
 }
 export type GalaxyData={
@@ -67,6 +68,14 @@ function wrapAngle(a:number):number{
   return Math.atan2(Math.sin(a),Math.cos(a));
 }
 const TAU=Math.PI*2;
+
+/** Match the first two random draws used by generateGalaxy.
+ * The diffuse light follows the SAME spiral orientation as the star particles. */
+export function galaxyAppearance(seed:string,theme:GalaxyPalette){
+  const random=seededRandom('galaxy-realism-v2:'+seed);
+  return {orientation:random()*TAU,handed:random()<.5?-1:1,
+    colors:PALETTES[theme]};
+}
 
 /** Logarithmic arms inspired by Hubble's grand-design spirals, with
  * an exponential old-star disk, compact bulge, blue knots and dusty lanes.
