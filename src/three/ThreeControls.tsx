@@ -97,9 +97,13 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={spread=>onChange({...settings,particle:{...particle,spread:spread/100}})}/>
         <ThreeRange id="particle-height" label="最初の高さ" value={particle.height*100} min={50} max={300} step={10} unit="%"
           onChange={height=>onChange({...settings,particle:{...particle,height:height/100}})}/>
+        <label className="three-checkbox"><input type="checkbox" aria-label="シード変更時に粒子を再集合" checked={particle.seedTransition}
+          onChange={event=>onChange({...settings,particle:{...particle,seedTransition:event.target.checked}})}/> シード変更時に渦巻いて再集合</label>
+        {particle.seedTransition&&<ThreeRange id="particle-seed-duration" label="シード切替の時間" value={particle.seedDuration} min={.5} max={15} step={.1} unit="秒"
+          onChange={seedDuration=>onChange({...settings,particle:{...particle,seedDuration}})}/>}
         <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
           onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
-        <HelpInfo>図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。再生と動画・PNG・JSON保存には既存の3D機能を使います。</HelpInfo>
+        <HelpInfo>図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。</HelpInfo>
       </>}
     </fieldset>
     <label htmlFor="three-quality">3D描画品質</label>
