@@ -152,7 +152,7 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
     positions[j]=p.x;positions[j+1]=p.y;positions[j+2]=p.z;
     const color=p.core?shades.old:p.pink?shades.hii:
       p.young?shades.young:shades.disk;
-    const luminosity=p.core?.70+random()*.40:p.cloud?.27+random()*.22:.46+random()*.75;
+    const luminosity=p.core ? .70+random()*.40 : p.cloud ? .27+random()*.22 : .46+random()*.75;
     colors[j]=Math.min(1.35,color[0]*luminosity);
     colors[j+1]=Math.min(1.35,color[1]*luminosity);
     colors[j+2]=Math.min(1.35,color[2]*luminosity);
