@@ -684,9 +684,9 @@ export default function ThreePreview(input: Props) {
   const edges=useMemo(()=>network.enabled&&!particleEnabled?
     isVoidComposition(props.composition)?voidEdges(props.composition,objects):networkConnections(objects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
     [objects,props.composition,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
-  const previousEdges=useMemo(()=>props.transition&&network.enabled?
+  const previousEdges=useMemo(()=>props.transition&&network.enabled&&!particleEnabled?
     isVoidComposition(props.transition.fromComposition)?voidEdges(props.transition.fromComposition,previousObjects):networkConnections(previousObjects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [props.transition,previousObjects,network.enabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+    [props.transition,previousObjects,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
   const routes=useMemo(()=>web?voidWireSteps(objects,edges):undefined,[web,objects,edges]);
   const oldRoutes=useMemo(()=>web?voidWireSteps(previousObjects,previousEdges):undefined,[web,previousObjects,previousEdges]);
   const widths=useMemo(()=>web?edges.map(e=>((e as {width?:number}).width??1)*(low?1:2.7)):undefined,[web,edges,low]);
