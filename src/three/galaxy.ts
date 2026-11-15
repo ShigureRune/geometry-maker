@@ -160,7 +160,7 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
       const r=Math.sqrt(random())*R*.215,angle=random()*TAU;
       x=r*Math.cos(angle);y=r*Math.sin(angle);
       if(options.barred){
-        const bx=x*1.65,by=y*.48;
+        const bx=x*(options.galaxyType==='barred_spiral'?2.5:1.65),by=y*.48;
         x=bx*Math.cos(orientation)-by*Math.sin(orientation);
         y=bx*Math.sin(orientation)+by*Math.cos(orientation);
       }
