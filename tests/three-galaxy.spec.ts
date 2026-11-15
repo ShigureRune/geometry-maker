@@ -37,6 +37,10 @@ test('galaxy renders stars, responds to controls and switches cleanly to particl
   await expect(page.locator('#galaxy-inclination')).toHaveValue('40');
   const changed=await preview.locator('canvas').screenshot();
   expect(initial.equals(changed)).toBe(false);
+  await page.getByRole('button',{name:'観測写真風（2本腕）に整える'}).click();
+  await expect(preview).toHaveAttribute('data-galaxy-arms','2');
+  await expect(page.locator('#galaxy-count')).toHaveValue('18000');
+  await expect(preview).toHaveAttribute('data-galaxy-count','3600');
   await page.getByLabel('PARTICLE MODEを有効化').check();
   await expect(preview).toHaveAttribute('data-galaxy-mode','off');
   await expect(preview).toHaveAttribute('data-particle-mode','on');
