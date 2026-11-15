@@ -36,6 +36,8 @@ import {isVoidWeb,visibleVoidObjects,voidWireSteps,matchVoidObjects} from './voi
 import {VoidDepth} from './VoidDepth';
 import {Hybrid2DPlane,type Hybrid2DArtwork} from './Hybrid2DPlane';
 import {ParticleCloud} from './ParticleCloud';
+import {GalaxyCloud} from './GalaxyCloud';
+import {galaxyDefaults,GALAXY_LOW_STAR_LIMIT} from './galaxy';
 import {hybrid2DDefaults,hybrid2DInstances} from './hybrid-2d';
 
 type Props = {
@@ -618,7 +620,8 @@ export default function ThreePreview(input: Props) {
   const effectiveSettings=useMemo(()=>voidRenderSettings(input.settings),[input.settings]);
   const props=effectiveSettings===input.settings?input:{...input,settings:effectiveSettings};
   const voidMode=isVoidComposition(props.composition);
-  const particleEnabled=!voidMode&&!!props.settings.particle?.enabled;
+  const galaxyEnabled=!voidMode&&!!props.settings.galaxy?.enabled;
+  const particleEnabled=!voidMode&&!galaxyEnabled&&!!props.settings.particle?.enabled;
   const web=isVoidWeb(props.composition);
   const [supported] = useState(webGLAvailable), [lost, setLost] = useState(false);
   const [softwareDevice,setSoftwareDevice]=useState(false);
@@ -681,12 +684,12 @@ export default function ThreePreview(input: Props) {
     [props.skySeed,hybridOptions,low]);
   // Preserve network topology as the entire figure constellation spreads.
   const spacingFactor=threeSpacingFactor(props.settings.spacingPercent??100);
-  const edges=useMemo(()=>network.enabled&&!particleEnabled?
+  const edges=useMemo(()=>network.enabled&&!particleEnabled&&!galaxyEnabled?
     isVoidComposition(props.composition)?voidEdges(props.composition,objects):networkConnections(objects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [objects,props.composition,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
-  const previousEdges=useMemo(()=>props.transition&&network.enabled&&!particleEnabled?
+    [objects,props.composition,network.enabled,particleEnabled,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+  const previousEdges=useMemo(()=>props.transition&&network.enabled&&!particleEnabled&&!galaxyEnabled?
     isVoidComposition(props.transition.fromComposition)?voidEdges(props.transition.fromComposition,previousObjects):networkConnections(previousObjects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [props.transition,previousObjects,network.enabled,particleEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+    [props.transition,previousObjects,network.enabled,particleEnabled,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
   const routes=useMemo(()=>web?voidWireSteps(objects,edges):undefined,[web,objects,edges]);
   const oldRoutes=useMemo(()=>web?voidWireSteps(previousObjects,previousEdges):undefined,[web,previousObjects,previousEdges]);
   const widths=useMemo(()=>web?edges.map(e=>((e as {width?:number}).width??1)*(low?1:2.7)):undefined,[web,edges,low]);
@@ -694,14 +697,14 @@ export default function ThreePreview(input: Props) {
   const celestial=props.settings.celestial??celestialDefaults;
   // Generate celestial appearance from unscaled positions, then spread the
   // constellation without re-rolling its sizes, phases or surface patterns.
-  const celestialBase=useMemo(()=>voidMode?[]:generateCelestialBodies(props.sourceComposition,celestial,props.density),
-    [voidMode,props.sourceComposition,celestial,props.density]);
+  const celestialBase=useMemo(()=>voidMode||galaxyEnabled?[]:generateCelestialBodies(props.sourceComposition,celestial,props.density),
+    [voidMode,galaxyEnabled,props.sourceComposition,celestial,props.density]);
   const celestialObjects=useMemo(()=>spaceCelestialBodies(celestialBase,props.settings.spacingPercent??100),
     [celestialBase,props.settings.spacingPercent]);
-  const previousCelestial=useMemo(()=>props.transition&&!voidMode?
+  const previousCelestial=useMemo(()=>props.transition&&!voidMode&&!galaxyEnabled?
     spaceCelestialBodies(generateCelestialBodies(props.transition.fromSourceComposition,celestial,props.density),props.settings.spacingPercent??100):[],
-    [props.transition,voidMode,celestial,props.density,props.settings.spacingPercent]);
-  const outlines=useOutlineGeometry(neon.enabled&&!voidMode&&!particleEnabled,low);
+    [props.transition,voidMode,galaxyEnabled,celestial,props.density,props.settings.spacingPercent]);
+  const outlines=useOutlineGeometry(neon.enabled&&!voidMode&&!particleEnabled&&!galaxyEnabled,low);
   const onLost = useMemo(() => () => {props.onReady(false); setLost(true);}, [props.onReady]);
   if (!supported || lost) return <div className="three-fallback" role="alert"><h3>{lost ? '3D描画が中断されました' : 'この環境では3Dを表示できません'}</h3><p>WebGL 2対応ブラウザとハードウェアアクセラレーションが必要です。2Dモードは引き続き利用できます。中断した場合は軽量設定で3Dモードを開き直してください。</p></div>;
   return <div ref={progressHost} className="three-preview" data-testid="three-preview" data-quality={low ? 'low' : 'high'} data-object-count={objects.length}
@@ -710,6 +713,10 @@ export default function ThreePreview(input: Props) {
     data-network-count={edges.length} data-network-mode={network.mode}
     data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
+    data-galaxy-mode={galaxyEnabled?'on':'off'}
+    data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
+    data-galaxy-arms={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).arms:0}
+    data-galaxy-seed-phase={galaxyEnabled?'settled':'off'} data-galaxy-seed-progress="1.000"
     data-hybrid-2d={hybridOptions.enabled?'on':'off'}
     data-hybrid-2d-count={hybridOptions.enabled?Math.min(hybridInstances.length,props.hybridArtworks?.length??0):0}
     data-neural-signals={network.enabled&&network.mode==='neural'&&network.animation==='signal'?'on':'off'}
@@ -754,7 +761,9 @@ export default function ThreePreview(input: Props) {
         <Hybrid2DPlane key={artwork.seed} artwork={artwork} options={hybridOptions}
           index={index} instance={hybridInstances[index]} multiple={hybridInstances.length>1}
           seconds={seconds} low={low}/>)}
-      {particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}
+      {galaxyEnabled?<GalaxyCloud seed={props.skySeed} settings={props.settings} seconds={seconds} low={low}
+         restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
+       particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}
          restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
       voidMode?<VoidObjects web={web} objects={objects} previous={previousObjects} matches={matches} settings={props.settings} background={props.background}
         visualTheme={props.visualTheme} low={low} seconds={seconds} seed={props.skySeed} skipEntrance={props.skipEntrance} transition={props.transition}/>:
