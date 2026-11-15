@@ -97,11 +97,11 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     float armsB=swirlingArm(second,orientation+2.35,-handed,twist,width);
     float tail=0.;
     for(int j=0;j<2;j++){
-      float sign=j==0?-1.:1.;
+      float tailSide=j==0?-1.:1.;
       vec2 origin=j==0?vec2(-gap*.36,-.12):vec2(gap*.60,.10);
       float radial=length(p-origin);
       float theta=atan(p.y-origin.y,p.x-origin.x);
-      float target=sign*(.45+radial*1.85)+orientation*.38;
+      float target=tailSide*(.45+radial*1.85)+orientation*.38;
       float deviation=atan(sin(theta-target),cos(theta-target));
       tail+=exp(-pow(deviation/.17,2.))*smoothstep(.35,.55,radial)*
         (1.-smoothstep(.98,1.24,radial));
