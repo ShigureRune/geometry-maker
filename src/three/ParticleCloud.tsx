@@ -113,7 +113,7 @@ export function ParticleCloud({objects,seed,background,settings,seconds,low}:{
       const p=i*3,s=i*4,pose=poses[data.owners[i]];
       const angle=data.starts[s+1]+direction*options.swirl*Math.PI*4*t;
       const radius=data.starts[s]*unformed;
-      const jitter=options.jitter?.035*unformed*Math.sin(time*9+data.starts[s+3]):0;
+      const jitter=options.jitter ? .035*unformed*Math.sin(time*9+data.starts[s+3]) : 0;
       tmp.set(
         data.targets[p]*eased+Math.cos(angle)*radius+jitter,
         data.targets[p+1]*eased+data.starts[s+2]*unformed,
@@ -130,7 +130,7 @@ export function ParticleCloud({objects,seed,background,settings,seconds,low}:{
   useLayoutEffect(update,[update]);
   useFrame(update);
   return <points geometry={data.geometry} frustumCulled={false}>
-    <pointsMaterial size={low?.06:.045} sizeAttenuation vertexColors
+    <pointsMaterial size={low ? .06 : .045} sizeAttenuation vertexColors
       transparent opacity={.92} depthWrite={false} blending={AdditiveBlending}/>
   </points>;
 }
