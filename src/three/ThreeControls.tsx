@@ -137,13 +137,13 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={armWidth=>onChange({...settings,galaxy:{...galaxy,armWidth}})}/>
         <ThreeRange id="galaxy-radius" label="銀河の広がり" value={galaxy.radius} min={3} max={10} step={.5}
           onChange={radius=>onChange({...settings,galaxy:{...galaxy,radius}})}/>
-        <ThreeRange id="galaxy-inclination" label="円盤の傾き" value={galaxy.inclination} min={0} max={75} step={5} unit="°"
+        <ThreeRange id="galaxy-inclination" label="円盤の傾き" value={galaxy.inclination} min={0} max={75} step={1} unit="°"
           onChange={inclination=>onChange({...settings,galaxy:{...galaxy,inclination}})}/>
         <label className="three-checkbox"><input type="checkbox" aria-label="棒状渦巻銀河にする"
           checked={galaxy.barred} onChange={event=>onChange({...settings,galaxy:{...galaxy,barred:event.target.checked}})}/>
           中心を棒状にする
         </label>
-        <ThreeRange id="galaxy-core" label="中心核の発光" value={galaxy.coreGlow} min={0} max={200} step={10} unit="%"
+        <ThreeRange id="galaxy-core" label="中心核の発光" value={galaxy.coreGlow} min={0} max={200} step={5} unit="%"
           onChange={coreGlow=>onChange({...settings,galaxy:{...galaxy,coreGlow}})}/>
         <ThreeRange id="galaxy-dust" label="星間ダスト" value={galaxy.dust} min={0} max={60} step={5} unit="%"
           onChange={dust=>onChange({...settings,galaxy:{...galaxy,dust}})}/>
