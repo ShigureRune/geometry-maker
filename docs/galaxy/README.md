@@ -53,3 +53,5 @@ npx playwright test tests/three-galaxy.spec.ts
 - https://science.nasa.gov/asset/webb/webb-and-hubbles-views-of-spiral-galaxy-ngc-1566/
 - https://science.nasa.gov/asset/hubble/out-of-this-whirl-the-whirlpool-galaxy-m51-and-companion-galaxy/
 - https://science.nasa.gov/asset/hubble/spiral-galaxy-ngc-1300/
+
+以前のプロジェクトで腕が4本・中心が明るすぎる設定のままの場合は、「観測写真風（2本腕）に整える」を押すと、2本腕／幅広い螺旋／控えめな中心発光／星数18,000以上の写真風設定へ一括切替できます。配色は保持します。
