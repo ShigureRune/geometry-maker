@@ -147,7 +147,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         </label>
         <div className="three-kind-presets">
           <button type="button" onClick={()=>onChange({...settings,galaxy:{...galaxy,
-            arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,darkBackground:true,
+            galaxyType:'grand_design',arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,darkBackground:true,
             inclination:23,barred:false,count:Math.max(galaxy.count,18000)}})}>
             観測写真風（2本腕）に整える
           </button>
