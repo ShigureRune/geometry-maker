@@ -138,10 +138,12 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     (.54+.37*broadNoise+.19*fineNoise);
   if(galaxyType>1.5&&galaxyType<2.5){
     // Flocculent galaxies: scattered bright segments, not two smooth ribbons.
-    float patches=noise(p*(18.+extraA.w*12.)+vec2(orientation,2.));
-    float spurs=noise(p*(34.+extraB.x*18.)+vec2(4.,orientation));
-    arm=arm*(.23+.82*smoothstep(.44,.70,patches))+
-      smoothstep(.72,.90,spurs)*.25*exp(-r*1.8);
+    float patches=noise(p*(6.8+extraA.w*4.)+vec2(orientation,2.));
+    float spurs=noise(p*(13.+extraB.x*7.)+vec2(4.,orientation));
+    // Keep the clumpy structure soft: sharp high-frequency thresholds
+    // make a galaxy look like a square Minecraft pixel texture.
+    arm=arm*(.13+.82*smoothstep(.20,.80,patches))*(.65+.26*spurs)+
+      smoothstep(.67,.91,spurs)*.10*exp(-r*1.8);
   }
   float obscuration=lane*(dust/60.0)*.54*(.68+.32*broadNoise)*step(.16,r);
   arm*=1.0-obscuration;
@@ -152,7 +154,8 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   if(barred>0.5){
     vec2 q=vec2(dot(p,vec2(cos(orientation),sin(orientation))),
       dot(p,vec2(-sin(orientation),cos(orientation))));
-    bulge+=exp(-pow(length(q/vec2(.29,.070)),1.6))*.16;
+    float barStrength=galaxyType>.5&&galaxyType<1.5?.73:.16;
+    bulge+=exp(-pow(length(q/vec2(.35,.062)),1.6))*barStrength;
   }
   float hii=smoothstep(.70,.90,noise(p*24.0+vec2(orientation,2.3)))*arm*.9;
   float alpha=clamp(bulge*.78+disk*.55+arm*.50+hii*.12,0.0,.93);
