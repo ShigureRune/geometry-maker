@@ -1,19 +1,38 @@
 import {seededRandom} from '../scene';
+import {generateGalaxyVariant} from './galaxy-generators/variants';
 import {booleanField,enumField,numberField,record} from './style-settings';
 
 export const GALAXY_PALETTES=['violet','blue','rose','gold'] as const;
+export const GALAXY_TYPES=['grand_design','barred_spiral','flocculent','ring','elliptical','irregular','interacting'] as const;
+export type GalaxyType=typeof GALAXY_TYPES[number];
+export const GALAXY_TYPE_LABELS:Record<GalaxyType,string>={
+  grand_design:'グランドデザイン渦巻銀河',
+  barred_spiral:'棒渦巻銀河',
+  flocculent:'フロキュレント銀河',
+  ring:'リング銀河',
+  elliptical:'楕円銀河',
+  irregular:'不規則銀河',
+  interacting:'相互作用銀河',
+};
 export type GalaxyPalette=typeof GALAXY_PALETTES[number];
 export type GalaxySettings={
   enabled:boolean;count:number;arms:number;twist:number;radius:number;
   coreGlow:number;dust:number;rotationSpeed:number;palette:GalaxyPalette;
   seedTransition:boolean;transitionSeconds:number;
   armWidth:number;inclination:number;barred:boolean;darkBackground:boolean;
+  galaxyType:GalaxyType;
+  ringRadius:number;ringWidth:number;ellipticity:number;
+  clumpiness:number;branchiness:number;irregularity:number;
+  companionDistance:number;companionSize:number;tidalStrength:number;
 };
 export const galaxyDefaults:GalaxySettings={
   enabled:false,count:12000,arms:2,twist:1.5,radius:5.5,
   coreGlow:75,dust:35,rotationSpeed:.6,palette:'violet',
   seedTransition:true,transitionSeconds:3.5,
   armWidth:1.25,inclination:23,barred:false,darkBackground:true,
+  galaxyType:'grand_design',ringRadius:.64,ringWidth:.12,ellipticity:.42,
+  clumpiness:.68,branchiness:.55,irregularity:.7,
+  companionDistance:.9,companionSize:.45,tidalStrength:.65,
 };
 export const GALAXY_LOW_STAR_LIMIT=3600,GALAXY_HIGH_STAR_LIMIT=30000;
 export function validateGalaxySettings(value:unknown):GalaxySettings{
@@ -34,6 +53,16 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     inclination:numberField(d.inclination,0,75,'銀河円盤の傾き'),
     barred:booleanField(d.barred,'棒状渦巻銀河'),
     darkBackground:booleanField(d.darkBackground,'暗い宇宙背景'),
+    galaxyType:enumField(d.galaxyType,GALAXY_TYPES,'銀河タイプ'),
+    ringRadius:numberField(d.ringRadius,.35,.90,'リング半径'),
+    ringWidth:numberField(d.ringWidth,.04,.30,'リングの幅'),
+    ellipticity:numberField(d.ellipticity,.05,.85,'楕円率'),
+    clumpiness:numberField(d.clumpiness,0,1,'星団のまとまり'),
+    branchiness:numberField(d.branchiness,0,1,'腕の枝分かれ'),
+    irregularity:numberField(d.irregularity,0,1,'不規則さ'),
+    companionDistance:numberField(d.companionDistance,.5,1.3,'伴銀河の距離'),
+    companionSize:numberField(d.companionSize,.25,.70,'伴銀河のサイズ'),
+    tidalStrength:numberField(d.tidalStrength,0,1,'潮汐の尾'),
   };
 }
 export type GalaxyData={
@@ -81,6 +110,12 @@ export function galaxyAppearance(seed:string,theme:GalaxyPalette){
  * an exponential old-star disk, compact bulge, blue knots and dusty lanes.
  * This is an artistic structural model, not a physical N-body simulation. */
 export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):GalaxyData{
+  if(options.galaxyType!=='grand_design'&&options.galaxyType!=='barred_spiral')
+    return generateGalaxyVariant(seed,options,low);
+  // Existing grand-design generation remains unchanged for saved v3 scenes.
+  // The barred type forces a bar even if the old manual checkbox was disabled.
+  if(options.galaxyType==='barred_spiral'&&!options.barred)
+    options={...options,barred:true};
   const count=Math.min(options.count,low?GALAXY_LOW_STAR_LIMIT:GALAXY_HIGH_STAR_LIMIT);
   const positions=new Float32Array(count*3),colors=new Float32Array(count*3);
   const sizes=new Float32Array(count),spins=new Float32Array(count);
@@ -125,7 +160,7 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
       const r=Math.sqrt(random())*R*.215,angle=random()*TAU;
       x=r*Math.cos(angle);y=r*Math.sin(angle);
       if(options.barred){
-        const bx=x*1.65,by=y*.48;
+        const bx=x*(options.galaxyType==='barred_spiral'?2.5:1.65),by=y*.48;
         x=bx*Math.cos(orientation)-by*Math.sin(orientation);
         y=bx*Math.sin(orientation)+by*Math.cos(orientation);
       }

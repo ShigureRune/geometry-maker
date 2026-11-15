@@ -102,6 +102,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   const options=settings.galaxy??galaxyDefaults;
   const data=useMemo(()=>generateGalaxy(seed,options,low),[
     seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,options.armWidth,options.barred,
+    options.galaxyType,options.ringRadius,options.ringWidth,options.ellipticity,
+    options.clumpiness,options.branchiness,options.irregularity,
+    options.companionDistance,options.companionSize,options.tidalStrength,
   ]);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
@@ -174,7 +177,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
-    <GalaxyDiffuse seed={seed} options={options} seconds={seconds}
+    <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
       animation={settings.animation} morph={isMorph} morphDuration={morphDuration}/>
     <points name="galaxy-mode-cloud" geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}

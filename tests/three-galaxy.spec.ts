@@ -1,5 +1,6 @@
 import {test,expect,type Page} from '@playwright/test';
 import {mkdir,readFile} from 'node:fs/promises';
+import {GALAXY_TYPES} from '../src/three/galaxy';
 test.setTimeout(120_000);
 async function category(page:Page,name:string){
   const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
@@ -69,20 +70,63 @@ test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await page.locator('#galaxy-arm-width').fill('2');
   await page.locator('#galaxy-inclination').fill('35');
   await page.getByLabel('棒状渦巻銀河にする').check();
+  await page.locator('#galaxy-type').selectOption('ring');
+  await page.locator('#galaxy-ring-radius').fill('.70');
+  await page.locator('#galaxy-ring-width').fill('.18');
   await category(page,'書き出し');
   const pending=page.waitForEvent('download');
   await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();
   const project=JSON.parse((await readFile((await (await pending).path())!)).toString('utf8'));
-  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:true,darkBackground:true});
+  expect(project.settings.galaxy).toMatchObject({enabled:true,arms:5,count:5000,palette:'gold',armWidth:2,inclination:35,barred:false,darkBackground:true,galaxyType:'ring',ringRadius:.7,ringWidth:.18});
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'galaxy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project)),
   });
   await category(page,'図形');
   await expect(page.getByLabel('GALAXY MODEを有効化')).toBeChecked();
   await expect(page.locator('#galaxy-palette')).toHaveValue('gold');
-  await expect(page.getByLabel('棒状渦巻銀河にする')).toBeChecked();
+  await expect(page.locator('#galaxy-type')).toHaveValue('ring');
+  await expect(page.locator('#galaxy-ring-radius')).toHaveValue('0.7');
+  await expect(page.locator('#galaxy-ring-width')).toHaveValue('0.18');
   await expect(page.locator('#galaxy-inclination')).toHaveValue('35');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
+});
+test('all seven galaxies render distinct 3D silhouettes and have type-specific controls and presets',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  const shaders:string[]=[];page.on('console',message=>{
+    if(message.type()==='error'&&/shader error|shader compile|webglprogram/i.test(message.text()))
+      shaders.push(message.text());
+  });
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await mkdir('test-results',{recursive:true});
+  let prior:Buffer|null=null;
+  for(const type of GALAXY_TYPES){
+    await page.locator('#galaxy-type').selectOption(type);
+    await expect(preview).toHaveAttribute('data-galaxy-type',type);
+    const screenshot=await preview.locator('canvas').screenshot({
+      path:`test-results/galaxy-v4-${type}.png`,
+    });
+    if(prior)expect(screenshot.equals(prior)).toBe(false);
+    prior=screenshot;
+  }
+  await page.locator('#galaxy-type').selectOption('ring');
+  await expect(page.locator('#galaxy-ring-width')).toBeVisible();
+  await expect(page.locator('#galaxy-arms')).toHaveCount(0);
+  await page.locator('#galaxy-type').selectOption('elliptical');
+  await expect(page.locator('#galaxy-ellipticity')).toBeVisible();
+  await page.locator('#galaxy-type').selectOption('flocculent');
+  await expect(page.locator('#galaxy-branchiness')).toBeVisible();
+  await page.locator('#galaxy-type').selectOption('irregular');
+  await expect(page.locator('#galaxy-irregularity')).toBeVisible();
+  await page.locator('#galaxy-type').selectOption('interacting');
+  await expect(page.locator('#galaxy-companion-distance')).toBeVisible();
+  await expect(page.locator('#galaxy-tidal')).toBeVisible();
+  await page.locator('#galaxy-preset').selectOption('m51');
+  await expect(page.locator('#galaxy-type')).toHaveValue('grand_design');
+  await page.locator('#galaxy-preset').selectOption('interaction');
+  await expect(page.locator('#galaxy-type')).toHaveValue('interacting');
+  expect(shaders).toEqual([]);
+  expect(errors).toEqual([]);
 });
 test('galaxy morphs when the seed changes and pauses with the 3D clock',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
