@@ -120,6 +120,13 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </label>
       {settings.voidMode?.enabled&&<p className="help">VOIDモードをOFFにすると銀河を生成できます。</p>}
       {galaxy.enabled&&<>
+        <div className="three-kind-presets">
+          <button type="button" onClick={()=>onChange({...settings,galaxy:{...galaxy,
+            arms:2,twist:1.5,armWidth:1.25,coreGlow:75,dust:35,
+            inclination:23,barred:false,count:Math.max(galaxy.count,18000)}})}>
+            観測写真風（2本腕）に整える
+          </button>
+        </div>
         <ThreeRange id="galaxy-count" label="星の数" value={galaxy.count} min={1000} max={30000} step={500} unit="個"
           onChange={count=>onChange({...settings,galaxy:{...galaxy,count}})}/>
         <ThreeRange id="galaxy-arms" label="螺旋腕の数" value={galaxy.arms} min={2} max={8} step={1} unit="本"
