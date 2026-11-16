@@ -297,8 +297,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyCoreCount=String(coreMotion?.count??0);
       progressHost.current.dataset.galaxyCoreDistance=(coreMotion?.distance??0).toFixed(4);
       progressHost.current.dataset.galaxyCoreMerged=coreMotion?.merged?'true':'false';
-      progressHost.current.dataset.galaxyCoreA_X=(coreMotion?.bodies[0]?.x??0).toFixed(4);
-      progressHost.current.dataset.galaxyCoreB_X=(coreMotion?.bodies[1]?.x??0).toFixed(4);
+      progressHost.current.dataset.galaxyCoreAX=(coreMotion?.bodies[0]?.x??0).toFixed(4);
+      progressHost.current.dataset.galaxyCoreBX=(coreMotion?.bodies[1]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
