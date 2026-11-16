@@ -119,8 +119,9 @@ export function GalaxyBulgeGlow({seed,options,stars,low,seconds,animation,morph,
   seconds:RefObject<number>;animation:boolean;morph:RefObject<boolean>;
   morphDuration:RefObject<number>;progressHost?:RefObject<HTMLDivElement|null>;
 }){
-  const centers=useMemo(()=>generateGalaxyNucleus(seed,options,low,stars).centers,
+  const nuclei=useMemo(()=>generateGalaxyNucleus(seed,options,low,stars),
     [seed,options.galaxyType,options.radius,low,stars]);
+  const centers=nuclei.centers;
   const orientation=galaxyAppearance(seed,options.palette).orientation;
   const R=options.radius;
   const flat=options.galaxyType==='ring'?.75:1;
@@ -130,6 +131,10 @@ export function GalaxyBulgeGlow({seed,options,stars,low,seconds,animation,morph,
     if(progressHost?.current){
       progressHost.current.dataset.galaxyBulgeCount=String(centers.length);
       progressHost.current.dataset.galaxyBulgeRepresentation='3d-unresolved-volume';
+      // Maintain the existing nucleus diagnostics without rendering grainy
+      // nuclear point sprites: their luminosity is now purely volumetric.
+      progressHost.current.dataset.galaxyNucleusCount=String(nuclei.count);
+      progressHost.current.dataset.galaxyNucleusTime=seconds.current.toFixed(3);
     }
   });
   return <group name="galaxy-smooth-volumetric-bulges">
