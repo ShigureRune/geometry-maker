@@ -169,7 +169,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     // Star quantity adds detail, never makes the arms lose their color.
     // Volumetric gas adds real colored depth behind the stars. Trim the
     // HDR star contribution in high quality so dense rings stay colored.
-    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*(low?1:.43);
+    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*
+      (low?1:Math.max(.27,.72*Math.pow(3600/Math.max(3600,data.count),.4)));
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
