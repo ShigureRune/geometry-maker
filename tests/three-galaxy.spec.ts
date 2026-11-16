@@ -140,15 +140,17 @@ async function galaxyExposure(page:Page,filename:string){
     const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
     ctx.drawImage(img,0,0,320,240);
     const data=ctx.getImageData(0,0,320,240).data;
-    let sum=0,clips=0,count=0;
+    let sum=0,clips=0,washed=0,count=0;
     for(let y=12;y<228;y++)for(let x=30;x<290;x++){
       const o=(y*320+x)*4;
       const r=data[o],g=data[o+1],b=data[o+2];
       sum+=(r+g+b)/3;
       if(Math.min(r,g,b)>245)clips++;
+      // Highlights can look washed out long before any RGB channel hits 255.
+      if((r+g+b)/3>140&&Math.max(r,g,b)-Math.min(r,g,b)<40)washed++;
       count++;
     }
-    return {mean:sum/count,whiteFraction:clips/count};
+    return {mean:sum/count,whiteFraction:clips/count,washedOutFraction:washed/count};
   },png);
 }
 test('high quality preserves galaxy colors instead of turning the entire disk white',async({page})=>{
@@ -174,10 +176,11 @@ test('high quality preserves galaxy colors instead of turning the entire disk wh
     const high=await galaxyExposure(page,'test-results/galaxy-exposure-high-'+type+'.png');
     console.log('GALAXY HIGH EXPOSURE',type,{low:normal,high});
     expect(high.whiteFraction,type+' should preserve actual RGB colors').toBeLessThan(.055);
+    expect(high.washedOutFraction,type+' should not have washed-out pale arms').toBeLessThan(.055);
     expect(high.mean,type+' should remain visible').toBeGreaterThan(3);
     if(type==='grand_design')
       expect(high.mean,type+' cannot become many times brighter than low quality')
-        .toBeLessThan(normal.mean*2.8+4);
+        .toBeLessThan(normal.mean*1.35+2);
   }
   expect(shaders).toEqual([]);
   expect(errors).toEqual([]);
