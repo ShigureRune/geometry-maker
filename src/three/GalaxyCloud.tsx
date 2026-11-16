@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
-import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
+import {useFrame,useThree} from '@react-three/fiber';
+import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial,Vector2} from 'three';
 import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {
   galaxyDefaults,galaxyMorphEasing,generateGalaxy,
@@ -46,7 +46,9 @@ void main(){
   vec4 mvPosition=modelViewMatrix*vec4(finalPos,1.0);
   gl_Position=projectionMatrix*mvPosition;
   float distanceScale=clamp(21.0/max(0.5,-mvPosition.z),0.45,3.0);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,1.5,52.0);
+  // Nebula sprites are halos, not giant circular spots over the arms.
+  float pointSize=aSize*(aKind>0.5?0.72:1.0);
+  gl_PointSize=clamp(pointSize*uDpr*distanceScale*2.65,1.5,52.0);
   vColor=mix(aFromColor,aColor,fade);
   vCore=aCore;
   vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
@@ -112,6 +114,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   transitionDuration?:number;progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const options=settings.galaxy??galaxyDefaults;
+  const {gl,size}=useThree();
+  const drawingBuffer=useRef(new Vector2());
   // Development-only screenshot probe: isolate the gas layer so browser
   // regression tests cannot pass merely because STAR particles moved.
   // Vite removes this probe from production builds.
@@ -165,7 +169,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorphEnabled.value=isMorph.current?1:0;
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
-    uniforms.uDpr.value=low?1:1.75;
+    // PNG/video export temporarily changes the physical framebuffer while
+    // React's logical viewport stays fixed. Match the actual pixel density,
+    // or bloom-sized star sprites shrink/expand relative to the galaxy.
+    uniforms.uDpr.value=gl.getDrawingBufferSize(drawingBuffer.current).y/size.height;
     // High quality also passes through OutputPass (different from the
     // lightweight direct renderer), whose color conversion lifts midtones.
     // Thus normalize both star density AND that renderer-specific exposure.
@@ -194,11 +201,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
       progressHost.current.dataset.galaxyStarEnergy=uniforms.uStarEnergy.value.toFixed(3);
+      progressHost.current.dataset.galaxyStarPixelScale=uniforms.uDpr.value.toFixed(3);
       progressHost.current.dataset.galaxySeedPhase=isMorph.current&&time<morphDuration.current?'transition':'settled';
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
     }
-  },[seconds,uniforms,data.count,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
+  },[seconds,uniforms,data.count,options.rotationSpeed,options.coreGlow,gl,size.height,low,settings.animation,progressHost]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
