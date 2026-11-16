@@ -73,30 +73,31 @@ export function generateGalaxyGas(
   for(let j=0;j<stars.count;j++){
     if(stars.cores[j]>.12)nucleusStars.push(j);
   }
-  const coreShare=type==='ring'?.09:type==='irregular'?.11:
-    type==='elliptical'?.28:type==='interacting'?.25:.24;
-  let anchor=0,remaining=0,cloudGroup=0;
+  const coreShare=type==='ring'?.08:type==='irregular'?.08:
+    type==='elliptical'?.19:type==='interacting'?.16:.15;
   for(let i=0;i<count;i++){
-    if(remaining<=0){
-      anchor=nucleusStars.length&&r()<coreShare
-        ?nucleusStars[Math.floor(r()*nucleusStars.length)]
-        :pickStar(r,stars,options);
-      remaining=3+Math.floor(r()*10);
-      cloudGroup=r();
-    }
-    remaining--;
+    // IMPORTANT: do not repeat the same anchor for 3–13 particles.
+    // Grouped billboards were becoming disconnected grape-sized clumps
+    // and making the center look like a bumpy glowing potato.
+    // Independent arm stars produce a continuous three-dimensional haze.
+    const anchor=nucleusStars.length&&r()<coreShare
+      ?nucleusStars[Math.floor(r()*nucleusStars.length)]
+      :pickStar(r,stars,options);
     const source=anchor*3,pos=i*3,center=i*2;
     const isCore=stars.cores[anchor]>.12;
     coreFactors[i]=isCore?Math.min(1,stars.cores[anchor]*1.35):0;
     const isElliptical=type==='elliptical';
-    const isPink=!isElliptical&&!isCore&&(r()<(.10+options.clumpiness*.13));
+    const isPink=!isElliptical&&!isCore&&(r()<(.025+options.clumpiness*.055));
     const base=isCore?palette.bulge:isElliptical?palette.disk:
       isPink?palette.hii:r()<.66?palette.young:palette.cloud;
-    const falloff=.65+r()*.35;
-    colors[pos]=base[0]*falloff;
-    colors[pos+1]=base[1]*falloff;
-    colors[pos+2]=base[2]*falloff;
-    const jitter=R*spread*(.55+r()*.9);
+    // Blend most cloudlets toward a single soft gaseous hue. Rare pink
+    // HII knots remain, without speckling every other arm segment.
+    const blend=(!isCore&&!isPink&&!isElliptical)?.36:0;
+    const falloff=.61+r()*.29;
+    colors[pos]=(base[0]*(1-blend)+palette.cloud[0]*blend)*falloff;
+    colors[pos+1]=(base[1]*(1-blend)+palette.cloud[1]*blend)*falloff;
+    colors[pos+2]=(base[2]*(1-blend)+palette.cloud[2]*blend)*falloff;
+    const jitter=R*spread*(.55+r()*.65);
     positions[pos]=stars.positions[source]+gaussian(r)*jitter;
     positions[pos+1]=stars.positions[source+1]+gaussian(r)*jitter;
     // Real 3D distribution. Inclining the galaxy reveals distinct cloud
@@ -106,11 +107,13 @@ export function generateGalaxyGas(
     orbitCenters[center+1]=stars.orbitCenters?.[anchor*2+1]??0;
     spins[i]=stars.spins[anchor];
     phases[i]=r()*Math.PI*2;
-    sizes[i]=(isCore?18:isElliptical?10:12)+(r()*16)+(cloudGroup*.6*8);
-    const typeOpacity=isElliptical?.42:type==='irregular'?.70:.90;
-    opacities[i]=(.12+r()*.26)*typeOpacity*
-      (isCore?.95:1)*
-      (1-options.dust/145)*(.78+cloudGroup*.44);
+    // A many-particle veil is more convincing than a few high-opacity
+    // overlapping stamps. Core haze is smaller and smoother than the arms.
+    sizes[i]=(isCore?9:isElliptical?13:17)+r()*(isCore?9:12);
+    const typeOpacity=isElliptical?.52:type==='irregular'?.70:.95;
+    opacities[i]=(.095+r()*.14)*typeOpacity*
+      (isCore?.72:1)*
+      (1-options.dust/145);
   }
   return {count,positions,colors,sizes,opacities,spins,phases,orbitCenters,coreFactors};
 }
