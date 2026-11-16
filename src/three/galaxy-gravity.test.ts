@@ -87,40 +87,106 @@ describe('GALAXY MODE approximate gravity',()=>{
     expect(motion.merged).toBe(false);
     expect(motion.steps).toBe(0);
   });
-  it('merges close nuclei with conservation of momentum and keeps moving afterward',()=>{
+  it('flies past twice, rebounds between passages, then merges with momentum conservation',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
-      movingCoresEnabled:true,gravityEnabled:true,coreMergeDistance:.4};
-    const tracers={
-      positions:new Float32Array([-.6,0,0,-.4,0,.02,.8,0,0,1,0,-.02]),
-      spins:new Float32Array([1,1,-1,-1]),
-      orbitCenters:new Float32Array([-.5,0,-.5,0,.9,0,.9,0]),
-    };
-    const motion=createGalaxyCoreMotion(tracers,options);
+      movingCoresEnabled:true,gravityEnabled:true,count:4000,coreFriction:1,
+      coreMergeDistance:.4};
+    const stars=generateGalaxy('orbital-decay-merger',options,true);
+    const motion=createGalaxyCoreMotion(stars,options);
     const [a,b]=motion.bodies;
-    expect(motion.count).toBe(2);
-    // Give the pair a shared center-of-mass drift. A perfectly head-on
-    // collision with zero total momentum must correctly stay stationary.
+    const totalMass=a.mass+b.mass;
+    // A shared drift must persist after the merger without moving the pair's
+    // center of mass under mutual gravity and dynamical friction.
     a.vx+=.1;b.vx+=.1;
     a.vy+=.025;b.vy+=.025;
-    const totalMass=a.mass+b.mass;
-    const momentumX=a.mass*a.vx+b.mass*b.vx;
-    const momentumY=a.mass*a.vy+b.mass*b.vy;
+    const px=a.mass*a.vx+b.mass*b.vx,py=a.mass*a.vy+b.mass*b.vy;
     motion.advance(0,1,1,.6);
     motion.advance(.035,1,1,.6);
-    expect(motion.merged).toBe(true);
+    expect(motion.merged).toBe(false);
+    expect(motion.passages).toBe(0);
+    let previousPassages=0,rebound=false;
+    const periDistances:number[]=[];
+    for(let i=2;i<=4200&&!motion.merged;i++){
+      motion.advance(i*.035,1,1,.6);
+      if(motion.passages>previousPassages){
+        expect(motion.passages).toBe(previousPassages+1);
+        expect(motion.merged).toBe(false);
+        periDistances.push(motion.distance);
+        previousPassages=motion.passages;
+      }
+      if(periDistances.length===1&&motion.stage==='separating'&&
+        motion.distance>periDistances[0]+options.radius*.20)rebound=true;
+    }
+    expect(periDistances.length).toBeGreaterThanOrEqual(2);
+    expect(periDistances[1]).toBeLessThan(periDistances[0]);
+    expect(rebound,'the galaxy nuclei must separate after the first flyby').toBe(true);
+    expect(motion.merged,'a decaying orbit must eventually coalesce').toBe(true);
     expect(motion.count).toBe(1);
     expect(a.mass).toBeCloseTo(totalMass,6);
-    expect(a.vx*totalMass).toBeCloseTo(momentumX,6);
-    expect(a.vy*totalMass).toBeCloseTo(momentumY,6);
-    const beforeX=a.x,beforeY=a.y;
-    motion.advance(2,1,1,.6);
-    expect(Number.isFinite(a.x)&&Number.isFinite(a.y)).toBe(true);
-    expect(Math.hypot(a.x-beforeX,a.y-beforeY)).toBeGreaterThan(0);
+    expect(a.vx*totalMass).toBeCloseTo(px,5);
+    expect(a.vy*totalMass).toBeCloseTo(py,5);
+    const before=[a.x,a.y] as const;
+    motion.advance(150,1,1,.6);
+    expect(Math.hypot(a.x-before[0],a.y-before[1])).toBeGreaterThan(0);
     expect(b.active).toBe(false);
     expect(motion.distance).toBe(0);
     motion.advance(0,1,1,.6);
     expect(motion.merged).toBe(false);
     expect(motion.count).toBe(2);
+    expect(motion.passages).toBe(0);
+  });
+  it('without dynamical friction, bound cores can keep swinging by without merging',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,
+      movingCoresEnabled:true,gravityEnabled:true,count:4000,
+      coreFriction:0,coreMergeDistance:.4};
+    const stars=generateGalaxy('orbital-decay-merger',options,true);
+    const motion=createGalaxyCoreMotion(stars,options);
+    const initial=motion.distance;
+    motion.advance(0,1,1,.6);
+    let min=initial,max=0;
+    for(let i=1;i<=4000;i++){
+      motion.advance(i*.035,1,1,.6);
+      min=Math.min(min,motion.distance);
+      max=Math.max(max,motion.distance);
+    }
+    expect(motion.passages).toBeGreaterThanOrEqual(3);
+    expect(motion.merged).toBe(false);
+    expect(motion.count).toBe(2);
+    expect(min).toBeLessThan(initial*.50);
+    expect(max).toBeGreaterThan(initial*.92);
+  });
+  it('relative-velocity friction dissipates orbital energy without center-of-mass drift',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,
+      movingCoresEnabled:true,gravityEnabled:true,count:4000};
+    const stars=generateGalaxy('energy-decay',options,true);
+    const dissipative=createGalaxyCoreMotion(stars,{...options,coreFriction:1});
+    const conservative=createGalaxyCoreMotion(stars,{...options,coreFriction:0});
+    const energy=(sim:ReturnType<typeof createGalaxyCoreMotion>)=>{
+      const [a,b]=sim.bodies;
+      const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
+      const dvx=b.vx-a.vx,dvy=b.vy-a.vy,dvz=b.vz-a.vz;
+      const r2=dx*dx+dy*dy+dz*dz,R=options.radius;
+      return .5*(dvx*dvx+dvy*dvy+dvz*dvz)-
+        (a.mass+b.mass)/Math.sqrt(r2+(R*.20)**2)+
+        .5*(a.halo+b.halo)*Math.log(r2+(R*.30)**2);
+    };
+    const originalEnergy=energy(dissipative);
+    const [a,b]=dissipative.bodies;
+    const mass=a.mass+b.mass;
+    const cx=(a.mass*a.x+b.mass*b.x)/mass;
+    const cy=(a.mass*a.y+b.mass*b.y)/mass;
+    dissipative.advance(0,1,1,.6);
+    conservative.advance(0,1,1,.6);
+    for(let i=1;i<=680;i++){
+      dissipative.advance(i*.035,1,1,.6);
+      conservative.advance(i*.035,1,1,.6);
+    }
+    expect(dissipative.passages).toBeGreaterThanOrEqual(1);
+    expect(dissipative.merged).toBe(false);
+    expect(energy(dissipative)).toBeLessThan(originalEnergy-.005);
+    expect(energy(conservative)).toBeCloseTo(originalEnergy,3);
+    expect(Math.hypot((a.mass*a.x+b.mass*b.x)/mass-cx,
+      (a.mass*a.y+b.mass*b.y)/mass-cy)).toBeLessThan(.0001);
   });
   it('keeps star and gas tracers synchronized to the same moving nuclei',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
