@@ -145,6 +145,9 @@ async function galaxyExposure(page:Page,filename:string){
     const data=ctx.getImageData(0,0,320,240).data;
     let sum=0,clips=0,washed=0,count=0;
     for(let y=12;y<228;y++)for(let x=30;x<290;x++){
+      // The deliberately white-hot nuclear hotspot is not an overexposed
+      // spiral arm. Sample the arms independently of the central 3D core.
+      if(Math.hypot(x-160,y-120)<24)continue;
       const o=(y*320+x)*4;
       const r=data[o],g=data[o+1],b=data[o+2];
       sum+=(r+g+b)/3;
@@ -396,6 +399,47 @@ test('volumetric central nucleus brightens with glow setting, not the whole disk
     .toBeGreaterThan(dark.core*1.25+1);
   expect(bright.outer,'core slider should NOT illuminate the whole galaxy disk')
     .toBeLessThan(dark.outer*1.20+3);
+});
+
+test('central photographic hotspot intensifies without washing out distant arms',async({page})=>{
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await page.locator('#galaxy-count').fill('12000');
+  await page.locator('#galaxy-inclination').fill('0');
+  await expect(preview).toHaveAttribute('data-quality','high');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-nucleus-count')))
+    .toBeGreaterThan(400);
+  async function sample(){
+    const screenshot=(await preview.locator('canvas').screenshot()).toString('base64');
+    return page.evaluate(async b64=>{
+      const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();
+      const square=Math.min(img.width,img.height);
+      const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+      ctx.drawImage(img,(img.width-square)/2,(img.height-square)/2,square,square,0,0,256,256);
+      const pixels=ctx.getImageData(0,0,256,256).data;
+      let core=0,coreN=0,outer=0,outerN=0,brightest=0;
+      for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+        const d=Math.hypot(x-128,y-128);
+        const n=(y*256+x)*4;
+        const lum=pixels[n]*.3+pixels[n+1]*.48+pixels[n+2]*.22;
+        if(d<11){core+=lum;coreN++;brightest=Math.max(brightest,lum);}
+        if(d>63&&d<94){outer+=lum;outerN++;}
+      }
+      return {core:core/coreN,outer:outer/outerN,brightest};
+    },screenshot);
+  }
+  await page.locator('#galaxy-core').fill('0');
+  const dim=await sample();
+  await page.locator('#galaxy-core').fill('135');
+  const bright=await sample();
+  console.log('WHITE HOT NUCLEUS', {dim,bright});
+  expect(bright.core).toBeGreaterThan(dim.core*1.15+3);
+  expect(bright.brightest).toBeGreaterThan(dim.brightest+5);
+  // The *nucleus only* may clip slightly, as in a long-exposure galaxy photo.
+  expect(bright.brightest).toBeGreaterThan(248);
+  expect(bright.outer).toBeLessThan(dim.outer*1.13+3);
 });
 
 test('stellar arm particles independently orbit, pause and stop at zero speed',async({page})=>{

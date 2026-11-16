@@ -467,7 +467,7 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
       // Both gas and stars use the exact same perspective pixel scaling.
       // Otherwise a 1920px export looks far less luminous than a 600px
       // preview as fixed-size point sprites occupy a much smaller area.
-      for(const name of ['galaxy-mode-cloud','galaxy-volumetric-gas-3d']){
+      for(const name of ['galaxy-mode-cloud','galaxy-volumetric-gas-3d','galaxy-nucleus-glow']){
         const object=scene.getObjectByName(name);
         const shader=object&&(object as {material?:ShaderMaterial}).material;
         if(shader?.uniforms?.uExportScale)shader.uniforms.uExportScale.value=exportScale;
