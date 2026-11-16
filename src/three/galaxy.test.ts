@@ -54,6 +54,18 @@ describe('GALAXY MODE',()=>{
     expect(galaxy.opacities.some(x=>x<.2)).toBe(true);
     expect(galaxyDefaults.arms).toBe(2);
   });
+  it('connects the old warm nucleus to inner spiral arms without a black gap',()=>{
+    const settings={...galaxyDefaults,count:12000};
+    const galaxy=generateGalaxy('inner-arm-detail',settings,false);
+    const start=Math.floor(galaxy.count*(.105+.305+.12));
+    const end=galaxy.count-Math.floor(galaxy.count*(.025+settings.dust/60*.055));
+    let inner=0;
+    for(let i=start;i<end;i++){
+      const r=Math.hypot(galaxy.positions[i*3],galaxy.positions[i*3+1])/settings.radius;
+      if(r>.12&&r<.32)inner++;
+    }
+    expect(inner/(end-start)).toBeGreaterThan(.065);
+  });
   it('arms bend with radius rather than becoming near-concentric rings',()=>{
     const galaxy=generateGalaxy('shape-check',galaxyDefaults,false);
     const start=Math.floor(galaxy.count*(.105+.305+.12));
