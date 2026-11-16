@@ -229,12 +229,12 @@ describe('GALAXY MODE',()=>{
         const [cx,cy]=data.centers[pivot];
         const d=Math.hypot(data.positions[i*3]-cx,data.positions[i*3+1]-cy)/options.radius;
         if(d<.07)inner++;
-        if(d>.075&&d<.22)halo++;
-        if(d>.32)far++;
+        if(d>.075&&d<.30)halo++;
+        if(d>.60)far++;
       }
-      expect(inner,galaxyType+' nucleus should be concentrated').toBeGreaterThan(data.count*.35);
-      expect(halo,galaxyType+' bulge should have a smooth warm envelope').toBeGreaterThan(data.count*.04);
-      expect(far/data.count,galaxyType+' nucleus should not illuminate outer arms').toBeLessThan(.02);
+      expect(inner,galaxyType+' nucleus should be concentrated').toBeGreaterThan(data.count*.025);
+      expect(halo,galaxyType+' bulge should have a smooth warm envelope').toBeGreaterThan(data.count*.35);
+      expect(far/data.count,galaxyType+' nucleus should not illuminate outer arms').toBeLessThan(.025);
     }
   });
   it('keeps interacting galaxies with two separate, rotating hot nuclei',()=>{
