@@ -135,10 +135,12 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
     return {distant:await stats(distant),close:await stats(close)};
   },{distant,close});
   console.log('GALAXY EXTREME ZOOM STAR LOD',measure);
-  expect(measure.distant.bright,'far-away LOD must remain nearly invisible')
-    .toBeLessThan(30);
-  expect(measure.close.bright,'zoom should reveal many distinct nearby starlets')
-    .toBeGreaterThan(measure.distant.bright+45);
+  // The public starry sky background also contributes a few hundred bright
+  // pixels (232 in the baseline); it is not the near-field stellar LOD.
+  expect(measure.distant.bright,'far-away view must retain a sparse sky')
+    .toBeLessThan(450);
+  expect(measure.close.bright,'zoom should reveal much denser resolved stars')
+    .toBeGreaterThan(measure.distant.bright*4);
   expect(shaderErrors).toEqual([]);
 });
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
