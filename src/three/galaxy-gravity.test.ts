@@ -189,6 +189,69 @@ describe('GALAXY MODE approximate gravity',()=>{
     expect(Math.hypot((a.mass*a.x+b.mass*b.x)/mass-cx,
       (a.mass*a.y+b.mass*b.y)/mass-cy)).toBeLessThan(.0001);
   });
+  it('inherits the moving nucleus velocity instead of leaving the stars behind',()=>{
+    const settings={...galaxyDefaults,galaxyType:'interacting' as const,
+      count:1800,tidalDynamicsEnabled:true,movingCoresEnabled:true,
+      gravityEnabled:true};
+    const stars=generateGalaxy('inherit-orbital-speed',settings,true);
+    const cores=createGalaxyCoreMotion(stars,settings);
+    const tides=createGalaxyGravitySimulation(stars,settings,cores);
+    const old=createGalaxyGravitySimulation(stars,
+      {...settings,tidalDynamicsEnabled:false},cores);
+    expect(tides.tidalEnabled).toBe(true);
+    expect(tides.tidalStrippedCount).toBe(0);
+    for(let i=0;i<stars.count;i+=113){
+      const q=i*2,j=i*3;
+      const cx=stars.orbitCenters![q],cy=stars.orbitCenters![q+1];
+      const host=Math.hypot(cx-cores.bodies[1].x,cy-cores.bodies[1].y)<
+        Math.hypot(cx-cores.bodies[0].x,cy-cores.bodies[0].y)?1:0;
+      expect(tides.velocities[j]-old.velocities[j])
+        .toBeCloseTo(cores.bodies[host].vx,5);
+      expect(tides.velocities[j+1]-old.velocities[j+1])
+        .toBeCloseTo(cores.bodies[host].vy,5);
+    }
+    tides.advance(0,1,1,.6);
+    expect(tides.tidalFlags.every(v=>v===0)).toBe(true);
+  });
+  it('strips stars through differential gravity and grows tails after flybys',()=>{
+    const settings={...galaxyDefaults,galaxyType:'interacting' as const,
+      count:1500,tidalDynamicsEnabled:true,movingCoresEnabled:true,
+      gravityEnabled:true,tidalStrength:1,coreFriction:.6};
+    const stars=generateGalaxy('true-tidal-tail',settings,true);
+    const coreTides=createGalaxyCoreMotion(stars,settings);
+    const coreQuiet=createGalaxyCoreMotion(stars,settings);
+    const tails=createGalaxyGravitySimulation(stars,settings,coreTides);
+    const quiet=createGalaxyGravitySimulation(stars,
+      {...settings,tidalStrength:0},coreQuiet);
+    tails.advance(0,1,1,.6);quiet.advance(0,1,1,.6);
+    let maximumStripped=0;
+    for(let i=1;i<=2100;i++){
+      const time=i*.035;
+      tails.advance(time,1,1,.6);
+      quiet.advance(time,1,1,.6);
+      maximumStripped=Math.max(maximumStripped,tails.tidalStrippedCount);
+    }
+    expect(coreTides.passages).toBeGreaterThanOrEqual(1);
+    expect(tails.tidalStrippedCount).toBeGreaterThan(3);
+    expect(maximumStripped).toBe(tails.tidalStrippedCount);
+    expect(tails.tidalTailExtent).toBeGreaterThan(settings.radius*.35);
+    expect(tails.tidalFlags.filter(x=>x>0).length).toBe(tails.tidalStrippedCount);
+    expect(quiet.tidalStrippedCount).toBe(0);
+    expect(quiet.tidalFlags.every(x=>x===0)).toBe(true);
+    expect(tails.positions.every(Number.isFinite)).toBe(true);
+    expect(quiet.positions.every(Number.isFinite)).toBe(true);
+    // The merger and core passage dynamics are independent of tracer tides.
+    expect(coreTides.passages).toBe(coreQuiet.passages);
+    expect(coreTides.bodies[0].x).toBeCloseTo(coreQuiet.bodies[0].x,5);
+    // The same initial disk evolves into distinct paths because of tidal pull.
+    expect(tails.positions).not.toEqual(quiet.positions);
+    expect(stars.positions).not.toEqual(tails.positions);
+    tails.advance(0,1,1,.6);
+    expect(tails.tidalStrippedCount).toBe(0);
+    expect(tails.tidalTailExtent).toBe(0);
+    expect(tails.tidalFlags.every(x=>x===0)).toBe(true);
+    expect(tails.positions).toEqual(stars.positions);
+  });
   it('keeps star and gas tracers synchronized to the same moving nuclei',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
       movingCoresEnabled:true,gravityEnabled:true,count:4000};
