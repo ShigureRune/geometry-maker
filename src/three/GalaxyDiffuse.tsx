@@ -252,9 +252,10 @@ const color=(rgb:readonly number[])=>new Vector3(rgb[0],rgb[1],rgb[2]);
 /** A continuous, translucent disk behind the 3D stars.
  * Individual Points alone cannot make the dense luminous arms visible
  * at mobile resolution or at exported HD resolutions. */
-export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuration}:{
+export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuration,progressHost}:{
   seed:string;options:GalaxySettings;seconds:RefObject<number>;
   animation:boolean;morph:RefObject<boolean>;morphDuration:RefObject<number>;
+  progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const now=useMemo(()=>appearance(seed,options),[
     seed,options.palette,options.arms,options.twist,options.armWidth,
@@ -335,6 +336,10 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     const phase=morph.current?galaxyMorphEasing(time/Math.max(.001,morphDuration.current)):1;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    if(progressHost?.current){
+      progressHost.current.dataset.galaxyGasTime=time.toFixed(3);
+      progressHost.current.dataset.galaxyGasSpeed=options.rotationSpeed.toFixed(2);
+    }
     uniforms.uRadius.value=options.radius;
     uniforms.uMorph.value=phase;
     uniforms.uEntrance.value=!animation&&time===0?1:galaxyMorphEasing(time/2.6);
