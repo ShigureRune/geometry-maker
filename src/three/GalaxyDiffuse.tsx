@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,DoubleSide,ShaderMaterial,Vector3} from 'three';
+import {DoubleSide,NormalBlending,ShaderMaterial,Vector3} from 'three';
 import {GALAXY_TYPES,galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
 import {GALAXY_MOTION_GLSL} from './galaxy-motion';
 
@@ -226,6 +226,10 @@ void main(){
   }
   current.a*=uEntrance;
   if(current.a<.006)discard;
+  // Limit HDR before blending: an opaque luminous gas layer should
+  // preserve star-forming blues and pinks, not add 3+ RGB values to every
+  // pixel and clip to flat white in the high-quality composer.
+  current.rgb=vec3(1.)-exp(-max(current.rgb,vec3(0.))*.72);
   gl_FragColor=current;
 }
 `;
@@ -356,6 +360,6 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
   return <mesh name="galaxy-diffuse-light" position={[0,0,-.13]} renderOrder={0} frustumCulled={false}>
     <planeGeometry args={[options.radius*2.5,options.radius*2.5]}/>
     <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
-      transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={AdditiveBlending}/>
+      transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={NormalBlending}/>
   </mesh>;
 }
