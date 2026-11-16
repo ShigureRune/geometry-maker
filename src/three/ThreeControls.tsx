@@ -221,6 +221,25 @@ export function ThreeShapeControls({settings, onChange}: Props) {
             value={galaxy.gravityHalo} min={0} max={2} step={.1}
             onChange={gravityHalo=>onChange({...settings,galaxy:{
               ...galaxy,gravityHalo}})}/>
+          <label className="three-checkbox">
+            <input id="galaxy-self-gravity" type="checkbox"
+              aria-label="Barnes-Hut法で星同士の自己重力を計算"
+              checked={galaxy.selfGravityEnabled}
+              onChange={event=>onChange({...settings,galaxy:{
+                ...galaxy,selfGravityEnabled:event.target.checked}})}/>
+            <strong>星同士の重力（Barnes–Hut）</strong>
+          </label>
+          {galaxy.selfGravityEnabled&&<>
+            <ThreeRange id="galaxy-self-gravity-strength" label="恒星の自己重力"
+              value={galaxy.selfGravityStrength} min={0} max={2} step={.1}
+              onChange={selfGravityStrength=>onChange({...settings,galaxy:{
+                ...galaxy,selfGravityStrength}})}/>
+            <ThreeRange id="galaxy-self-gravity-samples" label="重力源に使う星の数"
+              value={galaxy.selfGravitySamples} min={256} max={2048} step={256}
+              unit="個" onChange={selfGravitySamples=>onChange({...settings,galaxy:{
+                ...galaxy,selfGravitySamples}})}/>
+            <HelpInfo>星の分布から四分木を構築し、離れた星団の重力をまとめて計算します。画面上の全星が星同士の重力を受けますが、負荷を抑えるため重力源は最大2,048個を代表サンプリングし、モバイル相当の低画質では最大384個に制限します。加速度の再計算も間引くため、完全N体計算ではなく近似シミュレーションです。既存の中心核・暗黒物質ハロー・潮汐尾はそのまま維持されます。</HelpInfo>
+          </>}
           {galaxy.galaxyType==='interacting'&&<>
             <label className="three-checkbox"><input id="galaxy-moving-cores"
               type="checkbox" aria-label="銀河核同士を重力で動かす"
