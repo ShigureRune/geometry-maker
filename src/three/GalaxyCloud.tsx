@@ -25,6 +25,7 @@ uniform float uMorph;
 uniform float uMorphEnabled;
 uniform float uGlow;
 uniform float uDpr;
+uniform float uStarEnergy;
 varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
@@ -58,13 +59,16 @@ varying float vCore;
 varying float vOpacity;
 varying float vKind;
 uniform float uGlow;
+uniform float uStarEnergy;
 void main(){
   float dist=length(gl_PointCoord-vec2(0.5));
   float halo=exp(-dist*dist*(vKind>0.5?7.0:22.0));
   float center=1.0-smoothstep(0.035,0.23,dist);
   float alpha=(vKind>0.5?halo*0.24:(halo*0.29+center*0.92))*min(1.0,vOpacity*1.60);
   if(alpha<0.008)discard;
-  vec3 rgb=vColor*(1.85+vCore*uGlow*1.18);
+  // Light per star falls as density increases. More stars in high quality
+  // should add DETAIL, not multiply overall exposure by >3x.
+  vec3 rgb=vColor*(1.28+vCore*uGlow*.67)*uStarEnergy;
   gl_FragColor=vec4(rgb,alpha);
 }
 `;
@@ -122,6 +126,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uGlow:{value:options.coreGlow/100},uDpr:{value:1},
+    uStarEnergy:{value:1},
   }),[]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
@@ -158,6 +163,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
+    // Use an area-energy normalization rather than brightness proportional
+    // to star count. Both 3,600-star mobile and 30,000-star desktop galaxies
+    // retain visible spiral arms without turning into a white cloud.
+    uniforms.uStarEnergy.value=.58*Math.sqrt(3600/Math.max(1000,data.count));
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
@@ -169,6 +178,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       gpu.uMorphEnabled.value=uniforms.uMorphEnabled.value;
       gpu.uGlow.value=uniforms.uGlow.value;
       gpu.uDpr.value=uniforms.uDpr.value;
+      gpu.uStarEnergy.value=uniforms.uStarEnergy.value;
     }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
@@ -176,11 +186,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
+      progressHost.current.dataset.galaxyStarEnergy=uniforms.uStarEnergy.value.toFixed(3);
       progressHost.current.dataset.galaxySeedPhase=isMorph.current&&time<morphDuration.current?'transition':'settled';
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
     }
-  },[seconds,uniforms,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
+  },[seconds,uniforms,data.count,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
