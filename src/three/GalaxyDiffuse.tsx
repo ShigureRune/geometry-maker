@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,DoubleSide,Vector3} from 'three';
+import {AdditiveBlending,DoubleSide,ShaderMaterial,Vector3} from 'three';
 import {GALAXY_TYPES,galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
 
 const vertexShader=String.raw`
@@ -36,6 +36,18 @@ float noise(vec2 p){
 float angleDelta(float a,float b){
   return atan(sin(a-b),cos(a-b));
 }
+// Inverse orbital advection: sampling the luminous gas at an earlier
+// angle makes the rendered clouds orbit forward with the stars. All
+// morphology branches must use this local coordinate, not static UVs.
+vec2 counterRotate(vec2 p,float angle){
+  float c=cos(angle),s=sin(angle);
+  return vec2(p.x*c+p.y*s,-p.x*s+p.y*c);
+}
+vec2 gasOrbit(vec2 p,float handed,float time,float speed){
+  float radius=length(p);
+  float angularSpeed=(.025+.08/(.40+radius*1.5));
+  return counterRotate(p,handed*time*speed*angularSpeed);
+}
 // Two additional, softly blended octaves break up the synthetic smooth
 // ribbons without hard pixel edges or randomly flickering each frame.
 float cloudNoise(vec2 p){
@@ -59,15 +71,18 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   float galaxyType,vec4 extraA,vec4 extraB,float tidalStrength){
   float r=length(p);
   if(r>1.25)return vec4(0.);
+  // Shared gas/stellar clock. A paused scene keeps uTime fixed; PNG and
+  // video export set that same clock deterministically per captured frame.
+  vec2 gasP=gasOrbit(p,handed,uTime,uRotationSpeed);
   // 3:ring 4:elliptical 5:irregular 6:interacting.
   // Separate morphology functions are vital: a ring should NOT inherit
   // luminous spiral arms from the default galaxy.
   if(galaxyType>2.5&&galaxyType<3.5){
     float ring=exp(-.5*pow((r-extraA.x)/max(.04,extraA.y),2.));
-    float texture=cloudNoise(p*12.0+vec2(orientation,3.));
-    float knot=noise(p*36.0+vec2(2.,orientation));
+    float texture=cloudNoise(gasP*12.0+vec2(orientation,3.));
+    float knot=noise(gasP*36.0+vec2(2.,orientation));
     float ringWidth=max(.04,extraA.y);
-    float dustArc=smoothstep(.49,.77,noise(p*28.0+vec2(orientation,6.)));
+    float dustArc=smoothstep(.49,.77,noise(gasP*28.0+vec2(orientation,6.)));
     float knots=.34+.83*texture;
     float disk=.14*exp(-r*3.0),bulge=.29*exp(-pow(r/.115,1.7));
     float glow=ring*knots*(1.-smoothstep(.98,1.21,r));
@@ -78,7 +93,8 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   }
   if(galaxyType>3.5&&galaxyType<4.5){
     float q=length(vec2(p.x,p.y/max(.16,1.-extraA.z*.78)));
-    float grain=.94+.15*cloudNoise(p*17.+vec2(orientation,2.));
+    // The ellipsoid stays put, but its faint stellar grain circulates.
+    float grain=.87+.29*cloudNoise(gasP*17.+vec2(orientation,2.));
     float bulge=exp(-pow(q/.34,1.30))*(.82+.31*coreGlow)*grain;
     float halo=exp(-pow(q/.75,1.65))*.23;
     float nucleus=exp(-pow(q/.057,1.8))*.34;
@@ -92,13 +108,13 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       vec2 anchor=vec2(hash(vec2(k+orientation*7.,2.))-.5,
         hash(vec2(7.,k+orientation*4.))-.5)*vec2(1.55,1.16);
       float scale=mix(.07,.23,hash(vec2(k,orientation+4.)));
-      float d=length((p-anchor)/scale);
+      float d=length((gasP-anchor)/scale);
       clouds+=exp(-d*d*1.2);
     }
-    float texture=cloudNoise(p*12.0+vec2(orientation,3.));
+    float texture=cloudNoise(gasP*12.0+vec2(orientation,3.));
     clouds=min(1.4,clouds)*(.39+.90*texture);
-    float young=clouds*(.76+.25*noise(p*37.+vec2(2.,orientation)));
-    float pink=clouds*smoothstep(.58,.82,noise(p*25.+vec2(orientation,8.)));
+    float young=clouds*(.76+.25*noise(gasP*37.+vec2(2.,orientation)));
+    float pink=clouds*smoothstep(.58,.82,noise(gasP*25.+vec2(orientation,8.)));
     float warm=clouds*max(.10,.39*(1.-extraB.y));
     return vec4(diskColor*warm+youngColor*young*.80+
       hiiColor*pink*max(.2,extraB.y)*.47,
@@ -106,8 +122,10 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   }
   if(galaxyType>5.5){
     float gap=extraB.z,companion=max(.25,extraB.w);
-    vec2 first=p-vec2(-gap*.36,-.12);
-    vec2 second=(p-vec2(gap*.60,.10))/companion;
+    // Each galaxy's luminous arms rotate around its OWN core; rotating
+    // all gas about the midpoint would drag the companion nucleus away.
+    vec2 first=gasOrbit(p-vec2(-gap*.36,-.12),handed,uTime,uRotationSpeed);
+    vec2 second=gasOrbit((p-vec2(gap*.60,.10))/companion,handed,uTime,uRotationSpeed);
     float ga=exp(-pow(length(first)/.20,1.4));
     float gb=exp(-pow(length(second)/.24,1.5));
     float armsA=swirlingArm(first,orientation,handed,twist,width);
@@ -123,10 +141,12 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       tail+=exp(-pow(deviation/.17,2.))*smoothstep(.35,.55,radial)*
         (1.-smoothstep(.98,1.24,radial));
     }
-    float texture=cloudNoise(p*10.0+vec2(orientation,3.));
+    // Tidal tails stay attached to their galaxies while light-bearing
+    // knots flow along them instead of being frozen to screen pixels.
+    float texture=cloudNoise(gasP*10.0+vec2(orientation,3.));
     tail*=tidalStrength*(.40+.87*texture);
-    armsA*=.65+.60*texture;
-    armsB*=.66+.54*cloudNoise(p*16.+vec2(4.,orientation));
+    armsA*=.65+.60*cloudNoise(first*10.+vec2(orientation,3.));
+    armsB*=.66+.54*cloudNoise(second*16.+vec2(4.,orientation));
     float coreA=exp(-pow(length(first)/.06,1.6));
     float coreB=exp(-pow(length(second)/.08,1.7));
     return vec4(bulgeColor*(ga*.71+gb*.60+coreA*.34+coreB*.24)+
@@ -135,10 +155,9 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       clamp(ga*.60+gb*.61+armsA*.40+armsB*.30+tail*.26,0.,.92));
   }
   float edge=1.0-smoothstep(0.93,1.16,r);
-  // Keep the diffuse arm pattern in step with the particles' differential
-  // orbital angular velocity at the same radius.
-  float angle=atan(p.y,p.x)-
-    handed*uTime*uRotationSpeed*(.025+.08/(.40+r*1.5));
+  // The gas and arm dust are sampled in the same moving orbital frame.
+  // Stationary p here would leave bright patches glued to the screen.
+  float angle=atan(gasP.y,gasP.x);
   float rSafe=max(mix(.145,.25,barred),r);
   float winding=handed*(1.65+twist*.35)*log(rSafe/mix(.145,.25,barred));
   float armsBrightness=0.0;
@@ -162,15 +181,15 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
         .23*exp(-pow((d-.056)/max(.022,.052*r*width),2.)));
     }
   }
-  float broadNoise=cloudNoise(p*11.0+vec2(orientation,1.7));
-  float fineNoise=noise(p*42.0+vec2(1.3,orientation));
+  float broadNoise=cloudNoise(gasP*11.0+vec2(orientation,1.7));
+  float fineNoise=noise(gasP*42.0+vec2(1.3,orientation));
   float disk=exp(-r*1.76)*edge*(.75+.43*broadNoise);
   float arm=(armsBrightness*.68+filaments*.38)*edge*smoothstep(.10,.24,r)*
     (.23+.98*broadNoise+.16*fineNoise);
   if(galaxyType>1.5&&galaxyType<2.5){
     // Flocculent galaxies: scattered bright segments, not two smooth ribbons.
-    float patches=noise(p*(6.8+extraA.w*4.)+vec2(orientation,2.));
-    float spurs=noise(p*(13.+extraB.x*7.)+vec2(4.,orientation));
+    float patches=noise(gasP*(6.8+extraA.w*4.)+vec2(orientation,2.));
+    float spurs=noise(gasP*(13.+extraB.x*7.)+vec2(4.,orientation));
     // Keep the clumpy structure soft: sharp high-frequency thresholds
     // make a galaxy look like a square Minecraft pixel texture.
     arm=arm*(.13+.82*smoothstep(.20,.80,patches))*(.65+.26*spurs)+
@@ -185,13 +204,13 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     (.94+.09*broadNoise);
   float bulge=nucleus+oldStars;
   if(barred>0.5){
-    vec2 q=vec2(dot(p,vec2(cos(orientation),sin(orientation))),
-      dot(p,vec2(-sin(orientation),cos(orientation))));
+    vec2 q=vec2(dot(gasP,vec2(cos(orientation),sin(orientation))),
+      dot(gasP,vec2(-sin(orientation),cos(orientation))));
     float barStrength=galaxyType>.5&&galaxyType<1.5?.73:.16;
     bulge+=exp(-pow(length(q/vec2(.35,.062)),1.6))*barStrength;
   }
   float hii=arm*smoothstep(.65,.87,
-    mix(noise(p*28.0+vec2(orientation,2.3)),broadNoise,.24));
+    mix(noise(gasP*28.0+vec2(orientation,2.3)),broadNoise,.24));
   float alpha=clamp(bulge*.73+disk*.53+arm*.59+hii*.30,0.0,.93);
   vec3 rgb=bulgeColor*(bulge*1.20)+diskColor*(disk*.86)+
     youngColor*(arm*1.08)+hiiColor*(hii*.92);
@@ -233,9 +252,10 @@ const color=(rgb:readonly number[])=>new Vector3(rgb[0],rgb[1],rgb[2]);
 /** A continuous, translucent disk behind the 3D stars.
  * Individual Points alone cannot make the dense luminous arms visible
  * at mobile resolution or at exported HD resolutions. */
-export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuration}:{
+export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuration,progressHost}:{
   seed:string;options:GalaxySettings;seconds:RefObject<number>;
   animation:boolean;morph:RefObject<boolean>;morphDuration:RefObject<number>;
+  progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const now=useMemo(()=>appearance(seed,options),[
     seed,options.palette,options.arms,options.twist,options.armWidth,
@@ -244,6 +264,7 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     options.branchiness,options.irregularity,options.companionDistance,
     options.companionSize,options.tidalStrength,
   ]);
+  const material=useRef<ShaderMaterial>(null);
   const old=useRef(now);
   const lastSeed=useRef(seed);
   const uniforms=useMemo(()=>({
@@ -316,6 +337,18 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     const phase=morph.current?galaxyMorphEasing(time/Math.max(.001,morphDuration.current)):1;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    // Write directly to the mounted Three.js material as well: this is
+    // the authoritative GPU uniform container during demand rendering.
+    if(material.current){
+      material.current.uniforms.uTime.value=time;
+      material.current.uniforms.uRotationSpeed.value=options.rotationSpeed;
+    }
+    if(progressHost?.current){
+      progressHost.current.dataset.galaxyGasTime=time.toFixed(3);
+      progressHost.current.dataset.galaxyGasSpeed=options.rotationSpeed.toFixed(2);
+      progressHost.current.dataset.galaxyGasMaterialTime=
+        Number(material.current?.uniforms.uTime.value??-1).toFixed(3);
+    }
     uniforms.uRadius.value=options.radius;
     uniforms.uMorph.value=phase;
     uniforms.uEntrance.value=!animation&&time===0?1:galaxyMorphEasing(time/2.6);
@@ -323,7 +356,7 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
   });
   return <mesh name="galaxy-diffuse-light" position={[0,0,-.13]} renderOrder={0} frustumCulled={false}>
     <planeGeometry args={[options.radius*2.5,options.radius*2.5]}/>
-    <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
+    <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
       transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={AdditiveBlending}/>
   </mesh>;
 }

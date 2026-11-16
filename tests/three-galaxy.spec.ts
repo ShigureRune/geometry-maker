@@ -6,9 +6,9 @@ async function category(page:Page,name:string){
   const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
   if(await button.getAttribute('aria-expanded')!=='true')await button.click();
 }
-async function openGalaxy(page:Page){
+async function openGalaxy(page:Page,gasOnly=false){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto(gasOnly?'./?galaxyGasOnly=1':'./');
   await page.getByLabel('シード値',{exact:true}).fill('galaxy-ci');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -128,6 +128,77 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   expect(shaders).toEqual([]);
   expect(errors).toEqual([]);
 });
+test('luminous gas itself moves in all seven galaxy types and freezes when paused',async({page})=>{
+  test.setTimeout(225_000);
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  const shaders:string[]=[];page.on('console',message=>{
+    if(message.type()==='error'&&/shader error|shader compile|webglprogram/i.test(message.text()))
+      shaders.push(message.text());
+  });
+  // Hide ONLY star particles using the development-only probe.
+  // Thus image differences prove the nebula SHADER moves, not just stars.
+  await openGalaxy(page,true);
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await page.waitForTimeout(3050); // allow initial formation to complete
+  await category(page,'図形');
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-only-probe','true');
+  for(const [index,type] of GALAXY_TYPES.entries()){
+    await page.locator('#galaxy-type').selectOption(type);
+    await expect(preview).toHaveAttribute('data-galaxy-type',type);
+    await category(page,'アニメーション');
+    await page.getByRole('button',{name:'3Dを一時停止'}).click();
+    await category(page,'図形');
+    const frozenTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
+    const frozen=await preview.locator('canvas').screenshot({path:`test-results/gas-probe-${type}-paused.png`});
+    await page.waitForTimeout(260);
+    const frozenAgain=await preview.locator('canvas').screenshot();
+    expect(frozenAgain.equals(frozen),type+' gas must not move while paused').toBe(true);
+    expect(Number(await preview.getAttribute('data-galaxy-gas-time'))).toBe(frozenTime);
+    await category(page,'アニメーション');
+    await page.getByRole('button',{name:'3Dを再生'}).click();
+    await category(page,'図形');
+    await page.waitForTimeout(200);
+    const runningStart=await preview.locator('canvas').screenshot();
+    await page.waitForTimeout(1250);
+    const animatedTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
+    expect(animatedTime,type+' shader clock must advance').toBeGreaterThan(frozenTime+.15);
+    expect(Number(await preview.getAttribute('data-galaxy-gas-material-time'))).toBeGreaterThan(frozenTime+.15);
+    const moved=await preview.locator('canvas').screenshot({path:`test-results/gas-probe-${type}-played.png`});
+    console.log('GAS PROBE',type,{frozenTime,animatedTime,
+      beforeBytes:frozen.length,liveBytes:runningStart.length,afterBytes:moved.length});
+    expect(moved.equals(runningStart),type+' gas must animate while playback is RUNNING').toBe(false);
+    if(index<GALAXY_TYPES.length-1){
+      await category(page,'アニメーション');
+      await page.getByRole('button',{name:'3Dを一時停止'}).click();
+      await page.getByRole('button',{name:'3Dを再生'}).click();
+      await category(page,'図形');
+    }
+  }
+  expect(errors).toEqual([]);
+  expect(shaders).toEqual([]);
+});
+
+test('gas flow stops at zero rotation speed while the 3D clock keeps playing',async({page})=>{
+  await openGalaxy(page,true);
+  await page.locator('#galaxy-type').selectOption('ring');
+  await page.locator('#galaxy-spin').fill('0');
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await category(page,'図形');
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-only-probe','true');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-speed','0.00');
+  await page.waitForTimeout(3100);
+  const beforeTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
+  const image=await preview.locator('canvas').screenshot();
+  await page.waitForTimeout(550);
+  const afterTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
+  expect(afterTime).toBeGreaterThan(beforeTime+.10);
+  expect((await preview.locator('canvas').screenshot()).equals(image)).toBe(true);
+});
+
 test('galaxy morphs when the seed changes and pauses with the 3D clock',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await openGalaxy(page);

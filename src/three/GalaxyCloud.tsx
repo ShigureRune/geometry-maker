@@ -100,6 +100,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   transitionDuration?:number;progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const options=settings.galaxy??galaxyDefaults;
+  // Development-only screenshot probe: isolate the gas layer so browser
+  // regression tests cannot pass merely because STAR particles moved.
+  // Vite removes this probe from production builds.
+  const gasOnlyProbe=import.meta.env.DEV&&
+    new URLSearchParams(window.location.search).has('galaxyGasOnly');
   const data=useMemo(()=>generateGalaxy(seed,options,low),[
     seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,options.armWidth,options.barred,
     options.galaxyType,options.ringRadius,options.ringWidth,options.ellipticity,
@@ -141,6 +146,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
     if(progressHost?.current){
+      progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxySeedPhase=isMorph.current&&time<morphDuration.current?'transition':'settled';
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
@@ -178,8 +184,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
-      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}/>
-    <points name="galaxy-mode-cloud" geometry={geometry} renderOrder={1} frustumCulled={false}>
+      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
+      progressHost={progressHost}/>
+    <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
     </points>
