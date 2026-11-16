@@ -1,7 +1,7 @@
 // This is the only entry importing WebGL libraries. App loads it with React.lazy.
 import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject} from 'react';
-import {ACESFilmicToneMapping, CanvasTexture, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, SRGBColorSpace, Vector2, Vector3} from 'three';
+import {ACESFilmicToneMapping, CanvasTexture, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, ShaderMaterial, SRGBColorSpace, Vector2, Vector3} from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -202,6 +202,12 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
   const pipeline = useRef<{composer: EffectComposer; bloom: UnrealBloomPass; output: OutputPass} | null>(null);
   const skipDelta = useRef(true);
   const exportingVideo=useRef(false);
+  const exportingStill=useRef(false);
+  // Export changes the WebGL drawing-buffer size. Retain the original
+  // live pixel density so gl_PointSize can track the same ANGULAR extent
+  // at PNG/video resolution rather than shrinking into tiny bright dots.
+  const livePixelRatio=useRef(gl.getPixelRatio());
+  const spriteDrawSize=useMemo(()=>new Vector2(),[]);
   const beforeVideoTime=useRef(0);
   const beforeVideoFloorTime=useRef(0);
   type PendingVideoFrame={time:number;width:number;height:number;canvas:HTMLCanvasElement;
@@ -452,6 +458,23 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
 
   function render() {
     if (gl.getContext().isContextLost()) throw new Error('3D描画が中断されました。解像度を下げて再度お試しください。');
+    if(!exportingVideo.current&&!exportingStill.current)
+      livePixelRatio.current=gl.getPixelRatio();
+    if(settings.galaxy?.enabled){
+      const drawingWidth=gl.getDrawingBufferSize(spriteDrawSize).x;
+      const liveWidth=Math.max(1,size.width*livePixelRatio.current);
+      const exportScale=Math.max(.25,Math.min(8,drawingWidth/liveWidth));
+      // Both gas and stars use the exact same perspective pixel scaling.
+      // Otherwise a 1920px export looks far less luminous than a 600px
+      // preview as fixed-size point sprites occupy a much smaller area.
+      for(const name of ['galaxy-mode-cloud','galaxy-volumetric-gas-3d']){
+        const object=scene.getObjectByName(name);
+        const shader=object&&(object as {material?:ShaderMaterial}).material;
+        if(shader?.uniforms?.uExportScale)shader.uniforms.uExportScale.value=exportScale;
+      }
+      if(progressHost?.current)
+        progressHost.current.dataset.galaxyExportPointScale=exportScale.toFixed(3);
+    }
     const network=settings.network??networkDefaults,neon=settings.neon??neonDefaults;
     const floor=settings.floorGrid??floorGridDefaults;
     const celestial=settings.celestial??celestialDefaults;
@@ -592,6 +615,7 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
       await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
     }
     const dpr = gl.getPixelRatio();
+    exportingStill.current=true;
     try {
       gl.setPixelRatio(1); gl.setSize(renderWidth, renderHeight, false);
       pipeline.current?.composer.setPixelRatio(1); pipeline.current?.composer.setSize(renderWidth, renderHeight);
@@ -603,6 +627,7 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
     } finally {
       gl.setPixelRatio(dpr); gl.setSize(size.width, size.height, false);
       pipeline.current?.composer.setPixelRatio(dpr); pipeline.current?.composer.setSize(size.width, size.height);
+      exportingStill.current=false;
       invalidate();
     }
     try {
