@@ -3,7 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
 import {galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyDetailStars} from './galaxy-generators/detail-stars';
-import {createGalaxyGravitySimulation} from './galaxy-gravity';
+import {createGalaxyGravitySimulation,type GalaxyCoreMotion} from './galaxy-gravity';
 
 // A second, finer stellar resolution that fades in only *near* the camera.
 // Far away, it contributes exactly zero light: wide galaxy screenshots and
@@ -60,16 +60,19 @@ void main(){
 `;
 
 export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morph,morphDuration,
-  progressHost}:{
+  coreMotion,progressHost}:{
   seed:string;options:GalaxySettings;stars:GalaxyData;low:boolean;
   seconds:RefObject<number>;animation:boolean;morph:RefObject<boolean>;
-  morphDuration:RefObject<number>;progressHost?:RefObject<HTMLDivElement|null>;
+  morphDuration:RefObject<number>;coreMotion?:GalaxyCoreMotion|null;
+  progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const data=useMemo(()=>generateGalaxyDetailStars(seed,options,low,stars),[
     seed,stars,low,options.radius,options.galaxyType,options.companionSize,
   ]);
   const gravity=useMemo(()=>options.gravityEnabled?
-    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
+    createGalaxyGravitySimulation(data,options,coreMotion):null,[
+    data,options.gravityEnabled,coreMotion,
+  ]);
   const geometry=useMemo(()=>{
     const result=new BufferGeometry();
     result.setAttribute('position',new BufferAttribute(
