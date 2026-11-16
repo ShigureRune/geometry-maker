@@ -146,6 +146,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
     if(progressHost?.current){
+      progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxySeedPhase=isMorph.current&&time<morphDuration.current?'transition':'settled';
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
@@ -183,7 +184,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
-      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}/>
+      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
+      progressHost={progressHost}/>
     <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
