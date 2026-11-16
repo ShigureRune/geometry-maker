@@ -142,19 +142,24 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
   await page.waitForTimeout(3050); // allow initial formation to complete
   await category(page,'図形');
   const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-only-probe','true');
   for(const type of GALAXY_TYPES){
     await page.locator('#galaxy-type').selectOption(type);
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを一時停止'}).click();
     await category(page,'図形');
+    const frozenTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
     const frozen=await preview.locator('canvas').screenshot();
     await page.waitForTimeout(260);
     const frozenAgain=await preview.locator('canvas').screenshot();
     expect(frozenAgain.equals(frozen),type+' gas must not move while paused').toBe(true);
+    expect(Number(await preview.getAttribute('data-galaxy-gas-time'))).toBe(frozenTime);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを再生'}).click();
     await page.waitForTimeout(1250);
+    const animatedTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
+    expect(animatedTime,type+' shader clock must advance').toBeGreaterThan(frozenTime+.15);
     await page.getByRole('button',{name:'3Dを一時停止'}).click();
     await category(page,'図形');
     const moved=await preview.locator('canvas').screenshot();
