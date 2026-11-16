@@ -207,6 +207,10 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
   type PendingVideoFrame={time:number;width:number;height:number;canvas:HTMLCanvasElement;
     resolve:()=>void;reject:(error:Error)=>void};
   const pendingVideoFrame=useRef<PendingVideoFrame|null>(null);
+  type PendingPNGFrame={canvas:HTMLCanvasElement;width:number;height:number;
+    renderWidth:number;renderHeight:number;resolve:()=>void;reject:(error:Error)=>void};
+  const pendingPNGFrame=useRef<PendingPNGFrame|null>(null);
+  const exportingPNG=useRef(false);
   const lastRestart=useRef(restartKey),ready=useRef(false);
   const lastTransitionId=useRef<number|null>(transition?.id??null);
   const finishedTransition=useRef<number|null>(null);
@@ -277,7 +281,15 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
     orbit.addEventListener('start',interrupt);
     orbit.addEventListener('end',release);
     const visibility = () => {skipDelta.current = true; if (!document.hidden) invalidate();};
-    const lost = (event: Event) => {event.preventDefault(); onLost();};
+    const lost = (event: Event) => {
+      event.preventDefault();
+      const error=new Error('3D描画が中断されました。画像書き出しを中止しました。');
+      pendingPNGFrame.current?.reject(error);
+      pendingPNGFrame.current=null;
+      pendingVideoFrame.current?.reject(error);
+      pendingVideoFrame.current=null;
+      onLost();
+    };
     document.addEventListener('visibilitychange', visibility);
     gl.domElement.addEventListener('webglcontextlost', lost);
     return () => {
@@ -338,7 +350,7 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
         // the live PCB/floor phase, just replay it relative to export start.
         floorSeconds.current=beforeVideoFloorTime.current+pendingVideoFrame.current.time;
       }
-    }else if(settings.animation&&!document.hidden&&!skipDelta.current){
+    }else if(!exportingPNG.current&&settings.animation&&!document.hidden&&!skipDelta.current){
       seconds.current=transition?
         advanceStandbyClock(seconds.current,delta,settings.speed,transition.duration):
         seconds.current+delta*settings.speed;
@@ -489,6 +501,24 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
   // using the requested exact timestamp by this later callback. Capture in the
   // SAME WebGL frame before the drawing buffer is discarded by Safari/WebGL.
   useFrame(()=>{
+    const png=pendingPNGFrame.current;
+    if(png){
+      pendingPNGFrame.current=null;
+      try{
+        if(gl.getContext().isContextLost())throw new Error('3D描画が中断されました。');
+        const context=png.canvas.getContext('2d');
+        if(!context)throw new Error('PNG用のメモリを確保できませんでした。');
+        drawBackground(context,png.width,png.height,background);
+        // Copy the frame R3F has JUST rendered at the export dimensions.
+        // This includes the current uniforms, renderer color pipeline and
+        // the exact same frame of animation as the on-screen preview.
+        context.drawImage(gl.domElement,Math.round((png.width-png.renderWidth)/2),
+          Math.round((png.height-png.renderHeight)/2));
+        png.resolve();
+      }catch(error){
+        png.reject(error instanceof Error?error:new Error('3D PNGを保存できませんでした。'));
+      }
+    }
     const frame=pendingVideoFrame.current;
     if(!frame)return;
     pendingVideoFrame.current=null;
@@ -576,38 +606,45 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
       invalidate();
     },
     async savePNG(width, height) {
-    const error = threeResolutionError(width, height); if (error) throw new Error(error);
-    const maxSize = Math.min(gl.capabilities.maxTextureSize, gl.getContext().getParameter(gl.getContext().MAX_RENDERBUFFER_SIZE));
-    if (width > maxSize || height > maxSize || (low && width * height > 4_194_304)) throw new Error('この描画設定では解像度が大きすぎます。軽量設定では合計4,194,304画素以内にしてください。');
-    const output = document.createElement('canvas'); output.width = width; output.height = height;
-    const context = output.getContext('2d'); if (!context) throw new Error('PNG用のメモリを確保できませんでした。');
-    const scale = Math.min(width / size.width, height / size.height);
-    const renderWidth = Math.max(1, Math.round(size.width * scale)), renderHeight = Math.max(1, Math.round(size.height * scale));
-    // The new 3D PCB uses instanced materials updated in useFrame. When
-    // toggling a hardware layer or restoring JSON, the PNG button can fire
-    // before that first demand-render frame. Give R3F one real frame to apply
-    // the exact paused route, chip and processor state before capture.
-    if(settings.floorGrid?.style==='circuit'&&settings.floorGrid.circuitWorldEnabled&&!document.hidden){
+    const error=threeResolutionError(width,height);if(error)throw new Error(error);
+    if(exportingPNG.current||exportingVideo.current)
+      throw new Error('別の3D画像・動画を書き出し中です。');
+    const context3D=gl.getContext();
+    const maxSize=Math.min(gl.capabilities.maxTextureSize,
+      context3D.getParameter(context3D.MAX_RENDERBUFFER_SIZE));
+    if(width>maxSize||height>maxSize||(low&&width*height>4_194_304))
+      throw new Error('この描画設定では解像度が大きすぎます。軽量設定では合計4,194,304画素以内にしてください。');
+    const output=document.createElement('canvas');
+    output.width=width;output.height=height;
+    const scale=Math.min(width/size.width,height/size.height);
+    const renderWidth=Math.max(1,Math.round(size.width*scale));
+    const renderHeight=Math.max(1,Math.round(size.height*scale));
+    const dpr=gl.getPixelRatio();
+    exportingPNG.current=true;
+    try{
+      gl.setPixelRatio(1);gl.setSize(renderWidth,renderHeight,false);
+      pipeline.current?.composer.setPixelRatio(1);
+      pipeline.current?.composer.setSize(renderWidth,renderHeight);
+      // A synchronous render() misses useFrame shader updates after resizing.
+      // Capture after a real R3F frame, as video export already does.
+      await new Promise<void>((resolve,reject)=>{
+        pendingPNGFrame.current={canvas:output,width,height,renderWidth,renderHeight,resolve,reject};
+        invalidate();
+      });
+    }finally{
+      pendingPNGFrame.current=null;
+      gl.setPixelRatio(dpr);gl.setSize(size.width,size.height,false);
+      pipeline.current?.composer.setPixelRatio(dpr);
+      pipeline.current?.composer.setSize(size.width,size.height);
+      exportingPNG.current=false;
+      skipDelta.current=true;
       invalidate();
-      await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
     }
-    const dpr = gl.getPixelRatio();
-    try {
-      gl.setPixelRatio(1); gl.setSize(renderWidth, renderHeight, false);
-      pipeline.current?.composer.setPixelRatio(1); pipeline.current?.composer.setSize(renderWidth, renderHeight);
-      // Render synchronously and copy immediately; preserveDrawingBuffer is not
-      // needed during normal playback. This captures the current camera and pose.
-      render();
-      drawBackground(context, width, height, background);
-      context.drawImage(gl.domElement, Math.round((width - renderWidth) / 2), Math.round((height - renderHeight) / 2));
-    } finally {
-      gl.setPixelRatio(dpr); gl.setSize(size.width, size.height, false);
-      pipeline.current?.composer.setPixelRatio(dpr); pipeline.current?.composer.setSize(size.width, size.height);
-      invalidate();
-    }
-    try {
-      return await new Promise<Blob>((resolve, reject) => output.toBlob(blob => blob ? resolve(blob) : reject(new Error('PNGを作成できませんでした。解像度を下げてください。')), 'image/png'));
-    } finally {output.width = 0; output.height = 0;}
+    try{
+      return await new Promise<Blob>((resolve,reject)=>
+        output.toBlob(blob=>blob?resolve(blob):
+          reject(new Error('PNGを作成できませんでした。解像度を下げてください。')),'image/png'));
+    }finally{output.width=0;output.height=0;}
   }}));
   return <ExploreController speed={(settings.sky?.world??worldDefaults).exploreSpeed} view={view} onNavigate={onNavigation}/>;
 }
