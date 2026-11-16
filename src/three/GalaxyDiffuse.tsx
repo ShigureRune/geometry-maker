@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,DoubleSide,Vector3} from 'three';
+import {AdditiveBlending,DoubleSide,ShaderMaterial,Vector3} from 'three';
 import {GALAXY_TYPES,galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
 
 const vertexShader=String.raw`
