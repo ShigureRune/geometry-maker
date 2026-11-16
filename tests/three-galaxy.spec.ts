@@ -146,6 +146,49 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
     .toBeGreaterThan(measure.distant.strong+70);
   expect(shaderErrors).toEqual([]);
 });
+test('deep zoom keeps the stellar disk colorful without a washed-out white field',async({page})=>{
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  const canvas=preview.locator('canvas');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await page.locator('#galaxy-count').fill('9000');
+  await page.locator('#galaxy-inclination').fill('0');
+  await canvas.hover();
+  await page.mouse.wheel(0,-430);
+  await page.waitForTimeout(350);
+  await mkdir('test-results',{recursive:true});
+  const photo=(await canvas.screenshot({path:'test-results/galaxy-star-color-deep-zoom.png'}))
+    .toString('base64');
+  const sample=await page.evaluate(async b64=>{
+    const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();
+    const surface=document.createElement('canvas');surface.width=320;surface.height=240;
+    const ctx=surface.getContext('2d',{willReadFrequently:true})!;
+    ctx.drawImage(img,0,0,320,240);
+    const pixels=ctx.getImageData(0,0,320,240).data;
+    let bright=0,colorful=0,pale=0;
+    for(let y=0;y<240;y++)for(let x=0;x<320;x++){
+      const r=Math.hypot(x-160,y-120);
+      // The deliberately smooth white-hot nucleus is allowed to be ivory.
+      if(r<22||r>110)continue;
+      const p=(y*320+x)*4;
+      const red=pixels[p],green=pixels[p+1],blue=pixels[p+2];
+      const max=Math.max(red,green,blue);
+      const min=Math.min(red,green,blue);
+      if(max<65)continue;
+      bright++;
+      if(max-min>25)colorful++;
+      if(min>190&&max-min<24)pale++;
+    }
+    return {bright,colorful,pale};
+  },photo);
+  console.log('GALAXY DEEP ZOOM COLORS',sample);
+  expect(sample.bright,'nearby stars should still visibly illuminate the disk')
+    .toBeGreaterThan(140);
+  expect(sample.colorful,'blue and amber stellar colors must survive zoom')
+    .toBeGreaterThan(90);
+  expect(sample.pale/(sample.bright||1),'the disk must not turn into a pale white haze')
+    .toBeLessThan(.30);
+});
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await openGalaxy(page);
   await page.locator('#galaxy-arms').fill('5');
