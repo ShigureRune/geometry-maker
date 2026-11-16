@@ -221,6 +221,30 @@ export function ThreeShapeControls({settings, onChange}: Props) {
             value={galaxy.gravityHalo} min={0} max={2} step={.1}
             onChange={gravityHalo=>onChange({...settings,galaxy:{
               ...galaxy,gravityHalo}})}/>
+          {galaxy.galaxyType==='interacting'&&<>
+            <label className="three-checkbox"><input id="galaxy-moving-cores"
+              type="checkbox" aria-label="銀河核同士を重力で動かす"
+              checked={galaxy.movingCoresEnabled}
+              onChange={event=>onChange({...settings,galaxy:{
+                ...galaxy,movingCoresEnabled:event.target.checked}})}/>
+              銀河核同士の重力・衝突・合体
+            </label>
+            {galaxy.movingCoresEnabled&&<>
+              <ThreeRange id="galaxy-core-approach" label="銀河核の接近速度"
+                min={0} max={2} step={.05} value={galaxy.coreApproachSpeed}
+                onChange={coreApproachSpeed=>onChange({...settings,galaxy:{
+                  ...galaxy,coreApproachSpeed}})}/>
+              <ThreeRange id="galaxy-core-impact" label="衝突のずれ（接近角度）"
+                min={0} max={1} step={.05} value={galaxy.coreImpactParameter}
+                onChange={coreImpactParameter=>onChange({...settings,galaxy:{
+                  ...galaxy,coreImpactParameter}})}/>
+              <ThreeRange id="galaxy-core-merge" label="銀河核の合体距離"
+                min={.05} max={.4} step={.01} value={galaxy.coreMergeDistance}
+                onChange={coreMergeDistance=>onChange({...settings,galaxy:{
+                  ...galaxy,coreMergeDistance}})}/>
+              <HelpInfo>2つの中心核が互いに引き合って移動し、周囲の星・ガス・淡い円盤と中心核の発光も動きます。合体距離より近づくと1つの重力源へ統合します。質量と運動量は保存する近似モデルです。</HelpInfo>
+            </>}
+          </>}
           <HelpInfo>星とガスが中心バルジと暗黒物質ハローの重力場を受け、時間とともに軌道が変化します。相互作用銀河では2つの重力源を使用します。完全N体計算ではなく、各星の相互重力は省いた軽量な近似です。再生・停止や重力パラメーターで動きが変わり、OFFにすると元の銀河表示に戻ります。</HelpInfo>
         </>}
         <label htmlFor="galaxy-palette">銀河の色テーマ</label>
