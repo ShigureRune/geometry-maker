@@ -36,6 +36,7 @@ jobs:
             test-results/galaxy-star-color-deep-zoom.png
             test-results/galaxy-gravity-on.png
             test-results/galaxy-moving-cores.png
+            test-results/galaxy-stellar-nbody.png
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4
