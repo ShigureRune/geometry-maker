@@ -156,6 +156,69 @@ async function galaxyExposure(page:Page,filename:string){
     return {mean:sum/count,whiteFraction:clips/count,washedOutFraction:washed/count};
   },png);
 }
+test('PNG export preserves the preview gas and star glow at a larger resolution',async({page})=>{
+  test.setTimeout(160_000);
+  await openGalaxy(page);
+  await page.getByLabel('3D描画品質').selectOption('high');
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-quality','high');
+  await page.locator('#galaxy-count').fill('7500');
+  await page.waitForTimeout(350);
+  const livePng=(await preview.locator('canvas').screenshot()).toString('base64');
+  const css=await preview.locator('canvas').evaluate(canvas=>({
+    width:Math.round(canvas.clientWidth),height:Math.round(canvas.clientHeight),
+  }));
+  // Keep the same camera aspect ratio; otherwise an export letterbox
+  // would distort brightness comparisons independently of the renderer.
+  const factor=Math.min(1920/css.width,1080/css.height,2.5);
+  const width=Math.max(256,Math.round(css.width*factor));
+  const height=Math.max(256,Math.round(css.height*factor));
+  await category(page,'書き出し');
+  await page.locator('#three-export-width').fill(String(width));
+  await page.locator('#three-export-height').fill(String(height));
+  const downloadPromise=page.waitForEvent('download',{timeout:120_000});
+  await page.getByRole('button',{name:'3D PNGを書き出す',exact:true}).click();
+  const saved=await downloadPromise;
+  const exportedPng=(await readFile((await saved.path())!)).toString('base64');
+  const lastScale=Number(await preview.getAttribute('data-galaxy-last-png-point-scale'));
+  console.log('GALAXY EXPORT SCALE', {css,width,height,lastScale});
+  expect(lastScale).toBeGreaterThan(1.1);
+  const levels=await page.evaluate(async({livePng,exportedPng})=>{
+    async function stats(encoded:string){
+      const bitmap=new Image();bitmap.src='data:image/png;base64,'+encoded;
+      await bitmap.decode();
+      const canvas=document.createElement('canvas');
+      canvas.width=320;canvas.height=180;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+      ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      const pixels=ctx.getImageData(0,0,320,180).data;
+      let total=0,lit=0,core=0,coreN=0,white=0;
+      for(let y=10;y<170;y++)for(let x=25;x<295;x++){
+        const p=(y*320+x)*4;
+        const r=pixels[p],g=pixels[p+1],b=pixels[p+2];
+        const brightness=r*.30+g*.48+b*.22;
+        total+=brightness;
+        if(brightness>15)lit++;
+        if(Math.hypot(x-160,y-90)<26){core+=brightness;coreN++;}
+        if(Math.min(r,g,b)>245)white++;
+      }
+      return {mean:total/(270*160),lit:lit/(270*160),
+        core:core/coreN,whiteFraction:white/(270*160)};
+    }
+    return {preview:await stats(livePng),exported:await stats(exportedPng)};
+  },{livePng,exportedPng});
+  console.log('GALAXY PNG VS PREVIEW', levels);
+  const l=levels.preview,e=levels.exported;
+  expect(l.mean).toBeGreaterThan(1);
+  expect(e.mean/l.mean,'export must keep global luminosity').toBeGreaterThan(.63);
+  expect(e.mean/l.mean,'export must not wash out the galaxy').toBeLessThan(1.48);
+  expect(e.lit/l.lit,'export must keep the cloud/arm apparent coverage').toBeGreaterThan(.69);
+  expect(e.lit/l.lit,'export must not inflate all the glowing cloudlets').toBeLessThan(1.52);
+  expect(e.core/l.core,'export must preserve core glow').toBeGreaterThan(.62);
+  expect(e.core/l.core,'export must not clip the nucleus').toBeLessThan(1.55);
+  expect(e.whiteFraction).toBeLessThan(.06);
+});
+
 test('high quality preserves galaxy colors with volumetric 3D gas',async({page})=>{
   test.setTimeout(120_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
