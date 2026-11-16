@@ -118,8 +118,11 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     // use the SAME local coordinates to align gas with its stellar arms.
     vec2 first=galaxyGasOrbit((p-vec2(-gap*.36,-.12))/.67,
       handed,uTime,uRotationSpeed);
+    // The companion's stellar arms are wound with -handed, therefore
+    // its gas MUST orbit with -handed as well. Otherwise the two layers
+    // visibly counter-rotate (especially obvious when viewed edge-on).
     vec2 second=galaxyGasOrbit((p-vec2(gap*.60,.10))/companion,
-      handed,uTime,uRotationSpeed);
+      -handed,uTime,uRotationSpeed);
     float ga=exp(-pow(length(first)/.20,1.4));
     float gb=exp(-pow(length(second)/.24,1.5));
     float armsA=swirlingArm(first,orientation,handed,twist,width);
@@ -325,7 +328,11 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     if(!changedSeed&&!morph.current)old.current=now;
   },[seed,now,uniforms,morph]);
   useFrame(()=>{
-    const time=seconds.current;
+    // Dev-only deterministic clock for actual pixel motion/direction tests.
+    // Production builds never read or accept this DOM override.
+    const probeClock=import.meta.env.DEV&&progressHost?.current
+      ?Number(progressHost.current.dataset.galaxyMotionClock):NaN;
+    const time=Number.isFinite(probeClock)?probeClock:seconds.current;
     const phase=morph.current?galaxyMorphEasing(time/Math.max(.001,morphDuration.current)):1;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;

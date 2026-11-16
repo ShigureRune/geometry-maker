@@ -50,16 +50,33 @@ describe('shared stellar and nebular orbital geometry',()=>{
       expect(error/samples).toBeLessThan(.35);
     }
   });
-  it('all seven stellar types use the common orbital direction and rate',()=>{
+  it('all seven stellar types have consistent local orbital directions',()=>{
     for(const galaxyType of GALAXY_TYPES){
       const opts={...galaxyDefaults,galaxyType,count:2000};
       const data=generateGalaxy('unified-orbit',opts,true);
       const {handed}=galaxyAppearance('unified-orbit',opts.palette);
+      const companionStart=Math.floor(data.count*.68);
+      const tailStart=Math.floor(data.count*.90);
       for(let i=0;i<data.count;i+=7){
-        expect(Math.sign(data.spins[i])).toBe(handed);
+        const companion=galaxyType==='interacting'&&
+          (i>=companionStart&&i<tailStart||i>=tailStart&&i%2===1);
+        expect(Math.sign(data.spins[i])).toBe(companion?-handed:handed);
         expect(Number.isFinite(data.spins[i])).toBe(true);
       }
     }
+  });
+  it('interacting companion gas and stars both counter-rotate relative to the primary',()=>{
+    const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:3000};
+    const data=generateGalaxy('direction-pair',settings,true);
+    const {handed}=galaxyAppearance('direction-pair',settings.palette);
+    const primary=Math.floor(data.count*.30),companion=Math.floor(data.count*.80);
+    expect(Math.sign(data.spins[primary])).toBe(handed);
+    expect(Math.sign(data.spins[companion])).toBe(-handed);
+    // The second galaxy's diffuse shader must sample -handed, just like
+    // its particles are wound and orbited with -handed.
+    const g=galaxyOrbitDelta(.5,6,settings.rotationSpeed,-handed);
+    const [,y]=galaxyRotate(.5,0,g);
+    expect(Math.sign(y)).toBe(-handed);
   });
   it('each interacting nucleus keeps its local pivot while orbiting',()=>{
     const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:3000};

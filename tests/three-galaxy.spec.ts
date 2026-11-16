@@ -128,6 +128,97 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   expect(shaders).toEqual([]);
   expect(errors).toEqual([]);
 });
+/** Angle of actual pixels, not the angular velocity predicted by the GLSL math.
+ * This catches a texture plane rendered back-to-front or an accidentally
+ * inverted shader sampling coordinate. All screenshots are real WebGL output. */
+async function orbitalPixelProfile(page:Page):Promise<number[][]>{
+  const png=(await page.getByTestId('three-preview').locator('canvas').screenshot()).toString('base64');
+  return page.evaluate(async(base64)=>{
+    const bitmap=new Image();
+    bitmap.src='data:image/png;base64,'+base64;
+    await bitmap.decode();
+    const square=Math.min(bitmap.width,bitmap.height);
+    const canvas=document.createElement('canvas');
+    canvas.width=256;canvas.height=256;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+    ctx.drawImage(bitmap,(bitmap.width-square)/2,(bitmap.height-square)/2,
+      square,square,0,0,256,256);
+    const pixel=ctx.getImageData(0,0,256,256).data;
+    const profiles:number[][]=[];
+    for(const radius of [.34,.48,.62,.76]){
+      const profile:number[]=[];
+      for(let i=0;i<360;i++){
+        const a=i*Math.PI/180;
+        let total=0;
+        for(const dr of [-.035,-.018,0,.018,.035]){
+          const r=(radius+dr)*107.5; // R=5.5, camera distance=18, fov=40°
+          const x=Math.max(0,Math.min(255,Math.round(128+Math.cos(a)*r)));
+          const y=Math.max(0,Math.min(255,Math.round(128-Math.sin(a)*r)));
+          const p=(y*256+x)*4;
+          total+=(pixel[p]*.30+pixel[p+1]*.48+pixel[p+2]*.22)/5;
+        }
+        profile.push(total);
+      }
+      profiles.push(profile);
+    }
+    return profiles;
+  },png);
+}
+function bestAngularShift(a:number[][],b:number[][]):{shift:number;score:number}{
+  const demean=(v:number[])=>{
+    const avg=v.reduce((x,y)=>x+y,0)/v.length;
+    return v.map(x=>x-avg);
+  };
+  const aa=a.map(demean),bb=b.map(demean);
+  let best=-Infinity,shift=0;
+  for(let d=-105;d<=105;d++){
+    let total=0;
+    for(let k=0;k<aa.length;k++){
+      const x=aa[k],y=bb[k];
+      for(let i=0;i<360;i++){
+        const next=(i+d+360)%360;
+        total+=x[i]*y[next];
+      }
+    }
+    if(total>best){best=total;shift=d;}
+  }
+  return {shift,score:best};
+}
+test('gas and star spiral arms visibly rotate in the SAME screen direction',async({page})=>{
+  test.setTimeout(120_000);
+  const shifts:Record<string,number>={};
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  for(const layer of ['stars','gas'] as const){
+    await openGalaxy(page,layer==='gas',layer==='stars');
+    const preview=page.getByTestId('three-preview');
+    await page.locator('#galaxy-spin').fill('2');
+    await page.locator('#galaxy-inclination').fill('0');
+    await category(page,'アニメーション');
+    await page.getByLabel('3Dアニメーションを有効化').check();
+    await category(page,'図形');
+    const key=layer==='stars'?'data-galaxy-star-material-time':'data-galaxy-gas-material-time';
+    await page.evaluate(()=>{
+      (document.querySelector('[data-testid="three-preview"]') as HTMLDivElement)
+        .dataset.galaxyMotionClock='10';
+    });
+    await expect(preview).toHaveAttribute(key,'10.000');
+    const before=await orbitalPixelProfile(page);
+    await page.evaluate(()=>{
+      (document.querySelector('[data-testid="three-preview"]') as HTMLDivElement)
+        .dataset.galaxyMotionClock='14';
+    });
+    await expect(preview).toHaveAttribute(key,'14.000');
+    const after=await orbitalPixelProfile(page);
+    const movement=bestAngularShift(before,after);
+    console.log('VISIBLE ORBIT PIXELS',layer,movement);
+    expect(Math.abs(movement.shift),layer+' must visibly rotate').toBeGreaterThan(6);
+    shifts[layer]=movement.shift;
+  }
+  expect(Math.sign(shifts.gas),'gas and stars must not counter-rotate on screen')
+    .toBe(Math.sign(shifts.stars));
+  expect(errors).toEqual([]);
+});
+
 test('stellar arm particles independently orbit, pause and stop at zero speed',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   const shaders:string[]=[];page.on('console',msg=>{
