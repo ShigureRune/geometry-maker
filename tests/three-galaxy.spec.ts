@@ -122,15 +122,16 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
       const ctx=work.getContext('2d',{willReadFrequently:true})!;
       ctx.drawImage(img,0,0,320,240);
       const pixels=ctx.getImageData(0,0,320,240).data;
-      let bright=0,core=0;
+      let bright=0,core=0,strong=0;
       for(let y=0;y<240;y++)for(let x=0;x<320;x++){
         const p=(y*320+x)*4;
+        if(Math.max(pixels[p],pixels[p+1],pixels[p+2])>110)strong++;
         if(pixels[p]+pixels[p+1]+pixels[p+2]>95){
           bright++;
           if(Math.hypot(x-160,y-120)<40)core++;
         }
       }
-      return {bright,core};
+      return {bright,core,strong};
     }
     return {distant:await stats(distant),close:await stats(close)};
   },{distant,close});
@@ -141,6 +142,8 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
     .toBeLessThan(450);
   expect(measure.close.bright,'zoom should reveal much denser resolved stars')
     .toBeGreaterThan(measure.distant.bright*4);
+  expect(measure.close.strong,'nearby stars must have visible bright cores, not just faint dots')
+    .toBeGreaterThan(measure.distant.strong+70);
   expect(shaderErrors).toEqual([]);
 });
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
