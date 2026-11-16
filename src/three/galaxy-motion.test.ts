@@ -75,7 +75,7 @@ describe('shared stellar and nebular orbital geometry',()=>{
     // The second galaxy's diffuse shader must sample -handed, just like
     // its particles are wound and orbited with -handed.
     const g=galaxyOrbitDelta(.5,6,settings.rotationSpeed,-handed);
-    const [x,y]=galaxyRotate(.5,0,g);
+    const [,y]=galaxyRotate(.5,0,g);
     expect(Math.sign(y)).toBe(-handed);
   });
   it('each interacting nucleus keeps its local pivot while orbiting',()=>{
