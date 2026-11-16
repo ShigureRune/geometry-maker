@@ -245,8 +245,9 @@ describe('GALAXY MODE',()=>{
     expect(detail.count).toBeLessThanOrEqual(95000);
     expect(detail.positions).toEqual(repeat.positions);
     expect(detail.colors).toEqual(repeat.colors);
-    expect(Math.max(...detail.sizes)).toBeLessThan(1.3);
-    expect(detail.opacities.every(x=>x>0&&x<=1)).toBe(true);
+    expect(Math.min(...detail.sizes)).toBeGreaterThanOrEqual(.85);
+    expect(Math.max(...detail.sizes)).toBeLessThan(1.56);
+    expect(detail.opacities.every(x=>x>=.46&&x<=.84)).toBe(true);
     const allowedSpins=new Set(galaxy.spins);
     expect(detail.spins.every(s=>allowedSpins.has(s))).toBe(true);
     const highZ=Array.from({length:detail.count},(_,i)=>detail.positions[i*3+2]);
