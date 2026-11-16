@@ -69,10 +69,10 @@ export function generateGalaxyNucleus(
       colors[p]=(pinpoint?1.45:hot?1.20:1.04)*variation;
       colors[p+1]=(pinpoint?1.32:hot?.94:.79)*variation;
       colors[p+2]=(pinpoint?1.08:hot?.72:.53)*variation;
-      // Small, individually resolvable light sources preserve detail when
-      // zoomed in; large additive billboards made a featureless white disk.
-      sizes[i]=pinpoint?1.7+random()*1.3:
-        hot?1.0+random()*1.8:1.2+random()*2.0;
+      // The central luminosity now comes from the *continuous 3D bulge*.
+      // These extra stars become faint details only outside its inner edge.
+      sizes[i]=pinpoint?.5+random()*.4:
+        hot?.65+random()*.8:.8+random()*1.0;
       const radius=Math.hypot(positions[p]-pivot.x,positions[p+1]-pivot.y)/options.radius;
       const angle=Math.atan2(positions[p+1]-pivot.y,positions[p]-pivot.x);
       // Subtle curved dust shadowing gives the central bulge some structure
@@ -82,9 +82,13 @@ export function generateGalaxyNucleus(
         .28*Math.sin(5*angle+31*radius));
       const dust=hasDust&&!pinpoint?Math.pow(Math.max(0,lane),10):0;
       const shadow=1-(hot?.60:.28)*dust;
-      opacities[i]=(pinpoint?.35+random()*.22:
-        hot?.09+random()*.10:
-        (.035+random()*.06)*bulgeDensityScale)*strength*shadow;
+      // No visible nuclear particles while zoomed into the smooth light:
+      // stars fade in gradually across the outer edge of the warm bulge.
+      const resolved=Math.max(0,Math.min(1,(radius-.11)/.11));
+      const fade=resolved*resolved*(3-2*resolved);
+      opacities[i]=(pinpoint?0:
+        hot?.025+random()*.035:
+        (.028+random()*.040)*bulgeDensityScale)*strength*shadow*fade;
       spins[i]=pivot.spin/pivot.count;
     }
   }
