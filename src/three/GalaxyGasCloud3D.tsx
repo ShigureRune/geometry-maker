@@ -1,6 +1,6 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
-import {useFrame} from '@react-three/fiber';
-import {BufferAttribute,BufferGeometry,NormalBlending,ShaderMaterial} from 'three';
+import {useFrame,useThree} from '@react-three/fiber';
+import {BufferAttribute,BufferGeometry,NormalBlending,ShaderMaterial,Vector2} from 'three';
 import {galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyGas,type GalaxyGasData} from './galaxy-generators/gas';
 
@@ -83,6 +83,8 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
   morph:RefObject<boolean>;morphDuration:RefObject<number>;
   progressHost?:RefObject<HTMLDivElement|null>;
 }){
+  const {gl,size}=useThree();
+  const drawingBuffer=useRef(new Vector2());
   const data=useMemo(()=>generateGalaxyGas(seed,options,low,stars),[seed,options,low,stars]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
@@ -130,7 +132,8 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uEntrance.value=!animation&&time===0?1:galaxyMorphEasing(time/2.6);
     uniforms.uMorphEnabled.value=transitioning.current&&morph.current?1:0;
     uniforms.uMorph.value=phase;
-    uniforms.uDpr.value=low?1:1.45;
+    // Identical physical-pixel scale for live preview, PNG and video.
+    uniforms.uDpr.value=gl.getDrawingBufferSize(drawingBuffer.current).y/size.height;
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
     uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count));
     uniforms.uCoreGlow.value=options.coreGlow/100;
@@ -145,6 +148,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
       progressHost.current.dataset.galaxyGasSpeed=options.rotationSpeed.toFixed(2);
       progressHost.current.dataset.galaxyGasRepresentation='3d-points';
       progressHost.current.dataset.galaxyGasCount=String(data.count);
+      progressHost.current.dataset.galaxyGasPixelScale=uniforms.uDpr.value.toFixed(3);
     }
     if(phase>=1)transitioning.current=false;
   });
