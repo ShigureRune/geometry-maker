@@ -6,6 +6,7 @@ import {
 import {threeDefaults,validateThreeSettings} from './settings';
 import {GALAXY_PRESETS,galaxyWithPreset} from './galaxy-presets';
 import {generateGalaxyGas} from './galaxy-generators/gas';
+import {generateGalaxyDetailStars} from './galaxy-generators/detail-stars';
 import {generateGalaxyNucleus} from './galaxy-nucleus';
 
 describe('GALAXY MODE',()=>{
@@ -234,6 +235,43 @@ describe('GALAXY MODE',()=>{
     expect(nonCoreHeights[Math.floor(nonCoreHeights.length*.9)])
       .toBeLessThan(settings.radius*.09);
     expect(Math.max(...gas.opacities)).toBeLessThan(.27);
+  });
+  it('maintains deterministic, fine resolved stars on extreme camera zoom',()=>{
+    const settings={...galaxyDefaults,count:12000};
+    const galaxy=generateGalaxy('zoom-fine-structure',settings,false);
+    const detail=generateGalaxyDetailStars('zoom-fine-structure',settings,false,galaxy);
+    const repeat=generateGalaxyDetailStars('zoom-fine-structure',settings,false,galaxy);
+    expect(detail.count).toBeGreaterThan(galaxy.count*4);
+    expect(detail.count).toBeLessThanOrEqual(95000);
+    expect(detail.positions).toEqual(repeat.positions);
+    expect(detail.colors).toEqual(repeat.colors);
+    expect(Math.max(...detail.sizes)).toBeLessThan(1.3);
+    expect(detail.opacities.every(x=>x>0&&x<=1)).toBe(true);
+    const allowedSpins=new Set(galaxy.spins);
+    expect(detail.spins.every(s=>allowedSpins.has(s))).toBe(true);
+    const highZ=Array.from({length:detail.count},(_,i)=>detail.positions[i*3+2]);
+    expect(highZ.some(z=>Math.abs(z)>.001)).toBe(true);
+    const minRadial=Math.min(...Array.from({length:detail.count},(_,i)=>
+      Math.hypot(detail.positions[i*3],detail.positions[i*3+1])));
+    expect(minRadial).toBeGreaterThan(settings.radius*.14);
+    const mobile=generateGalaxy('zoom-fine-structure',settings,true);
+    const mobileDetails=generateGalaxyDetailStars('zoom-fine-structure',settings,true,mobile);
+    expect(mobileDetails.count).toBeLessThanOrEqual(16000);
+    expect(mobileDetails.count).toBeGreaterThan(10000);
+  });
+  it('uses each interacting nucleus as the correct nearby star orbit pivot',()=>{
+    const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:9000};
+    const galaxy=generateGalaxy('zoom-twin-cores',settings,false);
+    const detail=generateGalaxyDetailStars('zoom-twin-cores',settings,false,galaxy);
+    const parentPivots=new Set(Array.from({length:galaxy.count},(_,i)=>
+      galaxy.orbitCenters![i*2].toFixed(4)+','+galaxy.orbitCenters![i*2+1].toFixed(4)));
+    const localPivots=new Set(Array.from({length:detail.count},(_,i)=>{
+      const pivot=detail.orbitCenters[i*2].toFixed(4)+','+
+        detail.orbitCenters[i*2+1].toFixed(4);
+      expect(parentPivots.has(pivot)).toBe(true);
+      return pivot;
+    }));
+    expect(localPivots.size).toBeGreaterThanOrEqual(2);
   });
   it('adds a reproducible, locally concentrated 3D hot nucleus and warm bulge',()=>{
     for(const galaxyType of GALAXY_TYPES){
