@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
-import {GalaxyDiffuse} from './GalaxyDiffuse';
+import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {
   galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -225,9 +225,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <group visible={!starsOnlyProbe}>
-      <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
-        animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
-        progressHost={progressHost}/>
+      <GalaxyGasCloud3D key={options.galaxyType} seed={seed} options={options} stars={data}
+        seconds={seconds} low={low} animation={settings.animation}
+        morph={isMorph} morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
     <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
