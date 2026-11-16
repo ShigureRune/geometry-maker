@@ -1,6 +1,6 @@
 import {seededRandom} from '../scene';
 import {generateGalaxyVariant} from './galaxy-generators/variants';
-import {galaxyAngularRate,galaxySpiralSpine} from './galaxy-motion';
+import {galaxyAngularRate,galaxySpiralSpine,galaxyTrailingOrbitSign} from './galaxy-motion';
 import {booleanField,enumField,numberField,record} from './style-settings';
 
 export const GALAXY_PALETTES=['violet','blue','rose','gold'] as const;
@@ -246,7 +246,7 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
     opacities[i]=opacity;
     kinds[i]=kind;
     cores[i]=coreStrength;
-    spins[i]=handed*galaxyAngularRate(radial);
+    spins[i]=galaxyTrailingOrbitSign(handed)*galaxyAngularRate(radial);
     phases[i]=random()*TAU;
   }
   return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds};
