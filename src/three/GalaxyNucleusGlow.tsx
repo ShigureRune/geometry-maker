@@ -79,11 +79,13 @@ export function GalaxyNucleusGlow({seed,options,stars,seconds,low,animation,morp
       ?galaxyMorphEasing(time/Math.max(.001,morphDuration.current))
       :!animation&&time===0?1:galaxyMorphEasing(time/2.6);
     uniforms.uGlow.value=options.coreGlow/75;
+    uniforms.uDpr.value=low?1:1.75;
     if(material.current){
       material.current.uniforms.uTime.value=uniforms.uTime.value;
       material.current.uniforms.uRotationSpeed.value=uniforms.uRotationSpeed.value;
       material.current.uniforms.uEntrance.value=uniforms.uEntrance.value;
       material.current.uniforms.uGlow.value=uniforms.uGlow.value;
+      material.current.uniforms.uDpr.value=uniforms.uDpr.value;
     }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyNucleusCount=String(data.count);
