@@ -157,14 +157,20 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
     expect(Number(await preview.getAttribute('data-galaxy-gas-time'))).toBe(frozenTime);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを再生'}).click();
+    await category(page,'図形');
+    await page.waitForTimeout(200);
+    const runningStart=await preview.locator('canvas').screenshot();
     await page.waitForTimeout(1250);
     const animatedTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
     expect(animatedTime,type+' shader clock must advance').toBeGreaterThan(frozenTime+.15);
+    expect(Number(await preview.getAttribute('data-galaxy-gas-material-time'))).toBeGreaterThan(frozenTime+.15);
+    const moved=await preview.locator('canvas').screenshot({path:`test-results/gas-probe-${type}-played.png`});
+    console.log('GAS PROBE',type,{frozenTime,animatedTime,
+      beforeBytes:frozen.length,liveBytes:runningStart.length,afterBytes:moved.length});
+    expect(moved.equals(runningStart),type+' gas must animate while playback is RUNNING').toBe(false);
+    await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを一時停止'}).click();
     await category(page,'図形');
-    const moved=await preview.locator('canvas').screenshot({path:`test-results/gas-probe-${type}-played.png`});
-    console.log('GAS PROBE',type,{frozenTime,animatedTime,beforeBytes:frozen.length,afterBytes:moved.length});
-    expect(moved.equals(frozen),type+' luminous gas must move when playing').toBe(false);
   }
   // Rotation speed zero should stop the gas flow even with the clock running.
   await page.locator('#galaxy-type').selectOption('ring');
