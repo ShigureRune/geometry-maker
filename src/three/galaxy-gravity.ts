@@ -217,7 +217,7 @@ export function createGalaxyGravitySimulation(
       for(const center of centers){
         if('active' in center&&!center.active)continue;
         const dx=x-center.x,dy=y-center.y;
-        const dz=z-('z' in center?center.z:0);
+        const dz=z-('z' in center&&typeof center.z==='number'?center.z:0);
         const dist2=dx*dx+dy*dy+dz*dz;
         const stellar=center.mass/Math.pow(dist2+eps2,1.5);
         const halo=center.halo*haloWeight/(dist2+haloCore2);
