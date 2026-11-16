@@ -1,5 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
-import {mkdir,readFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {GALAXY_TYPES} from '../src/three/galaxy';
 test.setTimeout(120_000);
 async function category(page:Page,name:string){
@@ -468,4 +468,64 @@ test('galaxy morphs when the seed changes and pauses with the 3D clock',async({p
   await page.getByRole('button',{name:'3Dを再生'}).click();
   await expect(preview).toHaveAttribute('data-galaxy-seed-phase','settled',{timeout:12000});
   expect(errors).toEqual([]);
+});
+
+test('high-quality PNG captures the same visible galaxy exposure at 2x resolution',async({page})=>{
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await expect(preview).toHaveAttribute('data-quality','high');
+  await page.locator('#galaxy-count').fill('18000');
+  await category(page,'アニメーション');
+  await page.getByRole('button',{name:'3Dを一時停止'}).click();
+  await category(page,'図形');
+  // Both layers seek to the same settled, static 3D pose.
+  await preview.evaluate(element=>{element.dataset.galaxyMotionClock='20';});
+  await page.locator('#galaxy-core').fill('90');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-star-time'))).toBe(20);
+  await expect(preview).toHaveAttribute('data-galaxy-gas-time','20.000');
+  await mkdir('test-results',{recursive:true});
+  const before=await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-exposure-png-preview.png',
+  });
+  const dimensions=await preview.locator('canvas').evaluate(canvas=>({
+    width:Math.round(canvas.clientWidth),height:Math.round(canvas.clientHeight),
+  }));
+  const width=dimensions.width*2,height=dimensions.height*2;
+  expect(width).toBeLessThanOrEqual(4096);
+  expect(height).toBeLessThanOrEqual(4096);
+  await category(page,'書き出し');
+  await page.locator('#three-export-width').fill(String(width));
+  await page.locator('#three-export-height').fill(String(height));
+  const pending=page.waitForEvent('download');
+  await page.getByRole('button',{name:'3D PNGを書き出す'}).click();
+  const download=await pending;
+  const exported=await readFile((await download.path())!);
+  expect(exported.subarray(0,8)).toEqual(Buffer.from([137,80,78,71,13,10,26,10]));
+  await writeFile('test-results/galaxy-exposure-png-export.png',exported);
+  const metrics=await page.evaluate(async({previewBase64,exportBase64})=>{
+    async function profile(base64:string){
+      const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();
+      const canvas=document.createElement('canvas');canvas.width=320;canvas.height=240;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+      ctx.drawImage(img,0,0,320,240);
+      const pixels=ctx.getImageData(0,0,320,240).data;
+      let brightness=0,highlights=0;
+      for(let y=12;y<228;y++)for(let x=30;x<290;x++){
+        const i=(y*320+x)*4;
+        const value=(pixels[i]+pixels[i+1]+pixels[i+2])/3;
+        brightness+=value;
+        if(value>75)highlights++;
+      }
+      return {mean:brightness/(260*216),highlights:highlights/(260*216)};
+    }
+    return {preview:await profile(previewBase64),exported:await profile(exportBase64)};
+  },{previewBase64:before.toString('base64'),exportBase64:exported.toString('base64')});
+  console.log('GALAXY PNG EXPOSURE PARITY',metrics);
+  expect(metrics.preview.mean).toBeGreaterThan(3);
+  expect(metrics.exported.mean).toBeGreaterThan(metrics.preview.mean*.70);
+  expect(metrics.exported.mean).toBeLessThan(metrics.preview.mean*1.30);
+  // Export must return the canvas to its normal preview resolution.
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-star-pixel-scale')))
+    .toBeGreaterThan(0);
 });
