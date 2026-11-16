@@ -147,6 +147,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     new URLSearchParams(window.location.search).has('galaxyGasOnly');
   const starsOnlyProbe=import.meta.env.DEV&&
     new URLSearchParams(window.location.search).has('galaxyStarsOnly');
+  // Isolate near-field detail so close-up browser tests can prove extra
+  // stars become visible independently from old points and gas fog.
+  const detailOnlyProbe=import.meta.env.DEV&&
+    new URLSearchParams(window.location.search).has('galaxyDetailOnly');
   const data=useMemo(()=>generateGalaxy(seed,options,low),[
     seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,options.armWidth,options.barred,
     options.galaxyType,options.ringRadius,options.ringWidth,options.ellipticity,
@@ -236,6 +240,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     if(progressHost?.current){
       progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyStarsOnlyProbe=starsOnlyProbe?'true':'false';
+      progressHost.current.dataset.galaxyDetailOnlyProbe=detailOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
@@ -277,22 +282,22 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
-    <group visible={!starsOnlyProbe&&!gasOnlyProbe}>
+    <group visible={!starsOnlyProbe&&!gasOnlyProbe&&!detailOnlyProbe}>
       <GalaxyStellarDiskGlow seed={seed} options={options} stars={data} low={low}
         seconds={seconds} animation={settings.animation} morph={isMorph}
         morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
-    <group visible={!starsOnlyProbe}>
+    <group visible={!starsOnlyProbe&&!detailOnlyProbe}>
       <GalaxyGasCloud3D key={options.galaxyType} seed={seed} options={options} stars={data}
         seconds={seconds} low={low} animation={settings.animation}
         morph={isMorph} morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
-    <group visible={!gasOnlyProbe}>
+    <group visible={!gasOnlyProbe&&!detailOnlyProbe}>
       <GalaxyBulgeGlow seed={seed} options={options} stars={data} low={low}
         seconds={seconds} animation={settings.animation} morph={isMorph}
         morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
-    <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
+    <points name="galaxy-mode-cloud" visible={!gasOnlyProbe&&!detailOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
     </points>
