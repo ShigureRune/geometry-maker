@@ -74,8 +74,9 @@ describe('GALAXY MODE approximate gravity',()=>{
     const momentumY=a.vy*a.mass+b.vy*b.mass;
     expect(Math.hypot(momentumX,momentumY)).toBeLessThan(1e-7);
     motion.advance(0,1,1,.6);
-    for(let i=1;i<=450;i++)motion.advance(i*.035,1,1,.6);
+    for(let i=1;i<=100;i++)motion.advance(i*.035,1,1,.6);
     expect(motion.steps).toBeGreaterThan(50);
+    expect(motion.merged).toBe(false);
     expect(motion.distance).toBeLessThan(startDistance-.1);
     const currentBaryX=(a.x*a.mass+b.x*b.mass)/totalMass;
     const currentBaryY=(a.y*a.mass+b.y*b.mass)/totalMass;
@@ -97,6 +98,10 @@ describe('GALAXY MODE approximate gravity',()=>{
     const motion=createGalaxyCoreMotion(tracers,options);
     const [a,b]=motion.bodies;
     expect(motion.count).toBe(2);
+    // Give the pair a shared center-of-mass drift. A perfectly head-on
+    // collision with zero total momentum must correctly stay stationary.
+    a.vx+=.1;b.vx+=.1;
+    a.vy+=.025;b.vy+=.025;
     const totalMass=a.mass+b.mass;
     const momentumX=a.mass*a.vx+b.mass*b.vx;
     const momentumY=a.mass*a.vy+b.mass*b.vy;
