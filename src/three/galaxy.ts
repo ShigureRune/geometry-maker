@@ -70,6 +70,7 @@ export type GalaxyData={
   count:number;positions:Float32Array;colors:Float32Array;
   sizes:Float32Array;spins:Float32Array;phases:Float32Array;
   cores:Float32Array;opacities:Float32Array;kinds:Float32Array;
+  orbitCenters?:Float32Array; // x/y pivot per star; interacting galaxies have two local nuclei
 };
 type RGB=readonly [number,number,number];
 type Palette={bulge:RGB;disk:RGB;arm:RGB;young:RGB;hii:RGB;cloud:RGB};
