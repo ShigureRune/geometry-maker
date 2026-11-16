@@ -371,7 +371,7 @@ describe('GALAXY MODE approximate gravity',()=>{
       zeroSelf.advance(time,1,1,.6);
     }
     expect(live.selfGravityUpdates).toBeGreaterThan(2);
-    expect(live.selfGravityUpdates).toBeLessThanOrEqual(4);
+    expect(live.selfGravityUpdates).toBeLessThanOrEqual(Math.ceil(live.steps/12)+1);
     expect(live.selfGravityTreeNodes).toBeGreaterThan(15);
     expect(live.positions.every(Number.isFinite)).toBe(true);
     expect(live.positions).not.toEqual(noSelf.positions);
