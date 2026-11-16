@@ -30,7 +30,8 @@ void main(){
   vec4 view=modelViewMatrix*vec4(point,1.);
   gl_Position=projectionMatrix*view;
   float distanceScale=clamp(19./max(.5,-view.z),.45,2.0);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale,3.,76.)*uExportScale;
+  // Cap zoomed wisps: huge 76px point sprites became isolated cotton balls.
+  gl_PointSize=clamp(aSize*uDpr*distanceScale,2.,34.)*uExportScale;
   vColor=aColor;
   vOpacity=aOpacity*(uMorphEnabled>.5?blend:uEntrance);
   vPhase=aPhase;
@@ -53,7 +54,7 @@ void main(){
   // visible individual "cotton balls" on the galaxy arms.
   // A softly offset Gaussian lets thousands of 3D wisps overlap smoothly.
   float asymmetry=.93+.07*sin(p.x*4.4+vPhase)*sin(p.y*4.6-vPhase);
-  float cloud=exp(-d*2.35)*(1.-smoothstep(.52,1.,d))*asymmetry;
+  float cloud=exp(-d*3.05)*(1.-smoothstep(.57,1.,d))*asymmetry;
   // Rebuild the bright nucleus with many truly 3D soft cloudlets, not
   // another flat disk. The center-glow slider only amplifies nearby cores.
   float nucleus=vCore*uCoreGlow;
@@ -133,7 +134,9 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uMorph.value=phase;
     uniforms.uDpr.value=low?1:1.45;
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
-    uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count))*
+    // With smaller sprites a little more per-wisp energy keeps fine gaseous
+    // texture visible without restoring the giant blobs.
+    uniforms.uEnergy.value=(low?.95:.55)*Math.sqrt(1400/Math.max(650,data.count))*
       (!low&&options.galaxyType==='ring'?.60:1);
     uniforms.uCoreGlow.value=options.coreGlow/100;
     if(gpu.current){

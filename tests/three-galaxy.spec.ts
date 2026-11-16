@@ -18,6 +18,8 @@ async function openGalaxy(page:Page,gasOnly=false,starsOnly=false){
   await page.getByLabel('GALAXY MODEを有効化').check();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-gas-representation','3d-points');
+  await expect(page.getByTestId('three-preview'))
+    .toHaveAttribute('data-galaxy-disk-representation','3d-thin-stellar-volume');
   expect(Number(await page.getByTestId('three-preview').getAttribute('data-galaxy-gas-count')))
     .toBeGreaterThan(300);
 }
@@ -65,6 +67,28 @@ test('galaxy renders stars, responds to controls and switches cleanly to particl
   expect(shaderErrors).toEqual([]);
   expect(errors).toEqual([]);
 });
+test('faint 3D disk keeps distinct face-on and steep edge-on silhouettes',async({page})=>{
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await page.locator('#galaxy-count').fill('12000');
+  await expect(preview).toHaveAttribute('data-galaxy-disk-representation',
+    '3d-thin-stellar-volume');
+  await mkdir('test-results',{recursive:true});
+  await page.locator('#galaxy-inclination').fill('0');
+  await expect(page.locator('#galaxy-inclination')).toHaveValue('0');
+  await page.waitForTimeout(250);
+  const face=await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-v4-face-on-disk.png',
+  });
+  await page.locator('#galaxy-inclination').fill('75');
+  await expect(page.locator('#galaxy-inclination')).toHaveValue('75');
+  await page.waitForTimeout(250);
+  const edge=await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-v4-edge-on-disk.png',
+  });
+  expect(face.equals(edge)).toBe(false);
+});
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await openGalaxy(page);
   await page.locator('#galaxy-arms').fill('5');
@@ -108,6 +132,11 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
     await expect(preview).toHaveAttribute('data-galaxy-bulge-representation','3d-unresolved-volume');
     await expect(preview).toHaveAttribute('data-galaxy-bulge-count',type==='interacting'?'2':'1');
+    const hasDisk=['grand_design','barred_spiral','flocculent','interacting'].includes(type);
+    await expect(preview).toHaveAttribute('data-galaxy-disk-representation',
+      hasDisk?'3d-thin-stellar-volume':'none');
+    await expect(preview).toHaveAttribute('data-galaxy-disk-count',
+      !hasDisk?'0':type==='interacting'?'2':'1');
     const screenshot=await preview.locator('canvas').screenshot({
       path:`test-results/galaxy-v4-${type}.png`,
     });
