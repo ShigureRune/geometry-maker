@@ -293,7 +293,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyGravityTime=gravity?gravity.time.toFixed(3):'0.000';
       progressHost.current.dataset.galaxyGravitySteps=String(gravity?.steps??0);
       progressHost.current.dataset.galaxyGravityDrift=gravity?gravity.meanDrift().toFixed(5):'0.00000';
-      progressHost.current.dataset.galaxyGravitySources=String(gravity?.attractors.length??0);
+      progressHost.current.dataset.galaxyGravitySources=String(
+        gravity?.attractors.filter(source=>!('active' in source)||source.active).length??0);
+      progressHost.current.dataset.galaxyGravityPrimaryWellScale=
+        (gravity?.attractors[0]?.softeningScale??0).toFixed(3);
+      progressHost.current.dataset.galaxyGravityCompanionWellScale=
+        (gravity?.attractors[1]?.softeningScale??0).toFixed(3);
       progressHost.current.dataset.galaxyCoreMoving=coreMotion?'on':'off';
       progressHost.current.dataset.galaxyCoreCount=String(coreMotion?.count??0);
       progressHost.current.dataset.galaxyCoreDistance=(coreMotion?.distance??0).toFixed(4);

@@ -1,6 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import {galaxyDefaults,generateGalaxy} from './galaxy';
-import {createGalaxyCoreMotion,createGalaxyGravitySimulation,galaxyGravityAttractors} from './galaxy-gravity';
+import {generateGalaxyNucleus} from './galaxy-nucleus';
+import {createGalaxyCoreMotion,createGalaxyGravitySimulation,galaxyGravityAttractors,galaxyGravitySourceStrength} from './galaxy-gravity';
 
 describe('GALAXY MODE approximate gravity',()=>{
   it('keeps the historical view and projects opt-in gravity settings safely',()=>{
@@ -211,6 +212,75 @@ describe('GALAXY MODE approximate gravity',()=>{
     expect(starGravity.positions).toEqual(gasGravity.positions);
     expect(starGravity.positions).not.toEqual(stars.positions);
     expect(coreMotion.distance).toBeGreaterThan(0);
+  });
+  it('places two gravitational wells exactly beneath both visible galaxy nuclei',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,
+      count:12000,companionSize:.45};
+    const stars=generateGalaxy('two-real-wells',options,false);
+    const lights=generateGalaxyNucleus('two-real-wells',options,false,stars).centers;
+    const attractors=galaxyGravityAttractors(stars,options);
+    expect(lights).toHaveLength(2);
+    expect(attractors).toHaveLength(2);
+    for(let i=0;i<2;i++){
+      expect(attractors[i].x).toBeCloseTo(lights[i][0],6);
+      expect(attractors[i].y).toBeCloseTo(lights[i][1],6);
+      expect(attractors[i].mass).toBeGreaterThan(0);
+      expect(attractors[i].halo).toBeGreaterThan(0);
+    }
+    expect(attractors[0].softeningScale).toBe(1);
+    expect(attractors[1].softeningScale).toBeCloseTo(options.companionSize,5);
+  });
+  it('gives the smaller nucleus a compact well that actually dominates its own nearby stars',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,
+      companionSize:.45};
+    const stars=generateGalaxy('well-strength',options,true);
+    const [a,b]=galaxyGravityAttractors(stars,options);
+    const offset=options.radius*.075;
+    const inward=(x:number,y:number)=>{
+      const fields=[a,b];
+      return fields.reduce((sum,source)=>{
+        const dx=x-source.x,dy=y-source.y;
+        const g=galaxyGravitySourceStrength(source,dx*dx+dy*dy,
+          options.radius);
+        return sum-dx*g;
+      },0);
+    };
+    const pointLeftOfCompanion=[b.x-offset,b.y] as const;
+    const rightOfCompanion=[b.x+offset,b.y] as const;
+    const nearMain=[a.x+offset,a.y] as const;
+    // A star between the two nuclei, immediately beside the smaller one,
+    // must be pulled TOWARD the companion, not swept to the main galaxy.
+    expect(inward(...pointLeftOfCompanion)).toBeGreaterThan(.08);
+    expect(inward(...rightOfCompanion)).toBeLessThan(-.08);
+    expect(inward(...nearMain)).toBeLessThan(-.08);
+    const d2=offset*offset;
+    const improved=galaxyGravitySourceStrength(b,d2,options.radius);
+    const oldFullSize=galaxyGravitySourceStrength({...b,softeningScale:1},
+      d2,options.radius);
+    expect(improved/oldFullSize).toBeGreaterThan(3);
+    // The same compact potential drives initialization and subsequent kicks.
+    const sim=createGalaxyGravitySimulation(stars,options);
+    const lowComp=stars.count*.72|0;
+    expect(Number.isFinite(sim.velocities[lowComp*3])).toBe(true);
+    sim.advance(0,1,1,.6);
+    for(let i=1;i<=50;i++)sim.advance(i*.035,1,1,.6);
+    expect(sim.positions.every(Number.isFinite)).toBe(true);
+  });
+  it('resizes the companion potential across its supported size range',()=>{
+    for(const size of [.25,.45,.7]){
+      const options={...galaxyDefaults,galaxyType:'interacting' as const,
+        companionSize:size,count:4000};
+      const stars=generateGalaxy('scale-variation',options,true);
+      const sources=galaxyGravityAttractors(stars,options);
+      expect(sources).toHaveLength(2);
+      expect(sources[1].softeningScale).toBeCloseTo(Math.max(.30,size),6);
+      const moving=createGalaxyCoreMotion(stars,options);
+      expect(moving.bodies[1].softeningScale).toBe(sources[1].softeningScale);
+      moving.advance(0,1,1,.6);
+      for(let i=1;i<=20;i++)moving.advance(i*.035,1,1,.6);
+      expect(moving.bodies.every(body=>Number.isFinite(body.x)&&
+        Number.isFinite(body.y))).toBe(true);
+    }
   });
   it('uses both fixed mass centers for an interacting galaxy',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
