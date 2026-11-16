@@ -264,6 +264,7 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     options.branchiness,options.irregularity,options.companionDistance,
     options.companionSize,options.tidalStrength,
   ]);
+  const material=useRef<ShaderMaterial>(null);
   const old=useRef(now);
   const lastSeed=useRef(seed);
   const uniforms=useMemo(()=>({
@@ -336,9 +337,17 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     const phase=morph.current?galaxyMorphEasing(time/Math.max(.001,morphDuration.current)):1;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    // Write directly to the mounted Three.js material as well: this is
+    // the authoritative GPU uniform container during demand rendering.
+    if(material.current){
+      material.current.uniforms.uTime.value=time;
+      material.current.uniforms.uRotationSpeed.value=options.rotationSpeed;
+    }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyGasTime=time.toFixed(3);
       progressHost.current.dataset.galaxyGasSpeed=options.rotationSpeed.toFixed(2);
+      progressHost.current.dataset.galaxyGasMaterialTime=
+        Number(material.current?.uniforms.uTime.value??-1).toFixed(3);
     }
     uniforms.uRadius.value=options.radius;
     uniforms.uMorph.value=phase;
@@ -347,7 +356,7 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
   });
   return <mesh name="galaxy-diffuse-light" position={[0,0,-.13]} renderOrder={0} frustumCulled={false}>
     <planeGeometry args={[options.radius*2.5,options.radius*2.5]}/>
-    <shaderMaterial vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
+    <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
       transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={AdditiveBlending}/>
   </mesh>;
 }
