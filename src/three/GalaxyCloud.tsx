@@ -169,10 +169,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorphEnabled.value=isMorph.current?1:0;
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
-    // PNG/video export temporarily changes the physical framebuffer while
-    // React's logical viewport stays fixed. Match the actual pixel density,
-    // or bloom-sized star sprites shrink/expand relative to the galaxy.
-    uniforms.uDpr.value=gl.getDrawingBufferSize(drawingBuffer.current).y/size.height;
+    // Preserve the existing preview sprite sizes at every device DPR.
+    // During PNG/video capture only, scale them proportionally to the
+    // temporary physical framebuffer so the apparent glow does not change.
+    const previewDpr=low?1:Math.min(1.75,Math.max(1,window.devicePixelRatio||1));
+    uniforms.uDpr.value=(low?1:1.75)*
+      gl.getDrawingBufferSize(drawingBuffer.current).y/(size.height*previewDpr);
     // High quality also passes through OutputPass (different from the
     // lightweight direct renderer), whose color conversion lifts midtones.
     // Thus normalize both star density AND that renderer-specific exposure.
