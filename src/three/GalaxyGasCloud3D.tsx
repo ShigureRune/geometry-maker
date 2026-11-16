@@ -139,7 +139,10 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uDpr.value=(low?1:1.45)*
       gl.getDrawingBufferSize(drawingBuffer.current).y/(size.height*previewDpr);
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
-    uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count));
+    // Dense 3D clouds on a narrow ring otherwise blend into pale white patches.
+    uniforms.uEnergy.value=(low?.82:.39)*
+      (low||options.galaxyType!=='ring'?1:.88)*
+      Math.sqrt(1400/Math.max(650,data.count));
     uniforms.uCoreGlow.value=options.coreGlow/100;
     if(gpu.current){
       for(const key of Object.keys(uniforms) as (keyof typeof uniforms)[])
