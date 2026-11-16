@@ -146,7 +146,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   const isMorph=useRef(false),morphDuration=useRef(options.transitionSeconds);
   const material=useRef<ShaderMaterial>(null);
   const update=useCallback(()=>{
-    const time=seconds.current;
+    // Dev-only deterministic clock for actual pixel motion/direction tests.
+    // Production builds never read or accept this DOM override.
+    const probeClock=import.meta.env.DEV&&progressHost?.current
+      ?Number(progressHost.current.dataset.galaxyMotionClock):NaN;
+    const time=Number.isFinite(probeClock)?probeClock:seconds.current;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
     uniforms.uEntrance.value=!settings.animation&&time===0?1:galaxyMorphEasing(time/2.6);
