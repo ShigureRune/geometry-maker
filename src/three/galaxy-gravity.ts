@@ -14,7 +14,26 @@ export type GravityTracers={
 };
 export type GravityAttractor={
   x:number;y:number;mass:number;halo:number;
+  /** Size of the gravitational softening radii in units of the main galaxy.
+   * A compact companion needs a correspondingly compact potential well. */
+  softeningScale:number;
 };
+
+/** Acceleration magnitude per unit separation toward a single source.
+ * Both initial circular velocities and numerical integration share this
+ * kernel, so the small companion doesn't rotate at a different potential
+ * than the one that actually attracts its stars. */
+export function galaxyGravitySourceStrength(
+  center:GravityAttractor,distanceSquared:number,radius:number,
+  strength=1,haloWeight=1,
+):number{
+  const s=center.softeningScale;
+  const eps2=(radius*.14*s)**2;
+  const halo2=(radius*.30*s)**2;
+  return (center.mass/Math.pow(distanceSquared+eps2,1.5)+
+    center.halo*Math.max(0,haloWeight)/(distanceSquared+halo2))*
+    Math.max(0,strength);
+}
 export type GravityBody=GravityAttractor&{
   z:number;vx:number;vy:number;vz:number;active:boolean;
 };
@@ -66,7 +85,11 @@ export function galaxyGravityAttractors(
     const companion=options.galaxyType==='interacting'&&index===1;
     const share=companion?Math.max(.12,options.companionSize**2):1;
     return {x:center.x,y:center.y,mass:defaultMass*share,
-      halo:defaultHalo*share};
+      halo:defaultHalo*share,
+      // The companion disk/bulge is drawn at companionSize*R, but previously
+      // both wells were smoothed over the FULL main-galaxy radius. Its own
+      // acceleration was therefore far too weak near the visible nucleus.
+      softeningScale:companion?Math.max(.30,options.companionSize):1};
   });
 }
 
@@ -166,6 +189,7 @@ export function createGalaxyCoreMotion(
     for(const key of ['x','y','z','vx','vy','vz'] as const)
       a[key]=(a[key]*a.mass+b[key]*b.mass)/sum;
     a.mass=sum;a.halo+=b.halo;
+    a.softeningScale=Math.max(a.softeningScale,b.softeningScale);
     b.x=a.x;b.y=a.y;b.z=a.z;
     b.vx=a.vx;b.vy=a.vy;b.vz=a.vz;
     b.active=false;wasMerged=true;
@@ -242,8 +266,6 @@ export function createGalaxyGravitySimulation(
   const acceleration=new Float32Array(initial.length);
   const count=Math.floor(initial.length/3);
   const centers=coreMotion?.bodies??galaxyGravityAttractors(tracers,options);
-  const eps2=(options.radius*.14)**2;
-  const haloCore2=(options.radius*.30)**2;
   const orbitCenters=tracers.orbitCenters;
   // Initialize a physically supported near-circular orbital velocity in the
   // *same trailing direction* as the existing analytic galaxy animation.
@@ -257,8 +279,7 @@ export function createGalaxyGravitySimulation(
       Math.hypot(cx-center.x,cy-center.y)<
         Math.hypot(cx-best.x,cy-best.y)?center:best,centers[0]);
     const r2=r*r;
-    const v2=own.mass*r2/Math.pow(r2+eps2,1.5)+
-      own.halo*r2/(r2+haloCore2);
+    const v2=r2*galaxyGravitySourceStrength(own,r2,options.radius);
     const speed=Math.sqrt(Math.max(0,v2))*
       (1+.07*Math.sin(i*1.733+z*3.17));
     const sign=Math.sign(tracers.spins[i]||1);
@@ -277,9 +298,8 @@ export function createGalaxyGravitySimulation(
         const dx=x-center.x,dy=y-center.y;
         const dz=z-('z' in center&&typeof center.z==='number'?center.z:0);
         const dist2=dx*dx+dy*dy+dz*dz;
-        const stellar=center.mass/Math.pow(dist2+eps2,1.5);
-        const halo=center.halo*haloWeight/(dist2+haloCore2);
-        const factor=-(stellar+halo)*strength;
+        const factor=-galaxyGravitySourceStrength(
+          center,dist2,options.radius,strength,haloWeight);
         ax+=dx*factor;ay+=dy*factor;
         // Halo confines the Z thickness but does not flatten stars to a 2D plane.
         az+=dz*(factor*.8);
