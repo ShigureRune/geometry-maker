@@ -118,8 +118,11 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     // use the SAME local coordinates to align gas with its stellar arms.
     vec2 first=galaxyGasOrbit((p-vec2(-gap*.36,-.12))/.67,
       handed,uTime,uRotationSpeed);
+    // The companion's stellar arms are wound with -handed, therefore
+    // its gas MUST orbit with -handed as well. Otherwise the two layers
+    // visibly counter-rotate (especially obvious when viewed edge-on).
     vec2 second=galaxyGasOrbit((p-vec2(gap*.60,.10))/companion,
-      handed,uTime,uRotationSpeed);
+      -handed,uTime,uRotationSpeed);
     float ga=exp(-pow(length(first)/.20,1.4));
     float gb=exp(-pow(length(second)/.24,1.5));
     float armsA=swirlingArm(first,orientation,handed,twist,width);
