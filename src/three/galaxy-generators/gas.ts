@@ -60,7 +60,7 @@ export function generateGalaxyGas(
   const R=options.radius;
   const palette=galaxyAppearance(seed,options.palette).colors;
   const thickness=type==='elliptical'?.19:
-    type==='irregular'?.12:type==='interacting'?.075:.055;
+    type==='irregular'?.12:type==='interacting'?.085:.090;
   const spread=type==='elliptical'?.08:type==='irregular'?.056:
     type==='flocculent'?.038:type==='ring'?.024:.029;
   let anchor=0,remaining=0,cloudGroup=0;
