@@ -6,9 +6,10 @@ async function category(page:Page,name:string){
   const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
   if(await button.getAttribute('aria-expanded')!=='true')await button.click();
 }
-async function openGalaxy(page:Page,gasOnly=false,starsOnly=false){
+async function openGalaxy(page:Page,gasOnly=false,starsOnly=false,detailOnly=false){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto(gasOnly?'./?galaxyGasOnly=1':starsOnly?'./?galaxyStarsOnly=1':'./');
+  await page.goto(detailOnly?'./?galaxyDetailOnly=1':
+    gasOnly?'./?galaxyGasOnly=1':starsOnly?'./?galaxyStarsOnly=1':'./');
   await page.getByLabel('シード値',{exact:true}).fill('galaxy-ci');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -88,6 +89,59 @@ test('faint 3D disk keeps distinct face-on and steep edge-on silhouettes',async(
     path:'test-results/galaxy-v4-edge-on-disk.png',
   });
   expect(face.equals(edge)).toBe(false);
+});
+test('extreme zoom reveals sharp additional stars with no distant extra glow',async({page})=>{
+  test.setTimeout(160_000);
+  const shaderErrors:string[]=[];
+  page.on('console',message=>{
+    if(message.type()==='error'&&/shader error|shader compile|webglprogram/i.test(message.text()))
+      shaderErrors.push(message.text());
+  });
+  await openGalaxy(page,false,false,true);
+  const preview=page.getByTestId('three-preview');
+  const canvas=preview.locator('canvas');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await page.locator('#galaxy-count').fill('9000');
+  await expect(preview).toHaveAttribute('data-galaxy-camera-near','0.025');
+  await expect(preview).toHaveAttribute('data-galaxy-detail-only-probe','true');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-detail-count')))
+    .toBeGreaterThan(40000);
+  await mkdir('test-results',{recursive:true});
+  await page.waitForTimeout(300);
+  const distant=(await canvas.screenshot({path:'test-results/galaxy-star-lod-distant.png'}))
+    .toString('base64');
+  await canvas.hover();
+  await page.mouse.wheel(0,-430);
+  await page.waitForTimeout(400);
+  const close=(await canvas.screenshot({path:'test-results/galaxy-star-lod-close.png'}))
+    .toString('base64');
+  const measure=await page.evaluate(async({distant,close})=>{
+    async function stats(base64:string){
+      const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();
+      const work=document.createElement('canvas');work.width=320;work.height=240;
+      const ctx=work.getContext('2d',{willReadFrequently:true})!;
+      ctx.drawImage(img,0,0,320,240);
+      const pixels=ctx.getImageData(0,0,320,240).data;
+      let bright=0,core=0;
+      for(let y=0;y<240;y++)for(let x=0;x<320;x++){
+        const p=(y*320+x)*4;
+        if(pixels[p]+pixels[p+1]+pixels[p+2]>95){
+          bright++;
+          if(Math.hypot(x-160,y-120)<40)core++;
+        }
+      }
+      return {bright,core};
+    }
+    return {distant:await stats(distant),close:await stats(close)};
+  },{distant,close});
+  console.log('GALAXY EXTREME ZOOM STAR LOD',measure);
+  // The public starry sky background also contributes a few hundred bright
+  // pixels (232 in the baseline); it is not the near-field stellar LOD.
+  expect(measure.distant.bright,'far-away view must retain a sparse sky')
+    .toBeLessThan(450);
+  expect(measure.close.bright,'zoom should reveal much denser resolved stars')
+    .toBeGreaterThan(measure.distant.bright*4);
+  expect(shaderErrors).toEqual([]);
 });
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await openGalaxy(page);
