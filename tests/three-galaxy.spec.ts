@@ -128,6 +128,61 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   expect(shaders).toEqual([]);
   expect(errors).toEqual([]);
 });
+/** Measure the ACTUAL output pixels after Three.js' full high-quality
+ * EffectComposer + OutputPass, not shader values or low-mode screenshots. */
+async function galaxyExposure(page:Page,filename:string){
+  const preview=page.getByTestId('three-preview');
+  const png=(await preview.locator('canvas').screenshot({path:filename})).toString('base64');
+  return page.evaluate(async(base64)=>{
+    const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();
+    const canvas=document.createElement('canvas');
+    canvas.width=320;canvas.height=240;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+    ctx.drawImage(img,0,0,320,240);
+    const data=ctx.getImageData(0,0,320,240).data;
+    let sum=0,clips=0,count=0;
+    for(let y=12;y<228;y++)for(let x=30;x<290;x++){
+      const o=(y*320+x)*4;
+      const r=data[o],g=data[o+1],b=data[o+2];
+      sum+=(r+g+b)/3;
+      if(Math.min(r,g,b)>245)clips++;
+      count++;
+    }
+    return {mean:sum/count,whiteFraction:clips/count};
+  },png);
+}
+test('high quality preserves galaxy colors instead of turning the entire disk white',async({page})=>{
+  test.setTimeout(120_000);
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  const shaders:string[]=[];page.on('console',msg=>{
+    if(msg.type()==='error'&&/shader error|shader compile|webglprogram/i.test(msg.text()))
+      shaders.push(msg.text());
+  });
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await mkdir('test-results',{recursive:true});
+  await page.locator('#galaxy-count').fill('30000');
+  await page.getByLabel('3D描画品質').selectOption('low');
+  await expect(preview).toHaveAttribute('data-quality','low');
+  const normal=await galaxyExposure(page,'test-results/galaxy-exposure-low.png');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await expect(preview).toHaveAttribute('data-quality','high');
+  await expect(preview).toHaveAttribute('data-galaxy-count','30000');
+  for(const type of ['grand_design','ring','interacting'] as const){
+    await page.locator('#galaxy-type').selectOption(type);
+    await expect(preview).toHaveAttribute('data-galaxy-type',type);
+    const high=await galaxyExposure(page,'test-results/galaxy-exposure-high-'+type+'.png');
+    console.log('GALAXY HIGH EXPOSURE',type,{low:normal,high});
+    expect(high.whiteFraction,type+' should preserve actual RGB colors').toBeLessThan(.055);
+    expect(high.mean,type+' should remain visible').toBeGreaterThan(3);
+    if(type==='grand_design')
+      expect(high.mean,type+' cannot become many times brighter than low quality')
+        .toBeLessThan(normal.mean*2.8+4);
+  }
+  expect(shaders).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 /** Angle of actual pixels, not the angular velocity predicted by the GLSL math.
  * This catches a texture plane rendered back-to-front or an accidentally
  * inverted shader sampling coordinate. All screenshots are real WebGL output. */
