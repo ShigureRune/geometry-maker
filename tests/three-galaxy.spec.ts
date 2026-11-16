@@ -171,31 +171,40 @@ test('deep zoom keeps the stellar disk colorful without a washed-out white field
     .toString('base64');
   const sample=await page.evaluate(async b64=>{
     const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();
-    const surface=document.createElement('canvas');surface.width=320;surface.height=240;
+    // Measure at native screen resolution. Resizing ~2px stars to 320x240
+    // falsely removes their colored cores and confuses a warm central bulge
+    // with an entirely monochromatic galaxy.
+    const surface=document.createElement('canvas');
+    surface.width=img.width;surface.height=img.height;
     const ctx=surface.getContext('2d',{willReadFrequently:true})!;
-    ctx.drawImage(img,0,0,320,240);
-    const pixels=ctx.getImageData(0,0,320,240).data;
-    let bright=0,colorful=0,pale=0;
-    for(let y=0;y<240;y++)for(let x=0;x<320;x++){
-      const r=Math.hypot(x-160,y-120);
-      // The deliberately smooth white-hot nucleus is allowed to be ivory.
-      if(r<22||r>110)continue;
-      const p=(y*320+x)*4;
+    ctx.drawImage(img,0,0);
+    const pixels=ctx.getImageData(0,0,img.width,img.height).data;
+    let bright=0,warm=0,cool=0,pale=0,corner=0,cornerCount=0;
+    for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++){
+      const p=(y*img.width+x)*4;
       const red=pixels[p],green=pixels[p+1],blue=pixels[p+2];
-      const max=Math.max(red,green,blue);
-      const min=Math.min(red,green,blue);
+      if(x<img.width*.08&&y<img.height*.08){
+        corner+=(red+green+blue)/3;cornerCount++;
+      }
+      const r=Math.hypot(x/img.width*320-160,y/img.height*240-120);
+      // Preserve the intentionally smooth ivory nuclear core, but check
+      // both the warm inner rim and outer blue/pink stellar arms.
+      if(r<22)continue;
+      const max=Math.max(red,green,blue),min=Math.min(red,green,blue);
       if(max<65)continue;
       bright++;
-      if(max-min>25)colorful++;
+      if(red>blue+12)warm++;
+      if(blue>red+12)cool++;
       if(min>190&&max-min<24)pale++;
     }
-    return {bright,colorful,pale};
+    return {bright,warm,cool,pale,cornerMean:corner/cornerCount};
   },photo);
   console.log('GALAXY DEEP ZOOM COLORS',sample);
-  expect(sample.bright,'nearby stars should still visibly illuminate the disk')
-    .toBeGreaterThan(140);
-  expect(sample.colorful,'blue and amber stellar colors must survive zoom')
-    .toBeGreaterThan(90);
+  expect(sample.bright,'nearby stars should illuminate the disk').toBeGreaterThan(6000);
+  expect(sample.warm,'old amber stars must survive zoom').toBeGreaterThan(1500);
+  expect(sample.cool,'outer blue stars must survive zoom').toBeGreaterThan(200);
+  expect(sample.cornerMean,'deep zoom must retain dark sky, not uniform beige fog')
+    .toBeLessThan(48);
   expect(sample.pale/(sample.bright||1),'the disk must not turn into a pale white haze')
     .toBeLessThan(.30);
 });
