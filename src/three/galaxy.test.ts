@@ -248,6 +248,10 @@ describe('GALAXY MODE',()=>{
     expect(Math.min(...detail.sizes)).toBeGreaterThanOrEqual(.63);
     expect(Math.max(...detail.sizes)).toBeLessThan(1.41);
     expect(detail.opacities.every(x=>x>=0&&x<=.66)).toBe(true);
+    expect(detail.highlights).toEqual(repeat.highlights);
+    const highlightCount=Array.from(detail.highlights).filter(x=>x===1).length;
+    expect(highlightCount).toBeGreaterThan(detail.count*.07);
+    expect(highlightCount).toBeLessThan(detail.count*.25);
     const strong=Array.from(detail.opacities).filter(v=>v>.40).length;
     const faint=Array.from(detail.opacities).filter(v=>v<.27).length;
     expect(strong,'some individually bright stars remain').toBeGreaterThan(500);
