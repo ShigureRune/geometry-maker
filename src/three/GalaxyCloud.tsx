@@ -68,7 +68,10 @@ void main(){
   if(alpha<0.008)discard;
   // Light per star falls as density increases. More stars in high quality
   // should add DETAIL, not multiply overall exposure by >3x.
-  vec3 rgb=vColor*(1.28+vCore*uGlow*.67)*uStarEnergy;
+  // Give the compact, warm stellar bulge its own local contrast. Only
+  // stars with aCore>0 get the boost; distant spiral arms retain their
+  // high-quality energy normalization and don't wash out.
+  vec3 rgb=vColor*(1.28+vCore*uGlow*3.1)*uStarEnergy;
   gl_FragColor=vec4(rgb,alpha);
 }
 `;
