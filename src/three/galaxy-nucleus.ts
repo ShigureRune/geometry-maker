@@ -45,6 +45,11 @@ export function generateGalaxyNucleus(
   const strength=options.galaxyType==='ring'?.40:
     options.galaxyType==='irregular'?.34:
     options.galaxyType==='elliptical'?.72:1;
+  // More high-quality background stars already fill out the bulge.
+  // Reduce only the broad nuclear haze at high counts; retain a tiny
+  // saturated white center, without washing out surrounding spiral arms.
+  const bulgeDensityScale=low?1:
+    Math.max(.60,Math.sqrt(12000/Math.max(12000,stars.count)));
   for(let k=0;k<pivots.length;k++){
     const pivot=pivots[k];
     for(let j=0;j<perCore;j++){
@@ -62,7 +67,8 @@ export function generateGalaxyNucleus(
       colors[p+1]=(hot?1.32:.79)*variation;
       colors[p+2]=(hot?1.08:.53)*variation;
       sizes[i]=hot?1.35+random()*2.2:3.0+random()*5.0;
-      opacities[i]=(hot?.26+random()*.25:.052+random()*.085)*strength;
+      opacities[i]=(hot?.26+random()*.25:
+        (.052+random()*.085)*bulgeDensityScale)*strength;
       spins[i]=pivot.spin/pivot.count;
     }
   }
