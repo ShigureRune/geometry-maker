@@ -1,4 +1,5 @@
 import type {GalaxySettings} from './galaxy';
+import {createStellarSelfGravity} from './galaxy-nbody';
 
 /**
  * Interactive massless tracers in a softened stellar-bulge + dark-matter-halo
@@ -61,6 +62,10 @@ export type GalaxyGravitySimulation={
   readonly tidalStrippedCount:number;
   readonly tidalTailExtent:number;
   readonly tidalBridgeCount:number;
+  readonly selfGravityEnabled:boolean;
+  readonly selfGravitySourceCount:number;
+  readonly selfGravityUpdates:number;
+  readonly selfGravityTreeNodes:number;
   advance:(clock:number,strength:number,halo:number,rotationSpeed:number)=>boolean;
   reset:()=>void;
   meanDrift:()=>number;
@@ -265,12 +270,19 @@ export function createGalaxyCoreMotion(
 export function createGalaxyGravitySimulation(
   tracers:GravityTracers,options:GalaxySettings,
   coreMotion?:GalaxyCoreMotion|null,
+  enableSelfGravity=false,lowQuality=false,
 ):GalaxyGravitySimulation{
   const initial=new Float32Array(tracers.positions);
   const positions=new Float32Array(initial);
   const velocities=new Float32Array(initial.length);
   const acceleration=new Float32Array(initial.length);
   const count=Math.floor(initial.length/3);
+  // Only the main stellar population contributes dynamic disk mass. Gas and
+  // close-up detail tracers retain their existing gravitational model so we
+  // do not triple-count the same galaxy or reconstruct three expensive trees.
+  const selfGravity=enableSelfGravity&&options.selfGravityEnabled?
+    createStellarSelfGravity(positions,options.radius,
+      lowQuality?Math.min(384,options.selfGravitySamples):options.selfGravitySamples):null;
   const centers=coreMotion?.bodies??galaxyGravityAttractors(tracers,options);
   const orbitCenters=tracers.orbitCenters;
   const tidalEnabled=!!(options.tidalDynamicsEnabled&&coreMotion&&
@@ -435,6 +447,7 @@ export function createGalaxyGravitySimulation(
     velocities.set(initialVelocities);
     tidalFlags.fill(0);
     tidalStrippedCount=0;tidalTailExtent=0;tidalBridgeCount=0;
+    selfGravity?.update(positions,0);
     previousClock=null;
     elapsed=0;steps=0;
   }
@@ -454,13 +467,25 @@ export function createGalaxyGravitySimulation(
     const force=Math.max(.1,Math.min(2.5,strength));
     const haloWeight=Math.max(0,Math.min(2,halo));
     for(let part=0;part<parts;part++){
+      // A cached Barnes-Hut field is refreshed at bounded intervals. Its
+      // accelerations apply to EVERY star, including unsampled tracers.
+      if(selfGravity&&steps%12===0)
+        selfGravity.update(positions,options.selfGravityStrength*force);
       accelerationAt(force,haloWeight);
+      if(selfGravity){
+        const self=selfGravity.accelerations;
+        for(let p=0;p<acceleration.length;p++)acceleration[p]+=self[p];
+      }
       const half=.5*h;
       for(let p=0;p<initial.length;p++){
         velocities[p]+=acceleration[p]*half;
         positions[p]+=velocities[p]*h;
       }
       accelerationAt(force,haloWeight);
+      if(selfGravity){
+        const self=selfGravity.accelerations;
+        for(let p=0;p<acceleration.length;p++)acceleration[p]+=self[p];
+      }
       for(let p=0;p<initial.length;p++)
         velocities[p]+=acceleration[p]*half;
       steps++;
@@ -483,6 +508,10 @@ export function createGalaxyGravitySimulation(
   }
   return {positions,velocities,attractors:centers,tidalFlags,
     tidalEnabled,
+    selfGravityEnabled:!!selfGravity,
+    get selfGravitySourceCount(){return selfGravity?.sourceCount??0;},
+    get selfGravityUpdates(){return selfGravity?.updates??0;},
+    get selfGravityTreeNodes(){return selfGravity?.nodeCount??0;},
     get tidalStrippedCount(){return tidalStrippedCount;},
     get tidalTailExtent(){return tidalTailExtent;},
     get tidalBridgeCount(){return tidalBridgeCount;},

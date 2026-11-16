@@ -20,6 +20,7 @@ export type GalaxySettings={
   enabled:boolean;count:number;arms:number;twist:number;radius:number;
   coreGlow:number;dust:number;rotationSpeed:number;palette:GalaxyPalette;
   gravityEnabled:boolean;gravityStrength:number;gravityHalo:number;
+  selfGravityEnabled:boolean;selfGravityStrength:number;selfGravitySamples:number;
   movingCoresEnabled:boolean;coreApproachSpeed:number;
   coreImpactParameter:number;coreMergeDistance:number;coreFriction:number;
   seedTransition:boolean;transitionSeconds:number;
@@ -34,6 +35,7 @@ export const galaxyDefaults:GalaxySettings={
   enabled:false,count:12000,arms:2,twist:1.5,radius:5.5,
   coreGlow:75,dust:35,rotationSpeed:.6,palette:'violet',
   gravityEnabled:false,gravityStrength:1,gravityHalo:1,
+  selfGravityEnabled:false,selfGravityStrength:1,selfGravitySamples:1024,
   movingCoresEnabled:false,coreApproachSpeed:.7,
   coreImpactParameter:.25,coreMergeDistance:.22,coreFriction:1,
   seedTransition:true,transitionSeconds:3.5,
@@ -58,6 +60,9 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     gravityEnabled:booleanField(d.gravityEnabled,'銀河の重力シミュレーション'),
     gravityStrength:numberField(d.gravityStrength,.1,2.5,'重力の強さ'),
     gravityHalo:numberField(d.gravityHalo,0,2,'暗黒物質ハロー'),
+    selfGravityEnabled:booleanField(d.selfGravityEnabled,'星同士の自己重力'),
+    selfGravityStrength:numberField(d.selfGravityStrength,0,2,'恒星の自己重力'),
+    selfGravitySamples:numberField(d.selfGravitySamples,256,2048,'自己重力の計算粒子数',true),
     movingCoresEnabled:booleanField(d.movingCoresEnabled,'移動する銀河核'),
     coreApproachSpeed:numberField(d.coreApproachSpeed,0,2,'銀河核の接近速度'),
     coreImpactParameter:numberField(d.coreImpactParameter,0,1,'銀河核のすれ違い具合'),

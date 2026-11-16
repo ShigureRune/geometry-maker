@@ -192,8 +192,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     options.coreFriction,options.tidalDynamicsEnabled,
   ]);
   const gravity=useMemo(()=>options.gravityEnabled?
-    createGalaxyGravitySimulation(data,options,coreMotion):null,[
-    data,options.gravityEnabled,coreMotion,
+    createGalaxyGravitySimulation(data,options,coreMotion,true,low):null,[
+    data,low,options.gravityEnabled,options.selfGravityEnabled,
+    options.selfGravityStrength,options.selfGravitySamples,coreMotion,
   ]);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
@@ -301,6 +302,13 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyStarsOnlyProbe=starsOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyDetailOnlyProbe=detailOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyGravityMode=gravity?'on':'off';
+      progressHost.current.dataset.galaxyNbodyMode=gravity?.selfGravityEnabled?'on':'off';
+      progressHost.current.dataset.galaxyNbodySources=String(
+        gravity?.selfGravitySourceCount??0);
+      progressHost.current.dataset.galaxyNbodyTreeNodes=String(
+        gravity?.selfGravityTreeNodes??0);
+      progressHost.current.dataset.galaxyNbodyUpdates=String(
+        gravity?.selfGravityUpdates??0);
       progressHost.current.dataset.galaxyGravityModel=gravity?'softened-bulge-halo':'analytic-orbits';
       progressHost.current.dataset.galaxyGravityTime=gravity?gravity.time.toFixed(3):'0.000';
       progressHost.current.dataset.galaxyGravitySteps=String(gravity?.steps??0);

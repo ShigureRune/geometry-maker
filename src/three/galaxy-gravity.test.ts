@@ -345,6 +345,62 @@ describe('GALAXY MODE approximate gravity',()=>{
         Number.isFinite(body.y))).toBe(true);
     }
   });
+  it('integrates stellar self-gravity while preserving the legacy gravitational mode',()=>{
+    const settings={...galaxyDefaults,gravityEnabled:true,
+      selfGravityEnabled:true,selfGravityStrength:1,
+      selfGravitySamples:512,count:1600};
+    const stars=generateGalaxy('nbody-live-stars',settings,true);
+    const live=createGalaxyGravitySimulation(stars,settings,null,true,false);
+    const noSelf=createGalaxyGravitySimulation(stars,
+      {...settings,selfGravityEnabled:false},null,true,false);
+    const zeroSelf=createGalaxyGravitySimulation(stars,
+      {...settings,selfGravityStrength:0},null,true,false);
+    const gas=createGalaxyGravitySimulation(stars,settings);
+    expect(live.selfGravityEnabled).toBe(true);
+    expect(live.selfGravitySourceCount).toBe(512);
+    expect(noSelf.selfGravityEnabled).toBe(false);
+    expect(noSelf.selfGravitySourceCount).toBe(0);
+    expect(gas.selfGravityEnabled).toBe(false);
+    live.advance(0,1,1,.6);
+    noSelf.advance(0,1,1,.6);
+    zeroSelf.advance(0,1,1,.6);
+    for(let i=1;i<=37;i++){
+      const time=i*.035;
+      live.advance(time,1,1,.6);
+      noSelf.advance(time,1,1,.6);
+      zeroSelf.advance(time,1,1,.6);
+    }
+    expect(live.selfGravityUpdates).toBeGreaterThan(2);
+    expect(live.selfGravityUpdates).toBeLessThanOrEqual(Math.ceil(live.steps/12)+1);
+    expect(live.selfGravityTreeNodes).toBeGreaterThan(15);
+    expect(live.positions.every(Number.isFinite)).toBe(true);
+    expect(live.positions).not.toEqual(noSelf.positions);
+    expect(noSelf.positions).toEqual(zeroSelf.positions);
+    expect(stars.positions).not.toEqual(live.positions);
+    live.advance(0,1,1,.6);
+    expect(live.positions).toEqual(stars.positions);
+    expect(live.velocities.every(Number.isFinite)).toBe(true);
+    // A rewind rebuilds the same deterministic field and trajectory.
+    live.advance(.035,1,1,.6);
+    const replayPos=new Float32Array(live.positions);
+    const fresh=createGalaxyGravitySimulation(stars,settings,null,true,false);
+    fresh.advance(0,1,1,.6);
+    fresh.advance(.035,1,1,.6);
+    expect(live.positions).toEqual(fresh.positions);
+    expect(replayPos).toEqual(fresh.positions);
+  });
+  it('caps the stellar mass samples at low quality without dropping rendered stars',()=>{
+    const settings={...galaxyDefaults,gravityEnabled:true,
+      selfGravityEnabled:true,selfGravitySamples:2048,count:1200};
+    const stars=generateGalaxy('low-nbody-cost',settings,true);
+    const sim=createGalaxyGravitySimulation(stars,settings,null,true,true);
+    expect(sim.positions.length).toBe(stars.count*3);
+    expect(sim.selfGravitySourceCount).toBe(384);
+    sim.advance(0,1,1,.6);
+    sim.advance(.035,1,1,.6);
+    expect(sim.selfGravityTreeNodes).toBeGreaterThan(10);
+    expect(sim.positions.every(Number.isFinite)).toBe(true);
+  });
   it('uses both fixed mass centers for an interacting galaxy',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
       gravityEnabled:true,count:8000};
