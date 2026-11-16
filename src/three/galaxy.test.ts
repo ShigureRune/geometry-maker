@@ -242,19 +242,31 @@ describe('GALAXY MODE',()=>{
     const detail=generateGalaxyDetailStars('zoom-fine-structure',settings,false,galaxy);
     const repeat=generateGalaxyDetailStars('zoom-fine-structure',settings,false,galaxy);
     expect(detail.count).toBeGreaterThan(galaxy.count*4);
-    expect(detail.count).toBeLessThanOrEqual(95000);
+    expect(detail.count).toBeLessThanOrEqual(65000);
     expect(detail.positions).toEqual(repeat.positions);
     expect(detail.colors).toEqual(repeat.colors);
-    expect(Math.min(...detail.sizes)).toBeGreaterThanOrEqual(.85);
-    expect(Math.max(...detail.sizes)).toBeLessThan(1.56);
-    expect(detail.opacities.every(x=>x>=.46&&x<=.84)).toBe(true);
+    expect(Math.min(...detail.sizes)).toBeGreaterThanOrEqual(.63);
+    expect(Math.max(...detail.sizes)).toBeLessThan(1.41);
+    expect(detail.opacities.every(x=>x>=0&&x<=.66)).toBe(true);
+    const strong=Array.from(detail.opacities).filter(v=>v>.40).length;
+    const faint=Array.from(detail.opacities).filter(v=>v<.27).length;
+    expect(strong,'some individually bright stars remain').toBeGreaterThan(500);
+    expect(faint,'most stars must remain faint to preserve arm colors')
+      .toBeGreaterThan(strong*3);
     const allowedSpins=new Set(galaxy.spins);
     expect(detail.spins.every(s=>allowedSpins.has(s))).toBe(true);
     const highZ=Array.from({length:detail.count},(_,i)=>detail.positions[i*3+2]);
     expect(highZ.some(z=>Math.abs(z)>.001)).toBe(true);
     const minRadial=Math.min(...Array.from({length:detail.count},(_,i)=>
       Math.hypot(detail.positions[i*3],detail.positions[i*3+1])));
-    expect(minRadial).toBeGreaterThan(settings.radius*.14);
+    expect(minRadial,'keep the tiny unresolved nucleus smooth')
+      .toBeGreaterThan(settings.radius*.077);
+    const innerRim=Array.from({length:detail.count},(_,i)=>i).filter(i=>{
+      const r=Math.hypot(detail.positions[i*3],detail.positions[i*3+1])/settings.radius;
+      return r>.10&&r<.20&&detail.opacities[i]>.01;
+    }).length;
+    expect(innerRim,'resolved stars must surround the smooth nucleus')
+      .toBeGreaterThan(1000);
     const mobile=generateGalaxy('zoom-fine-structure',settings,true);
     const mobileDetails=generateGalaxyDetailStars('zoom-fine-structure',settings,true,mobile);
     expect(mobileDetails.count).toBeLessThanOrEqual(16000);
