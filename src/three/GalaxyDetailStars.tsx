@@ -26,14 +26,12 @@ void main(){
   vec4 view=modelViewMatrix*vec4(pos,1.0);
   gl_Position=projectionMatrix*view;
   float distance=max(0.001,-view.z);
-  // The previous 3..9 fade made stars nearly disappear before the camera
-  // actually entered the stellar disk. Keep the *distant* image unchanged,
-  // then fade in bright resolved points across a wider near-field range.
-  float closeFade=1.0-smoothstep(6.0,15.0,distance);
-  float proximity=1.0-smoothstep(0.35,5.0,distance);
-  // Even at extreme zoom a star is a small point, never a 50px disk.
-  gl_PointSize=clamp(aSize*uDpr*9.5/max(.28,distance),2.0,7.0)*uExportScale;
-  vColor=aColor*(1.18+proximity*.24);
+  // Limit the additive LOD to near-field; long bright overlapping halos
+  // were bleaching out the colors of blue arms and warm inner stars.
+  float closeFade=1.0-smoothstep(4.2,12.0,distance);
+  float proximity=1.0-smoothstep(.35,4.0,distance);
+  gl_PointSize=clamp(aSize*uDpr*8.4/max(.32,distance),1.6,5.8)*uExportScale;
+  vColor=aColor*(1.05+proximity*.12);
   vOpacity=aOpacity*closeFade*uEntrance;
 }
 `;
@@ -43,13 +41,13 @@ varying float vOpacity;
 void main(){
   vec2 p=gl_PointCoord-vec2(.5);
   float d=length(p);
-  // A defined white-hot pinpoint plus a short colored halo. The old
-  // purely Gaussian .52 opacity multiplier gave ~subpixel faint dots.
-  float core=1.0-smoothstep(0.035,0.17,d);
-  float halo=exp(-d*d*19.0);
-  float alpha=clamp(vOpacity*(halo*.76+core*.52),0.0,.82);
-  if(alpha<.01)discard;
-  gl_FragColor=vec4(vColor*(1.38+core*.26),alpha);
+  // Distinct star cores, but low-opacity colored halos to keep neighboring
+  // stars from accumulating into a solid white sheet under extreme zoom.
+  float core=1.0-smoothstep(0.03,0.15,d);
+  float halo=exp(-d*d*27.0);
+  float alpha=clamp(vOpacity*(halo*.37+core*.40),0.0,.53);
+  if(alpha<.008)discard;
+  gl_FragColor=vec4(vColor*(1.13+core*.16),alpha);
 }
 `;
 
@@ -97,7 +95,7 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
     }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyDetailCount=String(data.count);
-      progressHost.current.dataset.galaxyDetailRange='6-15';
+      progressHost.current.dataset.galaxyDetailRange='4.2-12';
       progressHost.current.dataset.galaxyDetailTime=time.toFixed(3);
     }
   });
