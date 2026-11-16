@@ -55,6 +55,7 @@ function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morp
 }){
   const mesh=useRef<Mesh>(null),material=useRef<ShaderMaterial>(null);
   const eye=useMemo(()=>new Vector3(),[]);
+  const worldCenter=useMemo(()=>new Vector3(),[]);
   const uniforms=useMemo(()=>({
     uEyeLocal:{value:new Vector3(0,0,3)},
     uDiskColor:{value:new Vector3(...color)},
@@ -71,12 +72,21 @@ function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morp
       :!animation&&time===0?1:galaxyMorphEasing(time/2.6);
     uniforms.uEyeLocal.value.copy(eye);
     uniforms.uDiskColor.value.set(...color);
-    uniforms.uDensity.value=density;
+    // The disk is a distant photographic glow, not a solid fog bank.
+    // When the camera enters the galaxy, fade its unresolved haze so the
+    // individual nearby stars and dark spaces can remain visible.
+    mesh.current.getWorldPosition(worldCenter);
+    const viewDistance=camera.position.distanceTo(worldCenter);
+    const t=Math.max(0,Math.min(1,
+      (viewDistance-radius*.52)/(radius*.98)));
+    const nearFade=t*t*(3-2*t);
+    const visibleDensity=density*(.055+.945*nearFade);
+    uniforms.uDensity.value=visibleDensity;
     uniforms.uEntrance.value=entrance;
     if(material.current){
       material.current.uniforms.uEyeLocal.value.copy(eye);
       material.current.uniforms.uDiskColor.value.copy(uniforms.uDiskColor.value);
-      material.current.uniforms.uDensity.value=density;
+      material.current.uniforms.uDensity.value=uniforms.uDensity.value;
       material.current.uniforms.uEntrance.value=entrance;
     }
   });
