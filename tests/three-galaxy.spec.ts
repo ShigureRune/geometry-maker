@@ -145,6 +145,9 @@ async function galaxyExposure(page:Page,filename:string){
     const data=ctx.getImageData(0,0,320,240).data;
     let sum=0,clips=0,washed=0,count=0;
     for(let y=12;y<228;y++)for(let x=30;x<290;x++){
+      // The deliberately white-hot nuclear hotspot is not an overexposed
+      // spiral arm. Sample the arms independently of the central 3D core.
+      if(Math.hypot(x-160,y-120)<24)continue;
       const o=(y*320+x)*4;
       const r=data[o],g=data[o+1],b=data[o+2];
       sum+=(r+g+b)/3;
@@ -434,6 +437,8 @@ test('central photographic hotspot intensifies without washing out distant arms'
   console.log('WHITE HOT NUCLEUS', {dim,bright});
   expect(bright.core).toBeGreaterThan(dim.core*1.15+3);
   expect(bright.brightest).toBeGreaterThan(dim.brightest+5);
+  // The *nucleus only* may clip slightly, as in a long-exposure galaxy photo.
+  expect(bright.brightest).toBeGreaterThan(248);
   expect(bright.outer).toBeLessThan(dim.outer*1.13+3);
 });
 
