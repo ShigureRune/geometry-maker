@@ -1,6 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,DoubleSide,ShaderMaterial,Vector3} from 'three';
+import {DoubleSide,NormalBlending,ShaderMaterial,Vector3} from 'three';
 import {GALAXY_TYPES,galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
 import {GALAXY_MOTION_GLSL} from './galaxy-motion';
 
@@ -128,20 +128,27 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     float armsA=swirlingArm(first,orientation,handed,twist,width);
     float armsB=swirlingArm(second,orientation+2.35,-handed,twist,width);
     float tail=0.;
+    // Previously, BOTH tidal tails used a global +handed gas texture and
+    // stationary geometry even though the companion particles have
+    // -handed spins. Advection must happen around EACH galaxy's own center.
     for(int j=0;j<2;j++){
       float tailSide=j==0?-1.:1.;
-      vec2 origin=j==0?vec2(-gap*.36,-.12):vec2(gap*.60,.10);
-      float radial=length(p-origin);
-      float theta=atan(p.y-origin.y,p.x-origin.x);
-      float target=tailSide*(.45+radial*1.85)+orientation*.38;
+      float localHanded=j==0?handed:-handed;
+      vec2 origin=j==0?vec2(-gap*.36,-.15):vec2(gap*.60,.16);
+      vec2 local=galaxyGasOrbit(p-origin,localHanded,uTime,uRotationSpeed);
+      float verticalScale=.38+tidalStrength*.35;
+      vec2 trail=vec2(local.x,local.y/max(.12,verticalScale));
+      float radial=length(trail);
+      float start=j==0?.28:companion*.15;
+      float t=clamp((radial-start)/max(.05,1.15-start),0.,1.);
+      float theta=atan(trail.y,trail.x);
+      float target=tailSide*(.45+2.1*t)+orientation*.38;
       float deviation=atan(sin(theta-target),cos(theta-target));
-      tail+=exp(-pow(deviation/.17,2.))*smoothstep(.35,.55,radial)*
-        (1.-smoothstep(.98,1.24,radial));
+      float strand=exp(-pow(deviation/.16,2.))*smoothstep(start*.8,start+.13,radial)*
+        (1.-smoothstep(1.00,1.25,radial));
+      tail+=strand*(.40+.87*cloudNoise(local*10.0+vec2(orientation,3.)));
     }
-    // Tidal tails stay attached to their galaxies while light-bearing
-    // knots flow along them instead of being frozen to screen pixels.
-    float texture=cloudNoise(gasP*10.0+vec2(orientation,3.));
-    tail*=tidalStrength*(.40+.87*texture);
+    tail*=tidalStrength;
     armsA*=.65+.60*cloudNoise(first*10.+vec2(orientation,3.));
     armsB*=.66+.54*cloudNoise(second*16.+vec2(4.,orientation));
     float coreA=exp(-pow(length(first)/.06,1.6));
@@ -226,6 +233,10 @@ void main(){
   }
   current.a*=uEntrance;
   if(current.a<.006)discard;
+  // Limit HDR before blending: an opaque luminous gas layer should
+  // preserve star-forming blues and pinks, not add 3+ RGB values to every
+  // pixel and clip to flat white in the high-quality composer.
+  current.rgb=vec3(1.)-exp(-max(current.rgb,vec3(0.))*.72);
   gl_FragColor=current;
 }
 `;
@@ -356,6 +367,6 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
   return <mesh name="galaxy-diffuse-light" position={[0,0,-.13]} renderOrder={0} frustumCulled={false}>
     <planeGeometry args={[options.radius*2.5,options.radius*2.5]}/>
     <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader} uniforms={uniforms}
-      transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={AdditiveBlending}/>
+      transparent depthWrite={false} depthTest={false} side={DoubleSide} blending={NormalBlending}/>
   </mesh>;
 }

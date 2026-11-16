@@ -99,7 +99,9 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
     return {x:center+Math.cos(angle)*r+gaussian(random)*R*.032,
       y:(which?.16:-.15)*R+Math.sin(angle)*r*(.38+options.tidalStrength*.35)+gaussian(random)*R*.032,
       z:gaussian(random)*R*.014,radius:t,core:false,cloud:false,young:random()<.5,
-      orbitX:center,orbitY:(which?.10:-.12)*R,orbitHanded:which?-handed:handed};
+      // Match the physical center used by the tidal stream's gas shader,
+      // rather than orbiting the tail around a different vertical offset.
+      orbitX:center,orbitY:(which?.16:-.15)*R,orbitHanded:which?-handed:handed};
   }
   const companion=index>=companionStart;
   const local=spinPoint(random,R,2,options.twist,options.armWidth,
