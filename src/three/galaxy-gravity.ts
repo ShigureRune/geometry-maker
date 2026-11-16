@@ -24,6 +24,9 @@ export type GalaxyCoreMotion={
   readonly count:number;
   readonly distance:number;
   readonly steps:number;
+  /** Number of completed close passages (local separation minima). */
+  readonly passages:number;
+  readonly stage:'approaching'|'separating'|'merged';
   advance:(clock:number,strength:number,halo:number,speed:number)=>boolean;
   reset:()=>void;
 };
@@ -78,49 +81,94 @@ export function createGalaxyCoreMotion(
     ...c,z:0,vx:0,vy:0,vz:0,active:true,
   }));
   const radius=options.radius;
+  const pairSoft2=(radius*.20)**2;
+  const haloCore2=(radius*.30)**2;
+  const mergeDistance=radius*options.coreMergeDistance;
+  const friction=Math.max(0,Math.min(2,options.coreFriction));
   if(bodies.length===2){
     const a=bodies[0],b=bodies[1],sum=a.mass+b.mass;
     const dx=b.x-a.x,dy=b.y-a.y;
     const distance=Math.max(.001,Math.hypot(dx,dy));
     const ux=dx/distance,uy=dy/distance;
-    // Relative closing speed and sideways orbital approach, expressed in
-    // scene units. Equal/opposite momenta keep the barycenter stationary.
-    const closing=radius*.042*options.coreApproachSpeed;
-    const sideways=closing*.52*options.coreImpactParameter;
-    const relativeX=ux*closing-uy*sideways;
-    const relativeY=uy*closing+ux*sideways;
-    a.vx=relativeX*b.mass/sum;a.vy=relativeY*b.mass/sum;
-    b.vx=-relativeX*a.mass/sum;b.vy=-relativeY*a.mass/sum;
+    // Start on a bound, *eccentric* encounter. Some initial tangential
+    // angular momentum is essential: a nearly radial fall visually sticks
+    // the cores together on the first approach instead of a flyby.
+    // Estimate circular speed in the SAME softened+halo potential used below.
+    const r2=distance*distance;
+    const circular=Math.sqrt(
+      sum*r2/Math.pow(r2+pairSoft2,1.5)+
+      (a.halo+b.halo)*r2/(r2+haloCore2));
+    const incoming=circular*(.13+.22*options.coreApproachSpeed);
+    const tangential=circular*(.40+.45*options.coreImpactParameter);
+    const relativeVx=-ux*incoming-uy*tangential;
+    const relativeVy=-uy*incoming+ux*tangential;
+    a.vx=-relativeVx*b.mass/sum;a.vy=-relativeVy*b.mass/sum;
+    b.vx=relativeVx*a.mass/sum;b.vy=relativeVy*a.mass/sum;
   }
   const initial=bodies.map(b=>({...b}));
-  const pairSoft2=(radius*.20)**2;
-  const haloCore2=(radius*.30)**2;
-  const mergeDistance=radius*options.coreMergeDistance;
   let previousClock:number|null=null;
-  let wasMerged=false,steps=0;
+  let wasMerged=false,steps=0,passages=0;
+  function separation(){
+    const [a,b]=bodies;
+    if(!b?.active)return 0;
+    return Math.hypot(b.x-a.x,b.y-a.y,b.z-a.z);
+  }
+  function radialVelocity(){
+    const [a,b]=bodies;
+    if(!b?.active)return 0;
+    const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
+    return (dx*(b.vx-a.vx)+dy*(b.vy-a.vy)+dz*(b.vz-a.vz))/
+      Math.max(.0001,Math.hypot(dx,dy,dz));
+  }
+  let previousRadial=radialVelocity();
   function reset(){
     for(let i=0;i<initial.length;i++)Object.assign(bodies[i],initial[i]);
-    previousClock=null;wasMerged=false;steps=0;
+    previousClock=null;wasMerged=false;steps=0;passages=0;
+    previousRadial=radialVelocity();
   }
+  /** Mutual acceleration in the reduced (relative) two-body system.
+   * Both galaxies receive equal and opposite forces even if the halo-to-bulge
+   * mass ratio is different: their shared barycenter therefore cannot drift. */
   function pairAcceleration(strength:number,haloWeight:number){
     const a=bodies[0],b=bodies[1];
     if(!b?.active)return [[0,0,0],[0,0,0]] as const;
     const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
     const d2=dx*dx+dy*dy+dz*dz;
-    const inverse=Math.pow(d2+pairSoft2,-1.5);
-    const ga=(b.mass*inverse+b.halo*haloWeight/(d2+haloCore2))*strength;
-    const gb=(a.mass*inverse+a.halo*haloWeight/(d2+haloCore2))*strength;
-    return [[ga*dx,ga*dy,ga*dz],[-gb*dx,-gb*dy,-gb*dz]] as const;
+    const total=a.mass+b.mass;
+    const mu=(total/Math.pow(d2+pairSoft2,1.5)+
+      (a.halo+b.halo)*haloWeight/(d2+haloCore2))*strength;
+    const aShare=b.mass/total,bShare=a.mass/total;
+    return [[mu*dx*aShare,mu*dy*aShare,mu*dz*aShare],
+      [-mu*dx*bShare,-mu*dy*bShare,-mu*dz*bShare]] as const;
+  }
+  /** A local dynamical-friction approximation: stellar and dark-halo
+   * encounters transfer orbital energy into internal motions. Drag is
+   * strongest during close passages; it damps RELATIVE velocity only,
+   * preserving the pair's total linear momentum. This is intentionally
+   * a restricted two-body model, not resolved N-body dynamical friction. */
+  function dampRelativeVelocity(halfStep:number){
+    if(friction===0)return;
+    const a=bodies[0],b=bodies[1],sum=a.mass+b.mass;
+    const r=separation();
+    const near=1/(1+Math.pow(r/(radius*.48),4));
+    const damping=Math.exp(-friction*(.004+.030*near)*halfStep);
+    const dx=(b.vx-a.vx)*(damping-1);
+    const dy=(b.vy-a.vy)*(damping-1);
+    const dz=(b.vz-a.vz)*(damping-1);
+    const fa=b.mass/sum,fb=a.mass/sum;
+    a.vx-=dx*fa;a.vy-=dy*fa;a.vz-=dz*fa;
+    b.vx+=dx*fb;b.vy+=dy*fb;b.vz+=dz*fb;
   }
   function merge(){
     const a=bodies[0],b=bodies[1],sum=a.mass+b.mass;
+    // Momentum-weighted location and velocity; no invented teleportation of
+    // the remnant's barycenter or sudden change of overall linear momentum.
     for(const key of ['x','y','z','vx','vy','vz'] as const)
       a[key]=(a[key]*a.mass+b[key]*b.mass)/sum;
     a.mass=sum;a.halo+=b.halo;
     b.x=a.x;b.y=a.y;b.z=a.z;
     b.vx=a.vx;b.vy=a.vy;b.vz=a.vz;
-    b.active=false;
-    wasMerged=true;
+    b.active=false;wasMerged=true;
   }
   function advance(clock:number,strength:number,halo:number,speed:number){
     if(!Number.isFinite(clock))return false;
@@ -131,13 +179,11 @@ export function createGalaxyCoreMotion(
     previousClock=clock;
     if(dt<1e-6||bodies.length<2)return false;
     if(wasMerged){
-      // The remnant continues on the pair's conserved center-of-mass
-      // trajectory; merging must not suddenly freeze the luminous nucleus.
+      // A merger remnant moves with its conserved center-of-mass velocity.
       const a=bodies[0],b=bodies[1];
       a.x+=a.vx*dt;a.y+=a.vy*dt;a.z+=a.vz*dt;
       b.x=a.x;b.y=a.y;b.z=a.z;
-      steps++;
-      return true;
+      steps++;return true;
     }
     const parts=Math.max(1,Math.ceil(dt/.035)),h=dt/parts;
     const force=Math.max(.1,Math.min(2.5,strength));
@@ -148,6 +194,9 @@ export function createGalaxyCoreMotion(
         const body=bodies[i],acc=first[i];
         body.vx+=acc[0]*h*.5;body.vy+=acc[1]*h*.5;
         body.vz+=acc[2]*h*.5;
+      }
+      dampRelativeVelocity(h*.5);
+      for(const body of bodies){
         body.x+=body.vx*h;body.y+=body.vy*h;body.z+=body.vz*h;
       }
       const second=pairAcceleration(force,haloWeight);
@@ -156,9 +205,17 @@ export function createGalaxyCoreMotion(
         body.vx+=acc[0]*h*.5;body.vy+=acc[1]*h*.5;
         body.vz+=acc[2]*h*.5;
       }
+      dampRelativeVelocity(h*.5);
       steps++;
-      if(Math.hypot(bodies[1].x-bodies[0].x,
-        bodies[1].y-bodies[0].y,bodies[1].z-bodies[0].z)<mergeDistance){
+      const radial=radialVelocity();
+      // Count ACTUAL pericentric turns, not elapsed seconds or collisions
+      // with an arbitrary distance threshold. Both nuclei must pull away
+      // from one another after each of at least two close encounters.
+      if(previousRadial<0&&radial>=0)passages++;
+      previousRadial=radial;
+      // Only the THIRD (or later) inward passage may coalesce. This keeps
+      // the first two complete swing-bys, regardless of merge-radius slider.
+      if(friction>0&&passages>=2&&radial<0&&separation()<mergeDistance){
         merge();break;
       }
     }
@@ -167,8 +224,9 @@ export function createGalaxyCoreMotion(
   return {bodies,
     get merged(){return wasMerged;},
     get count(){return bodies.filter(b=>b.active).length;},
-    get distance(){const [a,b]=bodies;return b?.active?
-      Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z):0;},
+    get distance(){return separation();},
+    get passages(){return passages;},
+    get stage(){return wasMerged?'merged':radialVelocity()>=0?'separating':'approaching';},
     get steps(){return steps;},
     advance,reset,
   };

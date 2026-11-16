@@ -127,6 +127,8 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
   await expect(preview).toHaveAttribute('data-galaxy-core-count','2');
   await expect(preview).toHaveAttribute('data-galaxy-core-merged','false');
+  await expect(preview).toHaveAttribute('data-galaxy-core-passages','0');
+  await expect(preview).toHaveAttribute('data-galaxy-core-stage','approaching');
   const startDistance=Number(await preview.getAttribute('data-galaxy-core-distance'));
   expect(startDistance).toBeGreaterThan(1);
   await expect.poll(async()=>
@@ -143,7 +145,12 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await page.locator('#galaxy-core-impact').fill('0.5');
   await page.locator('#galaxy-core-approach').fill('1');
   await page.locator('#galaxy-core-merge').fill('0.3');
+  await page.locator('#galaxy-core-friction').fill('0.8');
+  await expect(page.locator('#galaxy-core-friction')).toHaveValue('0.8');
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
+  await expect(preview).toHaveAttribute('data-galaxy-core-merged','false');
+  // A mere close distance must NOT collapse two nuclei on first approach.
+  // The orbital dynamics unit tests cover multiple completed pericenters.
   await mkdir('test-results',{recursive:true});
   await preview.locator('canvas').screenshot({
     path:'test-results/galaxy-moving-cores.png',

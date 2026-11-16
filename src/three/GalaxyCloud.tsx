@@ -181,6 +181,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     options.galaxyType==='interacting'?createGalaxyCoreMotion(data,options):null,[
     data,options.gravityEnabled,options.movingCoresEnabled,options.galaxyType,
     options.coreApproachSpeed,options.coreImpactParameter,options.coreMergeDistance,
+    options.coreFriction,
   ]);
   const gravity=useMemo(()=>options.gravityEnabled?
     createGalaxyGravitySimulation(data,options,coreMotion):null,[
@@ -297,6 +298,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyCoreCount=String(coreMotion?.count??0);
       progressHost.current.dataset.galaxyCoreDistance=(coreMotion?.distance??0).toFixed(4);
       progressHost.current.dataset.galaxyCoreMerged=coreMotion?.merged?'true':'false';
+      progressHost.current.dataset.galaxyCorePassages=String(coreMotion?.passages??0);
+      progressHost.current.dataset.galaxyCoreStage=coreMotion?.stage??'off';
       progressHost.current.dataset.galaxyCoreAX=(coreMotion?.bodies[0]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyCoreBX=(coreMotion?.bodies[1]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);

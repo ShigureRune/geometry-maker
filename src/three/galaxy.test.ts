@@ -25,7 +25,8 @@ describe('GALAXY MODE',()=>{
       {gravityEnabled:'yes'},{gravityStrength:0},{gravityStrength:3},{gravityHalo:-1},
       {gravityHalo:3},{movingCoresEnabled:'yes'},
       {coreApproachSpeed:-1},{coreApproachSpeed:3},{coreImpactParameter:-1},
-      {coreImpactParameter:2},{coreMergeDistance:0},{coreMergeDistance:.9}]){
+      {coreImpactParameter:2},{coreMergeDistance:0},{coreMergeDistance:.9},
+      {coreFriction:-.1},{coreFriction:3}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
   });
@@ -38,10 +39,11 @@ describe('GALAXY MODE',()=>{
     delete old.coreApproachSpeed;
     delete old.coreImpactParameter;
     delete old.coreMergeDistance;
+    delete old.coreFriction;
     expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
     const mobile={...galaxyDefaults,gravityEnabled:true,movingCoresEnabled:true,
       galaxyType:'interacting' as const,coreApproachSpeed:1.25,
-      coreImpactParameter:.65,coreMergeDistance:.16};
+      coreImpactParameter:.65,coreMergeDistance:.16,coreFriction:.5};
     expect(validateGalaxySettings(mobile)).toEqual(mobile);
     const enabled={...galaxyDefaults,gravityEnabled:true,gravityStrength:2,gravityHalo:.4};
     expect(validateGalaxySettings(enabled)).toEqual(enabled);

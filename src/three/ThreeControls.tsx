@@ -242,7 +242,11 @@ export function ThreeShapeControls({settings, onChange}: Props) {
                 min={.05} max={.4} step={.01} value={galaxy.coreMergeDistance}
                 onChange={coreMergeDistance=>onChange({...settings,galaxy:{
                   ...galaxy,coreMergeDistance}})}/>
-              <HelpInfo>2つの中心核が互いに引き合って移動し、周囲の星・ガス・淡い円盤と中心核の発光も動きます。合体距離より近づくと1つの重力源へ統合します。質量と運動量は保存する近似モデルです。</HelpInfo>
+              <ThreeRange id="galaxy-core-friction" label="軌道減衰（力学的摩擦）"
+                min={0} max={2} step={.1} value={galaxy.coreFriction}
+                onChange={coreFriction=>onChange({...settings,galaxy:{
+                  ...galaxy,coreFriction}})}/>
+              <HelpInfo>銀河核はまず互いに近づき、回り込んで離れ、重力で再び接近します。2回以上の近接通過を実際に完了し、軌道減衰で次第に小さい軌道になったあとで合体します。「軌道減衰」が0なら自動合体せず、すれ違いを続けます。接近速度やずれを調整して軌道を変えられます。星・ガス・中心の光も動きます。質量と運動量を保存する軽量な2体＋粒子近似で、完全なN体銀河衝突ではありません。</HelpInfo>
             </>}
           </>}
           <HelpInfo>星とガスが中心バルジと暗黒物質ハローの重力場を受け、時間とともに軌道が変化します。相互作用銀河では2つの重力源を使用します。完全N体計算ではなく、各星の相互重力は省いた軽量な近似です。再生・停止や重力パラメーターで動きが変わり、OFFにすると元の銀河表示に戻ります。</HelpInfo>

@@ -21,7 +21,7 @@ export type GalaxySettings={
   coreGlow:number;dust:number;rotationSpeed:number;palette:GalaxyPalette;
   gravityEnabled:boolean;gravityStrength:number;gravityHalo:number;
   movingCoresEnabled:boolean;coreApproachSpeed:number;
-  coreImpactParameter:number;coreMergeDistance:number;
+  coreImpactParameter:number;coreMergeDistance:number;coreFriction:number;
   seedTransition:boolean;transitionSeconds:number;
   armWidth:number;inclination:number;barred:boolean;darkBackground:boolean;
   galaxyType:GalaxyType;
@@ -34,7 +34,7 @@ export const galaxyDefaults:GalaxySettings={
   coreGlow:75,dust:35,rotationSpeed:.6,palette:'violet',
   gravityEnabled:false,gravityStrength:1,gravityHalo:1,
   movingCoresEnabled:false,coreApproachSpeed:.7,
-  coreImpactParameter:.25,coreMergeDistance:.22,
+  coreImpactParameter:.25,coreMergeDistance:.22,coreFriction:1,
   seedTransition:true,transitionSeconds:3.5,
   armWidth:1.25,inclination:23,barred:false,darkBackground:true,
   galaxyType:'grand_design',ringRadius:.64,ringWidth:.12,ellipticity:.42,
@@ -60,6 +60,7 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     coreApproachSpeed:numberField(d.coreApproachSpeed,0,2,'銀河核の接近速度'),
     coreImpactParameter:numberField(d.coreImpactParameter,0,1,'銀河核のすれ違い具合'),
     coreMergeDistance:numberField(d.coreMergeDistance,.05,.4,'銀河核の合体距離'),
+    coreFriction:numberField(d.coreFriction,0,2,'力学的摩擦・軌道減衰'),
     palette:enumField(d.palette,GALAXY_PALETTES,'銀河の配色'),
     seedTransition:booleanField(d.seedTransition,'銀河のシード切替演出'),
     transitionSeconds:numberField(d.transitionSeconds,.5,15,'銀河の切替時間'),
