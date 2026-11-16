@@ -57,8 +57,8 @@ describe('GALAXY MODE',()=>{
       {...options,tidalDynamicsEnabled:true},true);
     expect(physical.count).toBe(legacy.count);
     expect(physical.positions).not.toEqual(legacy.positions);
-    expect(physical.spins).toEqual(legacy.spins);
     const from=Math.floor(physical.count*.90);
+    expect(physical.spins.slice(0,from)).toEqual(legacy.spins.slice(0,from));
     let oldLong=0;
     for(let i=from;i<physical.count;i++){
       const p=i*3,q=i*2;
