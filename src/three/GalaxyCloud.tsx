@@ -163,10 +163,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
-    // Preserve total stellar light as quality changes: 30k detailed stars
-    // should have roughly the same overall exposure as 3,600 mobile stars.
-    // Sqrt(count) compensation still makes high-quality arms nearly white.
-    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count);
+    // High quality also passes through OutputPass (different from the
+    // lightweight direct renderer), whose color conversion lifts midtones.
+    // Thus normalize both star density AND that renderer-specific exposure.
+    // Star quantity adds detail, never makes the arms lose their color.
+    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*(low?1:.60);
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
