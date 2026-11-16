@@ -477,6 +477,7 @@ test('high-quality PNG captures the same visible galaxy exposure at 2x resolutio
   await expect(preview).toHaveAttribute('data-quality','high');
   await page.locator('#galaxy-count').fill('18000');
   await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
   await page.getByRole('button',{name:'3Dを一時停止'}).click();
   await category(page,'図形');
   // Both layers seek to the same settled, static 3D pose.
