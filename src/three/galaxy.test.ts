@@ -188,7 +188,9 @@ describe('GALAXY MODE',()=>{
     const centers=Array.from({length:clouds.count},(_,i)=>
       Math.hypot(clouds.positions[i*3],clouds.positions[i*3+1])/settings.radius);
     const inner=centers.filter(x=>x<.25).length;
-    expect(inner/clouds.count).toBeGreaterThan(.15);
+    // The luminous center is handled by the smooth 3D bulge, not by large
+    // cloudlet billboards; keep some warm gas without the old heavy core fog.
+    expect(inner/clouds.count).toBeGreaterThan(.12);
   });
   it('inherits the actual stellar positions, local rotation direction and pivots for gas',()=>{
     const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:12000};
