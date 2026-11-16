@@ -102,6 +102,8 @@ test('gravity mode numerically bends stellar and gas orbits with two mass center
   });
   await page.locator('#galaxy-type').selectOption('interacting');
   await expect(preview).toHaveAttribute('data-galaxy-gravity-sources','2');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-primary-well-scale','1.000');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-companion-well-scale','0.450');
   await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-steps')))
     .toBeGreaterThan(1);
   await page.getByLabel('銀河の重力シミュレーションを有効化').uncheck();
@@ -125,6 +127,8 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','off');
   await page.getByLabel('銀河核同士を重力で動かす').check();
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-primary-well-scale','1.000');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-companion-well-scale','0.450');
   await expect(preview).toHaveAttribute('data-galaxy-core-count','2');
   await expect(preview).toHaveAttribute('data-galaxy-core-merged','false');
   await expect(preview).toHaveAttribute('data-galaxy-core-passages','0');
