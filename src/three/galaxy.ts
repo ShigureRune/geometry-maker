@@ -1,5 +1,6 @@
 import {seededRandom} from '../scene';
 import {generateGalaxyVariant} from './galaxy-generators/variants';
+import {galaxyAngularRate,galaxySpiralSpine} from './galaxy-motion';
 import {booleanField,enumField,numberField,record} from './style-settings';
 
 export const GALAXY_PALETTES=['violet','blue','rose','gold'] as const;
@@ -124,15 +125,10 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
   const random=seededRandom('galaxy-realism-v2:'+seed);
   const colorset=PALETTES[options.palette],R=options.radius;
   const orientation=random()*TAU,handed=random()<.5?-1:1;
-  const barStart=options.barred?.25:.145;
-  // About half-to-one turn from the inner disk to the outskirts: avoids
-  // the tightly wound near-concentric rings of the v1 model.
+  // The exact same spiral function is compiled into the diffuse gas shader.
   function armAngle(normalizedRadius:number,arm:number):number{
-    const radius=Math.max(barStart,normalizedRadius);
-    const winding=handed*(1.65+options.twist*.35)*Math.log(radius/barStart);
-    const feather=.065*Math.sin(radius*19+arm*3.4+orientation)+
-      .027*Math.sin(radius*44+arm*2.7);
-    return orientation+TAU*arm/options.arms+winding+feather;
+    return galaxySpiralSpine(normalizedRadius,arm,options.arms,
+      orientation,handed,options.twist,options.barred);
   }
   type Knot={x:number;y:number;r:number;arm:number;pink:boolean};
   const knots:Knot[]=Array.from({length:Math.max(16,options.arms*18)},(_,k)=>{
@@ -249,7 +245,7 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
     opacities[i]=opacity;
     kinds[i]=kind;
     cores[i]=coreStrength;
-    spins[i]=handed*(.025+.08/(.40+radial*1.5));
+    spins[i]=handed*galaxyAngularRate(radial);
     phases[i]=random()*TAU;
   }
   return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds};
