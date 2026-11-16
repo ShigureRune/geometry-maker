@@ -132,7 +132,11 @@ describe('GALAXY MODE approximate gravity',()=>{
       gasGravity.advance(time,1,1,.6);
     }
     // Both tracer systems have exactly the same shared moving potential.
-    expect(coreMotion.steps).toBe(30);
+    // Advancing a second tracer must not double-step the moving nuclei.
+    const reference=createGalaxyCoreMotion(stars,options);
+    reference.advance(0,1,1,.6);
+    for(let i=1;i<=30;i++)reference.advance(i*.035,1,1,.6);
+    expect(coreMotion.steps).toBe(reference.steps);
     expect(starGravity.positions).toEqual(gasGravity.positions);
     expect(starGravity.positions).not.toEqual(stars.positions);
     expect(coreMotion.distance).toBeGreaterThan(0);
