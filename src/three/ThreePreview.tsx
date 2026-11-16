@@ -622,6 +622,9 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
       // Render synchronously and copy immediately; preserveDrawingBuffer is not
       // needed during normal playback. This captures the current camera and pose.
       render();
+      if(progressHost?.current)
+        progressHost.current.dataset.galaxyLastPngPointScale=
+          progressHost.current.dataset.galaxyExportPointScale??'1.000';
       drawBackground(context, width, height, background);
       context.drawImage(gl.domElement, Math.round((width - renderWidth) / 2), Math.round((height - renderHeight) / 2));
     } finally {
