@@ -18,6 +18,8 @@ async function openGalaxy(page:Page,gasOnly=false,starsOnly=false){
   await page.getByLabel('GALAXY MODEを有効化').check();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-gas-representation','3d-points');
+  await expect(page.getByTestId('three-preview'))
+    .toHaveAttribute('data-galaxy-disk-representation','3d-thin-stellar-volume');
   expect(Number(await page.getByTestId('three-preview').getAttribute('data-galaxy-gas-count')))
     .toBeGreaterThan(300);
 }
@@ -108,6 +110,11 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
     await expect(preview).toHaveAttribute('data-galaxy-bulge-representation','3d-unresolved-volume');
     await expect(preview).toHaveAttribute('data-galaxy-bulge-count',type==='interacting'?'2':'1');
+    const hasDisk=['grand_design','barred_spiral','flocculent','interacting'].includes(type);
+    await expect(preview).toHaveAttribute('data-galaxy-disk-representation',
+      hasDisk?'3d-thin-stellar-volume':'none');
+    await expect(preview).toHaveAttribute('data-galaxy-disk-count',
+      !hasDisk?'0':type==='interacting'?'2':'1');
     const screenshot=await preview.locator('canvas').screenshot({
       path:`test-results/galaxy-v4-${type}.png`,
     });
