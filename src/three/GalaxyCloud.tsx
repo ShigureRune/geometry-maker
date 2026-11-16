@@ -2,6 +2,7 @@ import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} fro
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
 import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
+import {GalaxyDetailStars} from './GalaxyDetailStars';
 import {GalaxyStellarDiskGlow} from './GalaxyStellarDiskGlow';
 import {GalaxyBulgeGlow} from './GalaxyBulgeGlow';
 import {
@@ -53,7 +54,13 @@ void main(){
   float distanceScale=clamp(21.0/max(0.5,-mvPosition.z),0.45,3.0);
   // The export renderer has a different physical pixel resolution from the
   // preview. Match the point's angular size, not its raw pixel diameter.
-  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,1.5,52.0)*uExportScale;
+  // Extremely close views must resolve stars rather than blow up each
+  // original stellar particle into an opaque 52px circle. Gas keeps its
+  // independent soft-cloud size rules.
+  float close=1.0-smoothstep(1.25,4.0,max(.0,-mvPosition.z));
+  float starMax=mix(52.0,10.0,close);
+  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,1.5,
+    aKind>0.5?52.0:starMax)*uExportScale;
   vColor=mix(aFromColor,aColor,fade);
   vCore=aCore;
   vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
@@ -289,5 +296,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
     </points>
+    <group visible={!gasOnlyProbe}>
+      <GalaxyDetailStars seed={seed} options={options} stars={data} low={low}
+        seconds={seconds} animation={settings.animation} morph={isMorph}
+        morphDuration={morphDuration} progressHost={progressHost}/>
+    </group>
   </group>;
 }
