@@ -1,7 +1,7 @@
 // This is the only entry importing WebGL libraries. App loads it with React.lazy.
 import {Canvas, useFrame, useThree} from '@react-three/fiber';
 import {useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type Ref, type RefObject} from 'react';
-import {ACESFilmicToneMapping, CanvasTexture, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, ShaderMaterial, SRGBColorSpace, Vector2, Vector3} from 'three';
+import {ACESFilmicToneMapping, CanvasTexture, Color, Mesh, MeshPhysicalMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderMaterial, SRGBColorSpace, Vector2, Vector3} from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -196,6 +196,14 @@ function Solid({object, settings, background, visualTheme, low, seconds, outline
 
 function SceneRuntime({composition, background, settings, restartKey, view, api, onReady, seconds, floorSeconds, low, onLost, transition, onTransitionComplete, progressHost, completionFlashAt}: Props & {seconds: Clock; floorSeconds:Clock; low: boolean; onLost: () => void; completionFlashAt:RefObject<number|null>}) {
   const {gl, scene, camera, size, invalidate} = useThree();
+  // Explore mode can approach individual galaxy stars within 0.1 units.
+  // Keep ordinary 3D clipping unchanged; expand the near-depth range only
+  // while GALAXY MODE is active (the stellar layers do not write depth).
+  useEffect(()=>{
+    if(!(camera instanceof PerspectiveCamera))return;
+    const near=settings.galaxy?.enabled?.025:.1;
+    if(camera.near!==near){camera.near=near;camera.updateProjectionMatrix();invalidate();}
+  },[camera,settings.galaxy?.enabled,invalidate]);
   const controls = useRef<OrbitControls | null>(null);
   const cameraInteractionUntil=useRef(0);
   const cameraReset=useRef<{from:Vector3;focus:Vector3;elapsed:number;damping:boolean}|null>(null);
@@ -467,7 +475,7 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
       // Both gas and stars use the exact same perspective pixel scaling.
       // Otherwise a 1920px export looks far less luminous than a 600px
       // preview as fixed-size point sprites occupy a much smaller area.
-      for(const name of ['galaxy-mode-cloud','galaxy-volumetric-gas-3d','galaxy-nucleus-glow']){
+      for(const name of ['galaxy-mode-cloud','galaxy-volumetric-gas-3d','galaxy-nucleus-glow','galaxy-near-field-detail-stars']){
         const object=scene.getObjectByName(name);
         const shader=object&&(object as {material?:ShaderMaterial}).material;
         if(shader?.uniforms?.uExportScale)shader.uniforms.uExportScale.value=exportScale;
@@ -753,7 +761,7 @@ export default function ThreePreview(input: Props) {
     data-network-count={edges.length} data-network-mode={network.mode}
     data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
-    data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
+    data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-camera-near={galaxyEnabled?'0.025':'0.1'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
     data-galaxy-arms={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).arms:0}
     data-galaxy-seed-phase={galaxyEnabled?'settled':'off'} data-galaxy-seed-progress="1.000"
