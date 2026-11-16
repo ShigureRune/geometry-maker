@@ -203,7 +203,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
     }
-  },[seconds,uniforms,data.count,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
+  },[seconds,uniforms,data.count,options.galaxyType,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
