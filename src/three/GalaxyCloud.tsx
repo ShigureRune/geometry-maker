@@ -17,6 +17,7 @@ attribute float aPhase;
 attribute float aCore;
 attribute float aKind;
 attribute float aOpacity;
+attribute vec2 aOrbitCenter;
 uniform float uTime;
 uniform float uRotationSpeed;
 uniform float uEntrance;
@@ -31,7 +32,9 @@ varying float vKind;
 void main(){
   float spin=aSpin*uRotationSpeed*uTime;
   float c=cos(spin),s=sin(spin);
-  vec3 target=vec3(position.x*c-position.y*s,position.x*s+position.y*c,position.z);
+  vec2 local=position.xy-aOrbitCenter;
+  vec3 target=vec3(aOrbitCenter.x+local.x*c-local.y*s,
+    aOrbitCenter.y+local.x*s+local.y*c,position.z);
   float fade=uMorphEnabled>0.5?uMorph:1.0;
   vec3 spiral=vec3(cos(aPhase+uMorph*9.0),sin(aPhase+uMorph*9.0),0.0)*
     (sin(uMorph*3.14159265)*1.6*uMorphEnabled);
@@ -74,7 +77,9 @@ type SceneSnapshot={
 function positioned(data:GalaxyData,index:number,time:number,speed:number):[number,number,number]{
   const p=index*3,angle=data.spins[index]*speed*time,c=Math.cos(angle),s=Math.sin(angle);
   const x=data.positions[p],y=data.positions[p+1];
-  return [x*c-y*s,x*s+y*c,data.positions[p+2]];
+  const cx=data.orbitCenters?.[index*2]??0,cy=data.orbitCenters?.[index*2+1]??0;
+  const lx=x-cx,ly=y-cy;
+  return [cx+lx*c-ly*s,cy+lx*s+ly*c,data.positions[p+2]];
 }
 function visibleOldStar(old:SceneSnapshot,index:number,time:number):{position:[number,number,number];color:[number,number,number]}{
   const p=index*3,target=positioned(old.data,index,time,old.rotationSpeed);
@@ -105,6 +110,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   // Vite removes this probe from production builds.
   const gasOnlyProbe=import.meta.env.DEV&&
     new URLSearchParams(window.location.search).has('galaxyGasOnly');
+  const starsOnlyProbe=import.meta.env.DEV&&
+    new URLSearchParams(window.location.search).has('galaxyStarsOnly');
   const data=useMemo(()=>generateGalaxy(seed,options,low),[
     seed,low,options.count,options.arms,options.twist,options.radius,options.dust,options.palette,options.armWidth,options.barred,
     options.galaxyType,options.ringRadius,options.ringWidth,options.ellipticity,
@@ -126,6 +133,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     buffer.setAttribute('aCore',new BufferAttribute(data.cores,1));
     buffer.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
     buffer.setAttribute('aKind',new BufferAttribute(data.kinds,1));
+    buffer.setAttribute('aOrbitCenter',new BufferAttribute(
+      data.orbitCenters??new Float32Array(data.count*2),2));
     // Readable buffers: previous GPU frame is reproduced by the CPU snapshot
     // at seed switches, then the shader smoothly interpolates into new targets.
     buffer.setAttribute('aFrom',new BufferAttribute(new Float32Array(data.positions),3));
@@ -145,8 +154,24 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
+    // Write through to the mounted material as well as the declarative
+    // uniform bag. Both shader layers must see the SAME scene clock.
+    const gpu=material.current?.uniforms;
+    if(gpu){
+      gpu.uTime.value=time;
+      gpu.uRotationSpeed.value=options.rotationSpeed;
+      gpu.uEntrance.value=uniforms.uEntrance.value;
+      gpu.uMorph.value=uniforms.uMorph.value;
+      gpu.uMorphEnabled.value=uniforms.uMorphEnabled.value;
+      gpu.uGlow.value=uniforms.uGlow.value;
+      gpu.uDpr.value=uniforms.uDpr.value;
+    }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
+      progressHost.current.dataset.galaxyStarsOnlyProbe=starsOnlyProbe?'true':'false';
+      progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
+      progressHost.current.dataset.galaxyStarMaterialTime=Number(
+        material.current?.uniforms.uTime.value??-1).toFixed(3);
       progressHost.current.dataset.galaxySeedPhase=isMorph.current&&time<morphDuration.current?'transition':'settled';
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
@@ -183,9 +208,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     settings.animation,transitionDuration,seconds,update]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
-    <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
-      animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
-      progressHost={progressHost}/>
+    <group visible={!starsOnlyProbe}>
+      <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
+        animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
+        progressHost={progressHost}/>
+    </group>
     <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}
         uniforms={uniforms} transparent depthWrite={false} blending={AdditiveBlending}/>
