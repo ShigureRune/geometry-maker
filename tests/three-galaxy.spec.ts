@@ -17,6 +17,9 @@ async function openGalaxy(page:Page,gasOnly=false,starsOnly=false){
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await page.getByLabel('GALAXY MODEを有効化').check();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
+  await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-gas-representation','3d-points');
+  expect(Number(await page.getByTestId('three-preview').getAttribute('data-galaxy-gas-count')))
+    .toBeGreaterThan(300);
 }
 test('galaxy renders stars, responds to controls and switches cleanly to particles',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
@@ -153,7 +156,7 @@ async function galaxyExposure(page:Page,filename:string){
     return {mean:sum/count,whiteFraction:clips/count,washedOutFraction:washed/count};
   },png);
 }
-test('high quality preserves galaxy colors instead of turning the entire disk white',async({page})=>{
+test('high quality preserves galaxy colors with volumetric 3D gas',async({page})=>{
   test.setTimeout(120_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   const shaders:string[]=[];page.on('console',msg=>{
@@ -171,6 +174,7 @@ test('high quality preserves galaxy colors instead of turning the entire disk wh
   await expect(preview).toHaveAttribute('data-quality','high');
   await expect(preview).toHaveAttribute('data-galaxy-count','30000');
   for(const type of ['grand_design','ring','interacting'] as const){
+    await expect(preview).toHaveAttribute('data-galaxy-gas-representation','3d-points');
     await page.locator('#galaxy-type').selectOption(type);
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
     const high=await galaxyExposure(page,'test-results/galaxy-exposure-high-'+type+'.png');
@@ -242,6 +246,17 @@ function bestAngularShift(a:number[][],b:number[][]):{shift:number;score:number}
   }
   return {shift,score:best};
 }
+test('3D gas reveals depth on inclination and retains visible color',async({page})=>{
+  await openGalaxy(page,true);
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-representation','3d-points');
+  await page.locator('#galaxy-inclination').fill('0');
+  const faceOn=await preview.locator('canvas').screenshot();
+  await page.locator('#galaxy-inclination').fill('70');
+  const inclined=await preview.locator('canvas').screenshot();
+  expect(inclined.equals(faceOn)).toBe(false);
+  expect(Number(await preview.getAttribute('data-galaxy-gas-count'))).toBeGreaterThan(300);
+});
 test('gas and star spiral arms visibly rotate in the SAME screen direction',async({page})=>{
   test.setTimeout(120_000);
   const shifts:Record<string,number>={};
