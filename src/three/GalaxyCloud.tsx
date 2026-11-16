@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
 import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {GalaxyNucleusGlow} from './GalaxyNucleusGlow';
+import {GalaxyBulgeGlow} from './GalaxyBulgeGlow';
 import {
   galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -27,11 +28,13 @@ uniform float uMorphEnabled;
 uniform float uGlow;
 uniform float uDpr;
 uniform float uStarEnergy;
+uniform float uRadius;
 uniform float uExportScale;
 varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
 varying float vKind;
+varying float vBulgeRadius;
 void main(){
   float spin=aSpin*uRotationSpeed*uTime;
   float c=cos(spin),s=sin(spin);
@@ -55,6 +58,7 @@ void main(){
   vCore=aCore;
   vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
   vKind=aKind;
+  vBulgeRadius=length(local)/max(.001,uRadius);
 }
 `;
 const fragmentShader=String.raw`
@@ -62,6 +66,7 @@ varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
 varying float vKind;
+varying float vBulgeRadius;
 uniform float uGlow;
 uniform float uStarEnergy;
 void main(){
@@ -69,6 +74,9 @@ void main(){
   float halo=exp(-dist*dist*(vKind>0.5?7.0:22.0));
   float center=1.0-smoothstep(0.035,0.23,dist);
   float alpha=(vKind>0.5?halo*0.24:(halo*0.29+center*0.92))*min(1.0,vOpacity*1.60);
+  // Keep the unresolved inner bulge smooth even under close camera zoom.
+  // Outer spiral stars remain individually resolved.
+  alpha*=vKind>0.5?1.0:smoothstep(.055,.21,vBulgeRadius);
   if(alpha<0.008)discard;
   // Light per star falls as density increases. More stars in high quality
   // should add DETAIL, not multiply overall exposure by >3x.
@@ -133,7 +141,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uGlow:{value:options.coreGlow/100},uDpr:{value:1},
-    uStarEnergy:{value:1},
+    uStarEnergy:{value:1},uRadius:{value:options.radius},
     uExportScale:{value:1},
   }),[]);
   const geometry=useMemo(()=>{
@@ -170,6 +178,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorphEnabled.value=isMorph.current?1:0;
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
+    uniforms.uRadius.value=options.radius;
     uniforms.uDpr.value=low?1:1.75;
     // High quality also passes through OutputPass (different from the
     // lightweight direct renderer), whose color conversion lifts midtones.
@@ -190,6 +199,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       gpu.uMorph.value=uniforms.uMorph.value;
       gpu.uMorphEnabled.value=uniforms.uMorphEnabled.value;
       gpu.uGlow.value=uniforms.uGlow.value;
+      gpu.uRadius.value=uniforms.uRadius.value;
       gpu.uDpr.value=uniforms.uDpr.value;
       gpu.uStarEnergy.value=uniforms.uStarEnergy.value;
     }
@@ -204,7 +214,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxySeedProgress=isMorph.current?
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
     }
-  },[seconds,uniforms,data.count,options.galaxyType,options.rotationSpeed,options.coreGlow,low,settings.animation,progressHost]);
+  },[seconds,uniforms,data.count,options.galaxyType,options.rotationSpeed,options.coreGlow,options.radius,low,settings.animation,progressHost]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
@@ -240,6 +250,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       <GalaxyGasCloud3D key={options.galaxyType} seed={seed} options={options} stars={data}
         seconds={seconds} low={low} animation={settings.animation}
         morph={isMorph} morphDuration={morphDuration} progressHost={progressHost}/>
+    </group>
+    <group visible={!gasOnlyProbe}>
+      <GalaxyBulgeGlow seed={seed} options={options} stars={data} low={low}
+        seconds={seconds} animation={settings.animation} morph={isMorph}
+        morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
     <group visible={!gasOnlyProbe}>
       <GalaxyNucleusGlow seed={seed} options={options} stars={data} seconds={seconds}
