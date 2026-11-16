@@ -222,6 +222,14 @@ describe('GALAXY MODE',()=>{
       expect(data.count).toBe(data.centers.length*520);
       expect(data.positions.every(Number.isFinite)).toBe(true);
       expect(data.opacities.every(x=>x>=0&&x<=1)).toBe(true);
+      // A fivefold-wider halo must NOT use fivefold-larger additive sprites:
+      // oversized billboards merge into a featureless white ball on zoom.
+      expect(Math.max(...data.sizes),galaxyType+' resolves fine nuclear stars').toBeLessThan(4);
+      expect(Math.min(...data.sizes),galaxyType+' retains variable star sizes').toBeLessThan(1.5);
+      const [cx,cy]=data.centers[0];
+      const innerPinpoints=Array.from({length:520},(_,i)=>i).filter(i=>
+        Math.hypot(data.positions[i*3]-cx,data.positions[i*3+1]-cy)<options.radius*.035);
+      expect(innerPinpoints.length,galaxyType+' keeps a tiny bright hotspot').toBeGreaterThan(20);
       expect(data.positions.some((v,i)=>i%3===2&&Math.abs(v)>.01)).toBe(true);
       let inner=0,halo=0,far=0;
       for(let i=0;i<data.count;i++){
