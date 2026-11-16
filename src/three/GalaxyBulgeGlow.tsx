@@ -17,7 +17,7 @@ void main(){
 
 const fragmentShader=String.raw`
 uniform vec3 uEyeLocal;
-uniform float uStrength,uEntrance;
+uniform float uStrength,uWhiteCore,uEntrance;
 varying vec3 vUnitPosition;
 void main(){
   vec3 ray=normalize(vUnitPosition-uEyeLocal);
@@ -44,7 +44,9 @@ void main(){
   outer*=distance/16.0;
   inner*=distance/16.0;
   white*=distance/16.0;
-  float emission=(outer*1.05+inner*0.82+white*1.05)*uStrength;
+  // The extremely compact ivory core can saturate like an exposure,
+  // without brightening the broad orange bulge or the outer blue arms.
+  float emission=(outer*1.05+inner*0.82)*uStrength+white*uWhiteCore;
   float alpha=clamp((1.0-exp(-emission))*uEntrance,0.0,0.985);
   if(alpha<0.003)discard;
 
@@ -68,7 +70,7 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
   const eye=useMemo(()=>new Vector3(),[]);
   const uniforms=useMemo(()=>({
     uEyeLocal:{value:new Vector3(0,0,3)},
-    uStrength:{value:1},uEntrance:{value:1},
+    uStrength:{value:1},uWhiteCore:{value:1},uEntrance:{value:1},
   }),[]);
   useFrame(({camera})=>{
     const object=mesh.current;
@@ -81,11 +83,13 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
     const entrance=morph.current
       ?galaxyMorphEasing(time/Math.max(.001,morphDuration.current))
       :!animation&&time===0?1:galaxyMorphEasing(time/2.6);
-    uniforms.uStrength.value=0.12+options.coreGlow/70;
+    uniforms.uStrength.value=0.12+options.coreGlow/95;
+    uniforms.uWhiteCore.value=18*Math.pow(Math.max(0,options.coreGlow/100),1.25);
     uniforms.uEntrance.value=entrance;
     if(gpu.current){
       gpu.current.uniforms.uEyeLocal.value.copy(eye);
       gpu.current.uniforms.uStrength.value=uniforms.uStrength.value;
+      gpu.current.uniforms.uWhiteCore.value=uniforms.uWhiteCore.value;
       gpu.current.uniforms.uEntrance.value=entrance;
     }
   });
