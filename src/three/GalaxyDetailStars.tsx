@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
 import {galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyDetailStars} from './galaxy-generators/detail-stars';
+import {createGalaxyGravitySimulation} from './galaxy-gravity';
 
 // A second, finer stellar resolution that fades in only *near* the camera.
 // Far away, it contributes exactly zero light: wide galaxy screenshots and
@@ -15,7 +16,7 @@ attribute float aOpacity;
 attribute float aHighlight;
 attribute float aSpin;
 attribute vec2 aOrbitCenter;
-uniform float uTime,uRotationSpeed,uEntrance,uDpr,uExportScale;
+uniform float uTime,uRotationSpeed,uGravityEnabled,uEntrance,uDpr,uExportScale;
 varying vec3 vColor;
 varying float vOpacity;
 varying float vHighlight;
@@ -23,7 +24,8 @@ void main(){
   float angle=aSpin*uRotationSpeed*uTime;
   float cs=cos(angle),sn=sin(angle);
   vec2 relative=position.xy-aOrbitCenter;
-  vec3 pos=vec3(aOrbitCenter.x+relative.x*cs-relative.y*sn,
+  vec3 pos=uGravityEnabled>.5?position:vec3(
+    aOrbitCenter.x+relative.x*cs-relative.y*sn,
     aOrbitCenter.y+relative.x*sn+relative.y*cs,position.z);
   vec4 view=modelViewMatrix*vec4(pos,1.0);
   gl_Position=projectionMatrix*view;
@@ -66,9 +68,12 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
   const data=useMemo(()=>generateGalaxyDetailStars(seed,options,low,stars),[
     seed,stars,low,options.radius,options.galaxyType,options.companionSize,
   ]);
+  const gravity=useMemo(()=>options.gravityEnabled?
+    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
   const geometry=useMemo(()=>{
     const result=new BufferGeometry();
-    result.setAttribute('position',new BufferAttribute(data.positions,3));
+    result.setAttribute('position',new BufferAttribute(
+      gravity?gravity.positions:data.positions,3));
     result.setAttribute('aColor',new BufferAttribute(data.colors,3));
     result.setAttribute('aSize',new BufferAttribute(data.sizes,1));
     result.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
@@ -76,11 +81,12 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
     result.setAttribute('aSpin',new BufferAttribute(data.spins,1));
     result.setAttribute('aOrbitCenter',new BufferAttribute(data.orbitCenters,2));
     return result;
-  },[data]);
+  },[data,gravity]);
   useEffect(()=>()=>geometry.dispose(),[geometry]);
   const material=useRef<ShaderMaterial>(null);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
+    uGravityEnabled:{value:0},
     uEntrance:{value:1},uDpr:{value:1},uExportScale:{value:1},
   }),[]);
   useFrame(()=>{
@@ -90,13 +96,19 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
     const entrance=morph.current
       ?galaxyMorphEasing(time/Math.max(.001,morphDuration.current))
       :!animation&&time===0?1:galaxyMorphEasing(time/2.6);
+    if(gravity?.advance(time,options.gravityStrength,options.gravityHalo,
+      options.rotationSpeed)){
+      (geometry.getAttribute('position') as BufferAttribute).needsUpdate=true;
+    }
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    uniforms.uGravityEnabled.value=gravity?1:0;
     uniforms.uEntrance.value=entrance;
     uniforms.uDpr.value=low?1:1.75;
     if(material.current){
       material.current.uniforms.uTime.value=time;
       material.current.uniforms.uRotationSpeed.value=options.rotationSpeed;
+      material.current.uniforms.uGravityEnabled.value=gravity?1:0;
       material.current.uniforms.uEntrance.value=entrance;
       material.current.uniforms.uDpr.value=uniforms.uDpr.value;
     }
@@ -104,6 +116,7 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
       progressHost.current.dataset.galaxyDetailCount=String(data.count);
       progressHost.current.dataset.galaxyDetailRange='4.2-12';
       progressHost.current.dataset.galaxyDetailTime=time.toFixed(3);
+      progressHost.current.dataset.galaxyGravityDetailSteps=String(gravity?.steps??0);
     }
   });
   return <points name="galaxy-near-field-detail-stars" geometry={geometry}
