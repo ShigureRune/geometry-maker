@@ -68,6 +68,43 @@ test('galaxy renders stars, responds to controls and switches cleanly to particl
   expect(shaderErrors).toEqual([]);
   expect(errors).toEqual([]);
 });
+test('gravity mode numerically bends stellar and gas orbits with two mass centers',async({page})=>{
+  test.setTimeout(150_000);
+  const browserErrors:string[]=[];
+  page.on('pageerror',error=>browserErrors.push(error.message));
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','off');
+  await page.getByLabel('銀河の重力シミュレーションを有効化').check();
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','on');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-model','softened-bulge-halo');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-sources','1');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-steps')))
+    .toBeGreaterThan(2);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-drift')))
+    .toBeGreaterThan(.001);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-gas-steps')))
+    .toBeGreaterThan(0);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-detail-steps')))
+    .toBeGreaterThan(0);
+  await page.locator('#galaxy-gravity-strength').fill('2');
+  await page.locator('#galaxy-gravity-halo').fill('0.5');
+  await expect(page.locator('#galaxy-gravity-strength')).toHaveValue('2');
+  await expect(page.locator('#galaxy-gravity-halo')).toHaveValue('0.5');
+  await mkdir('test-results',{recursive:true});
+  const gravityScreenshot=await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-gravity-on.png',
+  });
+  await page.locator('#galaxy-type').selectOption('interacting');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-sources','2');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-gravity-steps')))
+    .toBeGreaterThan(1);
+  await page.getByLabel('銀河の重力シミュレーションを有効化').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','off');
+  const after=await preview.locator('canvas').screenshot();
+  expect(gravityScreenshot.equals(after)).toBe(false);
+  expect(browserErrors).toEqual([]);
+});
 test('faint 3D disk keeps distinct face-on and steep edge-on silhouettes',async({page})=>{
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
