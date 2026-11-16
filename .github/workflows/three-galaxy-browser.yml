@@ -31,6 +31,7 @@ jobs:
             test-results/galaxy-v4-*.png
             test-results/gas-probe-*.png
             test-results/galaxy-exposure-*.png
+            test-results/galaxy-nucleus-zoom-high.png
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4

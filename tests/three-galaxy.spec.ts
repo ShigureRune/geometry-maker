@@ -443,6 +443,38 @@ test('central photographic hotspot intensifies without washing out distant arms'
   // The *nucleus only* may clip slightly, as in a long-exposure galaxy photo.
   expect(bright.brightest).toBeGreaterThan(248);
   expect(bright.outer).toBeLessThan(dim.outer*1.13+3);
+  // A zoomed galaxy must reveal small warm stars and shadows, rather than
+  // enlarging the additive pinprick into a blank, pure-white circular disk.
+  const canvas=preview.locator('canvas');
+  await canvas.hover();
+  await page.mouse.wheel(0,-160);
+  await page.waitForTimeout(180);
+  const zoomed=(await canvas.screenshot({path:'test-results/galaxy-nucleus-zoom-high.png'})).toString('base64');
+  const detail=await page.evaluate(async b64=>{
+    const image=new Image();image.src='data:image/png;base64,'+b64;await image.decode();
+    const size=Math.min(image.width,image.height);
+    const surface=document.createElement('canvas');surface.width=256;surface.height=256;
+    const context=surface.getContext('2d',{willReadFrequently:true})!;
+    context.drawImage(image,(image.width-size)/2,(image.height-size)/2,size,size,0,0,256,256);
+    const pixels=context.getImageData(0,0,256,256).data;
+    let sum=0,sumSq=0,clipped=0,count=0;
+    for(let y=64;y<192;y++)for(let x=64;x<192;x++){
+      const radius=Math.hypot(x-128,y-128);
+      if(radius<12||radius>58)continue;
+      const i=(y*256+x)*4,r=pixels[i],g=pixels[i+1],b=pixels[i+2];
+      const lum=(r+g+b)/3;
+      sum+=lum;sumSq+=lum*lum;count++;
+      if(Math.min(r,g,b)>245)clipped++;
+    }
+    const mean=sum/count;
+    return {mean,variation:Math.sqrt(Math.max(0,sumSq/count-mean*mean)),
+      whiteFraction:clipped/count};
+  },zoomed);
+  console.log('ZOOMED NUCLEAR DETAIL',detail);
+  expect(detail.whiteFraction,'the enlarged bulge should retain detail, not a white disk')
+    .toBeLessThan(.65);
+  expect(detail.variation,'the enlarged bulge should have visible spatial texture')
+    .toBeGreaterThan(9);
 });
 
 test('stellar arm particles independently orbit, pause and stop at zero speed',async({page})=>{

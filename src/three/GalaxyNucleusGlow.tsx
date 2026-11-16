@@ -22,7 +22,9 @@ void main(){
   vec4 view=modelViewMatrix*vec4(pos,1.);
   gl_Position=projectionMatrix*view;
   float scale=clamp(21./max(.5,-view.z),.45,3.);
-  gl_PointSize=clamp(aSize*uDpr*scale*2.65,1.5,40.)*uExportScale;
+  // Keep sparkles spatially resolved when close to the bulge. Large sprites
+  // overlap additively into a blank white sphere, especially while zooming.
+  gl_PointSize=clamp(aSize*uDpr*scale*2.25,1.5,24.)*uExportScale;
   vColor=aColor;
   vOpacity=aOpacity*uEntrance;
 }
@@ -34,10 +36,10 @@ varying float vOpacity;
 uniform float uGlow;
 void main(){
   float d=length(gl_PointCoord-vec2(.5));
-  // Soft Gaussian starlets overlap into a white-hot pinprick. The secondary,
-  // lower-opacity stars create a wider amber bulge without a hard-edged disk.
-  float halo=exp(-d*d*19.);
-  float alpha=clamp(vOpacity*halo*uGlow,0.,.84);
+  // Small concentrated sparkles, not broad flat circles. The seed generator
+  // now makes the tiny pinprick bright and the wider fivefold bulge warm.
+  float halo=exp(-d*d*24.);
+  float alpha=clamp(vOpacity*halo*uGlow,0.,.58);
   if(alpha<.004)discard;
   gl_FragColor=vec4(vColor,alpha);
 }

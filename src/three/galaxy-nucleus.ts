@@ -54,25 +54,37 @@ export function generateGalaxyNucleus(
     const pivot=pivots[k];
     for(let j=0;j<perCore;j++){
       const i=k*perCore+j,p=i*3,q=i*2;
+      const pinpoint=j<Math.floor(perCore*.06);
       const hot=j<Math.floor(perCore*.66);
-      // A near-unresolved white-hot center surrounded by a gentle warm bulge.
-      // Both distributions have actual Z depth and orbit their own nucleus.
-      // Expand the bright white nucleus to five times its former radius, while
-      // retaining a wider, much fainter warm envelope.
-      const spread=options.radius*(hot?.130:.190);
+      // The fivefold-wide bulge needs resolved stars, NOT fivefold-larger
+      // additive light sprites. Keep only a small central white-hot pinprick.
+      // Both extended populations retain real Z depth and their own pivot.
+      const spread=options.radius*(pinpoint?.014:hot?.130:.190);
       positions[p]=pivot.x+gaussian(random)*spread;
       positions[p+1]=pivot.y+gaussian(random)*spread;
-      positions[p+2]=gaussian(random)*options.radius*(hot?.065:.075);
+      positions[p+2]=gaussian(random)*options.radius*(pinpoint?.012:hot?.065:.075);
       orbitCenters[q]=pivot.x;orbitCenters[q+1]=pivot.y;
       const variation=.83+random()*.34;
-      colors[p]=(hot?1.45:1.04)*variation;
-      colors[p+1]=(hot?1.32:.79)*variation;
-      colors[p+2]=(hot?1.08:.53)*variation;
-      // Keep the enlarged nucleus luminous: scale each hot starlet along
-      // with its spread rather than thinning the white light 25-fold.
-      sizes[i]=hot?5.4+random()*8.8:3.0+random()*5.0;
-      opacities[i]=(hot?.26+random()*.25:
-        (.052+random()*.085)*bulgeDensityScale)*strength;
+      // Compact nearly-white center, surrounded by warmer old stars.
+      colors[p]=(pinpoint?1.45:hot?1.20:1.04)*variation;
+      colors[p+1]=(pinpoint?1.32:hot?.94:.79)*variation;
+      colors[p+2]=(pinpoint?1.08:hot?.72:.53)*variation;
+      // Small, individually resolvable light sources preserve detail when
+      // zoomed in; large additive billboards made a featureless white disk.
+      sizes[i]=pinpoint?1.7+random()*1.3:
+        hot?1.0+random()*1.8:1.2+random()*2.0;
+      const radius=Math.hypot(positions[p]-pivot.x,positions[p+1]-pivot.y)/options.radius;
+      const angle=Math.atan2(positions[p+1]-pivot.y,positions[p]-pivot.x);
+      // Subtle curved dust shadowing gives the central bulge some structure
+      // without a flat image overlay. Avoid spiral lanes in ellipticals/rings.
+      const hasDust=options.galaxyType!=='elliptical'&&options.galaxyType!=='ring';
+      const lane=Math.cos(2*angle+7.5*Math.log(.034+radius)+
+        .28*Math.sin(5*angle+31*radius));
+      const dust=hasDust&&!pinpoint?Math.pow(Math.max(0,lane),10):0;
+      const shadow=1-(hot?.60:.28)*dust;
+      opacities[i]=(pinpoint?.35+random()*.22:
+        hot?.09+random()*.10:
+        (.035+random()*.06)*bulgeDensityScale)*strength*shadow;
       spins[i]=pivot.spin/pivot.count;
     }
   }

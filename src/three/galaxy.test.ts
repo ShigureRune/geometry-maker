@@ -54,6 +54,18 @@ describe('GALAXY MODE',()=>{
     expect(galaxy.opacities.some(x=>x<.2)).toBe(true);
     expect(galaxyDefaults.arms).toBe(2);
   });
+  it('connects the old warm nucleus to inner spiral arms without a black gap',()=>{
+    const settings={...galaxyDefaults,count:12000};
+    const galaxy=generateGalaxy('inner-arm-detail',settings,false);
+    const start=Math.floor(galaxy.count*(.105+.305+.12));
+    const end=galaxy.count-Math.floor(galaxy.count*(.025+settings.dust/60*.055));
+    let inner=0;
+    for(let i=start;i<end;i++){
+      const r=Math.hypot(galaxy.positions[i*3],galaxy.positions[i*3+1])/settings.radius;
+      if(r>.12&&r<.32)inner++;
+    }
+    expect(inner/(end-start)).toBeGreaterThan(.065);
+  });
   it('arms bend with radius rather than becoming near-concentric rings',()=>{
     const galaxy=generateGalaxy('shape-check',galaxyDefaults,false);
     const start=Math.floor(galaxy.count*(.105+.305+.12));
@@ -222,6 +234,14 @@ describe('GALAXY MODE',()=>{
       expect(data.count).toBe(data.centers.length*520);
       expect(data.positions.every(Number.isFinite)).toBe(true);
       expect(data.opacities.every(x=>x>=0&&x<=1)).toBe(true);
+      // A fivefold-wider halo must NOT use fivefold-larger additive sprites:
+      // oversized billboards merge into a featureless white ball on zoom.
+      expect(Math.max(...data.sizes),galaxyType+' resolves fine nuclear stars').toBeLessThan(4);
+      expect(Math.min(...data.sizes),galaxyType+' retains variable star sizes').toBeLessThan(1.5);
+      const [cx,cy]=data.centers[0];
+      const innerPinpoints=Array.from({length:520},(_,i)=>i).filter(i=>
+        Math.hypot(data.positions[i*3]-cx,data.positions[i*3+1]-cy)<options.radius*.035);
+      expect(innerPinpoints.length,galaxyType+' keeps a tiny bright hotspot').toBeGreaterThan(20);
       expect(data.positions.some((v,i)=>i%3===2&&Math.abs(v)>.01)).toBe(true);
       let inner=0,halo=0,far=0;
       for(let i=0;i<data.count;i++){

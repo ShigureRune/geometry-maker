@@ -197,7 +197,13 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
       kind=nebula?1:0;
     }else if(armStar){
       const arm=i%options.arms;
-      const radialFraction=.15+.84*Math.sqrt(random());
+      // Real galaxy photos show dust-rich inner arms winding right up to
+      // the warm stellar bulge, not an empty black ring around the nucleus.
+      // Keep most stars in the old outer spiral, but thread a smaller
+      // population through its innermost turns at the SAME arm angle.
+      const innerTurn=random()<.24;
+      const radialFraction=innerTurn?.095+.40*Math.sqrt(random()):
+        .15+.84*Math.sqrt(random());
       radial=radialFraction;
       const center=armAngle(radialFraction,arm);
       const width=(.095+radialFraction*.205)*options.armWidth;
@@ -209,6 +215,9 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
       y=Math.sin(angle)*r;
       z=gaussian(random)*R*(.010+.012*radialFraction);
       pigment=blend(colorset.arm,colorset.young,.24+random()*.65);
+      // Inner arms are older and warmer; blue clusters dominate farther out.
+      pigment=blend(pigment,colorset.bulge,
+        Math.max(0,1-radialFraction/.42)*.52);
       if(random()<.19)pigment=blend(pigment,colorset.disk,.24+random()*.32);
       lum=.40+random()*.68;
       opacity=.37+random()*.43;
