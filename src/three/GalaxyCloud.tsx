@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,BufferAttribute,BufferGeometry,ShaderMaterial} from 'three';
-import {GalaxyDiffuse} from './GalaxyDiffuse';
+import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {
   galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -167,7 +167,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     // lightweight direct renderer), whose color conversion lifts midtones.
     // Thus normalize both star density AND that renderer-specific exposure.
     // Star quantity adds detail, never makes the arms lose their color.
-    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*(low?1:.60);
+    // Volumetric gas adds real colored depth behind the stars. Trim the
+    // HDR star contribution in high quality so dense rings stay colored.
+    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*
+      (low?1:Math.max(.27,.72*Math.pow(3600/Math.max(3600,data.count),.4)));
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
@@ -225,9 +228,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <group visible={!starsOnlyProbe}>
-      <GalaxyDiffuse key={options.galaxyType} seed={seed} options={options} seconds={seconds}
-        animation={settings.animation} morph={isMorph} morphDuration={morphDuration}
-        progressHost={progressHost}/>
+      <GalaxyGasCloud3D key={options.galaxyType} seed={seed} options={options} stars={data}
+        seconds={seconds} low={low} animation={settings.animation}
+        morph={isMorph} morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
     <points name="galaxy-mode-cloud" visible={!gasOnlyProbe} geometry={geometry} renderOrder={1} frustumCulled={false}>
       <shaderMaterial ref={material} vertexShader={vertexShader} fragmentShader={fragmentShader}

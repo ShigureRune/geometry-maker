@@ -5,6 +5,7 @@ import {
 } from './galaxy';
 import {threeDefaults,validateThreeSettings} from './settings';
 import {GALAXY_PRESETS,galaxyWithPreset} from './galaxy-presets';
+import {generateGalaxyGas} from './galaxy-generators/gas';
 
 describe('GALAXY MODE',()=>{
   it('is opt-in and old 3D JSON stays in ordinary 3D mode',()=>{
@@ -135,6 +136,47 @@ describe('GALAXY MODE',()=>{
       'branchiness','irregularity','companionDistance','companionSize','tidalStrength'] as const)
       delete old[key];
     expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
+  });
+  it('generates genuine 3D gas cloudlets instead of a flat 2D disk for every type',()=>{
+    for(const galaxyType of GALAXY_TYPES){
+      const settings={...galaxyDefaults,galaxyType,count:6000};
+      const stars=generateGalaxy('gas-depth',settings,true);
+      const gas=generateGalaxyGas('gas-depth',settings,true,stars);
+      const repeat=generateGalaxyGas('gas-depth',settings,true,stars);
+      expect(gas.count).toBeGreaterThan(450);
+      expect(gas.count).toBeLessThanOrEqual(1600);
+      expect(gas.positions).toEqual(repeat.positions);
+      expect(gas.spins).toEqual(repeat.spins);
+      expect(Array.from(gas.positions).every(Number.isFinite)).toBe(true);
+      const zs=Array.from({length:gas.count},(_,i)=>gas.positions[i*3+2]);
+      const mean=zs.reduce((a,b)=>a+b,0)/zs.length;
+      const deviation=Math.sqrt(zs.reduce((a,b)=>a+(b-mean)**2,0)/zs.length);
+      // A real volumetric field has measurable thickness from edge-on.
+      expect(deviation,galaxyType+' must have 3D depth').toBeGreaterThan(settings.radius*.035);
+      expect(gas.opacities.every(x=>x>=0&&x<=1)).toBe(true);
+      const starSpeeds=new Set(Array.from(stars.spins));
+      expect(gas.spins.every(value=>starSpeeds.has(value))).toBe(true);
+    }
+  });
+  it('inherits the actual stellar positions, local rotation direction and pivots for gas',()=>{
+    const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:12000};
+    const stars=generateGalaxy('gas-rotation',settings,false);
+    const gas=generateGalaxyGas('gas-rotation',settings,false,stars);
+    expect(gas.count).toBeGreaterThan(1000);
+    expect(gas.count).toBeLessThanOrEqual(4200);
+    const starCenters=new Set(Array.from({length:stars.count},(_,i)=>
+      stars.orbitCenters![i*2].toFixed(3)+','+stars.orbitCenters![i*2+1].toFixed(3)));
+    let positive=false,negative=false;
+    for(let i=0;i<gas.count;i++){
+      expect(starCenters.has(gas.orbitCenters[i*2].toFixed(3)+','+
+        gas.orbitCenters[i*2+1].toFixed(3))).toBe(true);
+      if(gas.spins[i]>0)positive=true;
+      if(gas.spins[i]<0)negative=true;
+    }
+    expect(positive&&negative).toBe(true);
+    const differentSeed=generateGalaxy('different',settings,false);
+    expect(generateGalaxyGas('different',settings,false,differentSeed).positions)
+      .not.toEqual(gas.positions);
   });
   it('ease is seekable and exact at endpoints',()=>{
     expect(galaxyMorphEasing(-4)).toBe(0);
