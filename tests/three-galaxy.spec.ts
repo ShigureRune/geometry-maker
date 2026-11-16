@@ -122,14 +122,24 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
       const ctx=work.getContext('2d',{willReadFrequently:true})!;
       ctx.drawImage(img,0,0,320,240);
       const pixels=ctx.getImageData(0,0,320,240).data;
-      let bright=0,core=0,strong=0;
+      let bright=0,core=0;
       for(let y=0;y<240;y++)for(let x=0;x<320;x++){
         const p=(y*320+x)*4;
-        if(Math.max(pixels[p],pixels[p+1],pixels[p+2])>110)strong++;
         if(pixels[p]+pixels[p+1]+pixels[p+2]>95){
           bright++;
           if(Math.hypot(x-160,y-120)<40)core++;
         }
+      }
+      // Do NOT downsample sharp stellar cores for brightness measurement:
+      // a 2px bright pinpoint at 920x518 becomes a dim subpixel at 320x240.
+      const native=document.createElement('canvas');
+      native.width=img.width;native.height=img.height;
+      const source=native.getContext('2d',{willReadFrequently:true})!;
+      source.drawImage(img,0,0);
+      const raw=source.getImageData(0,0,img.width,img.height).data;
+      let strong=0;
+      for(let p=0;p<raw.length;p+=4){
+        if(Math.max(raw[p],raw[p+1],raw[p+2])>170)strong++;
       }
       return {bright,core,strong};
     }
@@ -142,8 +152,8 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
     .toBeLessThan(450);
   expect(measure.close.bright,'zoom should reveal much denser resolved stars')
     .toBeGreaterThan(measure.distant.bright*4);
-  expect(measure.close.strong,'nearby stars must have visible bright cores, not just faint dots')
-    .toBeGreaterThan(measure.distant.strong+70);
+  expect(measure.close.strong,'nearby stars must have visibly sharp cores at native resolution')
+    .toBeGreaterThan(measure.distant.strong+250);
   expect(shaderErrors).toEqual([]);
 });
 test('deep zoom keeps the stellar disk colorful without a washed-out white field',async({page})=>{
