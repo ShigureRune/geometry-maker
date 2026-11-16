@@ -1,6 +1,6 @@
 import {seededRandom} from '../../scene';
 import type {GalaxyData,GalaxySettings,GalaxyType} from '../galaxy';
-import {galaxyAngularRate,galaxySpiralSpine} from '../galaxy-motion';
+import {galaxyAngularRate,galaxySpiralSpine,galaxyTrailingOrbitSign} from '../galaxy-motion';
 
 type Random=()=>number;
 type Point={x:number;y:number;z:number;radius:number;core:boolean;cloud:boolean;young:boolean;pink?:boolean;orbitX?:number;orbitY?:number;orbitHanded?:number};
@@ -168,7 +168,7 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
     opacities[i]=p.cloud?.12+random()*.17:.35+random()*.57;
     kinds[i]=p.cloud?1:0;
     cores[i]=p.core?Math.max(.12,Math.pow(Math.max(0,1-p.radius/.25),2)):0;
-    spins[i]=(p.orbitHanded??handed)*galaxyAngularRate(p.radius)*(type==='elliptical'?.22:1);
+    spins[i]=galaxyTrailingOrbitSign(p.orbitHanded??handed)*galaxyAngularRate(p.radius)*(type==='elliptical'?.22:1);
     phases[i]=random()*TAU;
   }
   return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds,orbitCenters};

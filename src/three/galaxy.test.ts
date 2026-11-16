@@ -154,9 +154,24 @@ describe('GALAXY MODE',()=>{
       // A real volumetric field has measurable thickness from edge-on.
       expect(deviation,galaxyType+' must have 3D depth').toBeGreaterThan(settings.radius*.035);
       expect(gas.opacities.every(x=>x>=0&&x<=1)).toBe(true);
+      expect(gas.coreFactors.length).toBe(gas.count);
+      expect(gas.coreFactors.every(x=>Number.isFinite(x)&&x>=0&&x<=1)).toBe(true);
       const starSpeeds=new Set(Array.from(stars.spins));
       expect(gas.spins.every(value=>starSpeeds.has(value))).toBe(true);
     }
+  });
+  it('restores a brightable 3D stellar nucleus without bringing back a flat disk',()=>{
+    const settings={...galaxyDefaults,galaxyType:'grand_design' as const,count:12000};
+    const stars=generateGalaxy('bright-3d-core',settings,false);
+    const clouds=generateGalaxyGas('bright-3d-core',settings,false,stars);
+    const brightable=Array.from(clouds.coreFactors).filter(x=>x>.12);
+    // The old volumetric setup allocated almost all gas to spiral arms,
+    // leaving the central stellar bulge black once the XY gas sheet was removed.
+    expect(brightable.length/clouds.count).toBeGreaterThan(.13);
+    const centers=Array.from({length:clouds.count},(_,i)=>
+      Math.hypot(clouds.positions[i*3],clouds.positions[i*3+1])/settings.radius);
+    const inner=centers.filter(x=>x<.25).length;
+    expect(inner/clouds.count).toBeGreaterThan(.15);
   });
   it('inherits the actual stellar positions, local rotation direction and pivots for gas',()=>{
     const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:12000};

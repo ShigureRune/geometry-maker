@@ -1,6 +1,6 @@
 import {describe,expect,it} from 'vitest';
 import {GALAXY_MOTION_GLSL,galaxyAngularRate,galaxyOrbitDelta,
-  galaxyRotate,galaxySpiralSpine} from './galaxy-motion';
+  galaxyRotate,galaxySpiralSpine,galaxyTrailingOrbitSign} from './galaxy-motion';
 import {galaxyAppearance,galaxyDefaults,generateGalaxy,GALAXY_TYPES} from './galaxy';
 
 function wrap(a:number):number{return Math.atan2(Math.sin(a),Math.cos(a));}
@@ -26,6 +26,18 @@ describe('shared stellar and nebular orbital geometry',()=>{
     }
     expect(galaxyOrbitDelta(.5,7,0,1)).toBe(0);
   });
+  it('a trailing spiral moves OPPOSITE its outward arm winding',()=>{
+    expect(galaxyTrailingOrbitSign(1)).toBe(-1);
+    expect(galaxyTrailingOrbitSign(-1)).toBe(1);
+    for(const handed of [-1,1]){
+      const radius=.55;
+      const oldArm=galaxySpiralSpine(.28,0,2,.3,handed,1.5,false);
+      const outerArm=galaxySpiralSpine(.83,0,2,.3,handed,1.5,false);
+      const armWinding=Math.atan2(Math.sin(outerArm-oldArm),Math.cos(outerArm-oldArm));
+      const motion=galaxyOrbitDelta(radius,1,.8,galaxyTrailingOrbitSign(handed));
+      expect(Math.sign(armWinding)).toBe(-Math.sign(motion));
+    }
+  });
   it('grand design and barred stellar arms follow the luminous gas spine',()=>{
     for(const type of ['grand_design','barred_spiral'] as const){
       const opts={...galaxyDefaults,galaxyType:type,count:15000,
@@ -42,7 +54,7 @@ describe('shared stellar and nebular orbital geometry',()=>{
           orientation,handed,opts.twist,opts.barred);
         error+=Math.abs(wrap(Math.atan2(y,x)-spine));
         samples++;
-        expect(Math.sign(data.spins[i])).toBe(handed);
+        expect(Math.sign(data.spins[i])).toBe(galaxyTrailingOrbitSign(handed));
         expect(Math.abs(data.spins[i])-galaxyAngularRate(r)).toBeGreaterThan(-.002);
         expect(Math.abs(data.spins[i])-galaxyAngularRate(r)).toBeLessThan(.002);
       }
@@ -60,7 +72,8 @@ describe('shared stellar and nebular orbital geometry',()=>{
       for(let i=0;i<data.count;i+=7){
         const companion=galaxyType==='interacting'&&
           (i>=companionStart&&i<tailStart||i>=tailStart&&i%2===1);
-        expect(Math.sign(data.spins[i])).toBe(companion?-handed:handed);
+        expect(Math.sign(data.spins[i])).toBe(
+          galaxyTrailingOrbitSign(companion?-handed:handed));
         expect(Number.isFinite(data.spins[i])).toBe(true);
       }
     }
@@ -70,13 +83,13 @@ describe('shared stellar and nebular orbital geometry',()=>{
     const data=generateGalaxy('direction-pair',settings,true);
     const {handed}=galaxyAppearance('direction-pair',settings.palette);
     const primary=Math.floor(data.count*.30),companion=Math.floor(data.count*.80);
-    expect(Math.sign(data.spins[primary])).toBe(handed);
-    expect(Math.sign(data.spins[companion])).toBe(-handed);
-    // The second galaxy's diffuse shader must sample -handed, just like
-    // its particles are wound and orbited with -handed.
-    const g=galaxyOrbitDelta(.5,6,settings.rotationSpeed,-handed);
+    expect(Math.sign(data.spins[primary])).toBe(-handed);
+    expect(Math.sign(data.spins[companion])).toBe(handed);
+    // The companion is wound with -handed but its stars and 3D gas BOTH
+    // travel with +handed so its visible arms trail the direction of travel.
+    const g=galaxyOrbitDelta(.5,6,settings.rotationSpeed,handed);
     const [,y]=galaxyRotate(.5,0,g);
-    expect(Math.sign(y)).toBe(-handed);
+    expect(Math.sign(y)).toBe(handed);
   });
   it('each interacting nucleus keeps its local pivot while orbiting',()=>{
     const settings={...galaxyDefaults,galaxyType:'interacting' as const,count:3000};

@@ -15,6 +15,14 @@ export function galaxyAngularRate(radius:number):number{
     (GALAXY_MOTION.orbitOffset+radius*GALAXY_MOTION.orbitRadiusFactor);
 }
 
+/** In a trailing spiral, the outer part of an arm must lag BEHIND the
+ * orbital flow. galaxySpiralSpine winds outward by +armHanded; consequently
+ * the stars AND 3D gas physically orbit in the OPPOSITE angular direction.
+ * Do not invert just one renderer, or the two layers counter-rotate. */
+export function galaxyTrailingOrbitSign(armHanded:number):number{
+  return -Math.sign(armHanded);
+}
+
 export function galaxyOrbitDelta(radius:number,time:number,speed:number,handed:number):number{
   return handed*time*speed*galaxyAngularRate(radius);
 }

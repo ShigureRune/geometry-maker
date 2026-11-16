@@ -289,7 +289,50 @@ test('gas and star spiral arms visibly rotate in the SAME screen direction',asyn
   }
   expect(Math.sign(shifts.gas),'gas and stars must not counter-rotate on screen')
     .toBe(Math.sign(shifts.stars));
+  // The previous version was confirmed +42°/+40° with this CI camera and
+  // seed. Its spiral arms visibly rotated in the leading (wrong) direction.
+  expect(shifts.stars,'stars should now visually orbit the OTHER way').toBeLessThan(-6);
+  expect(shifts.gas,'3D gas must follow the stars in that trailing direction').toBeLessThan(-6);
   expect(errors).toEqual([]);
+});
+
+test('volumetric central nucleus brightens with glow setting, not the whole disk',async({page})=>{
+  await openGalaxy(page,true);
+  await page.locator('#galaxy-type').selectOption('grand_design');
+  await page.locator('#galaxy-inclination').fill('0');
+  const preview=page.getByTestId('three-preview');
+  async function measure(){
+    const png=(await preview.locator('canvas').screenshot()).toString('base64');
+    return page.evaluate(async base64=>{
+      const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();
+      const square=Math.min(img.width,img.height);
+      const canvas=document.createElement('canvas');
+      canvas.width=256;canvas.height=256;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true})!;
+      ctx.drawImage(img,(img.width-square)/2,(img.height-square)/2,square,square,0,0,256,256);
+      const data=ctx.getImageData(0,0,256,256).data;
+      let core=0,inner=0,outer=0,coreN=0,innerN=0,outerN=0;
+      for(let y=0;y<256;y++)for(let x=0;x<256;x++){
+        const dist=Math.hypot(x-128,y-128);
+        if(dist>78)continue;
+        const i=(y*256+x)*4;
+        const light=(data[i]*.30+data[i+1]*.48+data[i+2]*.22);
+        if(dist<=16){core+=light;coreN++;}
+        else if(dist<32){inner+=light;innerN++;}
+        else if(dist>46&&dist<70){outer+=light;outerN++;}
+      }
+      return {core:core/coreN,inner:inner/innerN,outer:outer/outerN};
+    },png);
+  }
+  await page.locator('#galaxy-core').fill('0');
+  const dark=await measure();
+  await page.locator('#galaxy-core').fill('180');
+  const bright=await measure();
+  console.log('3D NUCLEAR GLOW', {dark,bright});
+  expect(bright.core,'turning up the core slider should brighten the galaxy center')
+    .toBeGreaterThan(dark.core*1.25+1);
+  expect(bright.outer,'core slider should NOT illuminate the whole galaxy disk')
+    .toBeLessThan(dark.outer*1.20+3);
 });
 
 test('stellar arm particles independently orbit, pause and stop at zero speed',async({page})=>{
