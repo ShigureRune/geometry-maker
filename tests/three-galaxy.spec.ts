@@ -133,10 +133,10 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
 });
 /** Measure the ACTUAL output pixels after Three.js' full high-quality
  * EffectComposer + OutputPass, not shader values or low-mode screenshots. */
-async function galaxyExposure(page:Page,filename:string){
+async function galaxyExposure(page:Page,filename:string,galaxyType='grand_design'){
   const preview=page.getByTestId('three-preview');
   const png=(await preview.locator('canvas').screenshot({path:filename})).toString('base64');
-  return page.evaluate(async(base64)=>{
+  return page.evaluate(async({base64,galaxyType})=>{
     const img=new Image();img.src='data:image/png;base64,'+base64;await img.decode();
     const canvas=document.createElement('canvas');
     canvas.width=320;canvas.height=240;
@@ -144,10 +144,13 @@ async function galaxyExposure(page:Page,filename:string){
     ctx.drawImage(img,0,0,320,240);
     const data=ctx.getImageData(0,0,320,240).data;
     let sum=0,clips=0,washed=0,count=0;
+    // The fixed galaxy-ci seed has two distinct, deliberately white-hot
+    // nuclei in interacting mode. Neither belongs to the spiral-arm sample.
+    // Pixel positions correspond to this test's 320x240 screenshot probe.
+    const nuclei=galaxyType==='interacting'
+      ? [[140,121],[197,104]] : [[160,120]];
     for(let y=12;y<228;y++)for(let x=30;x<290;x++){
-      // The deliberately white-hot nuclear hotspot is not an overexposed
-      // spiral arm. Sample the arms independently of the central 3D core.
-      if(Math.hypot(x-160,y-120)<24)continue;
+      if(nuclei.some(([cx,cy])=>Math.hypot(x-cx,y-cy)<24))continue;
       const o=(y*320+x)*4;
       const r=data[o],g=data[o+1],b=data[o+2];
       sum+=(r+g+b)/3;
@@ -157,7 +160,7 @@ async function galaxyExposure(page:Page,filename:string){
       count++;
     }
     return {mean:sum/count,whiteFraction:clips/count,washedOutFraction:washed/count};
-  },png);
+  },{base64:png,galaxyType});
 }
 test('PNG export preserves the preview gas and star glow at a larger resolution',async({page})=>{
   test.setTimeout(160_000);
@@ -243,7 +246,7 @@ test('high quality preserves galaxy colors with volumetric 3D gas',async({page})
     await expect(preview).toHaveAttribute('data-galaxy-gas-representation','3d-points');
     await page.locator('#galaxy-type').selectOption(type);
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
-    const high=await galaxyExposure(page,'test-results/galaxy-exposure-high-'+type+'.png');
+    const high=await galaxyExposure(page,'test-results/galaxy-exposure-high-'+type+'.png',type);
     console.log('GALAXY HIGH EXPOSURE',type,{low:normal,high});
     expect(high.whiteFraction,type+' should preserve actual RGB colors').toBeLessThan(.055);
     expect(high.washedOutFraction,type+' should not have washed-out pale arms').toBeLessThan(.055);
