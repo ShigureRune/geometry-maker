@@ -36,6 +36,12 @@ float noise(vec2 p){
 float angleDelta(float a,float b){
   return atan(sin(a-b),cos(a-b));
 }
+// Two additional, softly blended octaves break up the synthetic smooth
+// ribbons without hard pixel edges or randomly flickering each frame.
+float cloudNoise(vec2 p){
+  return .54*noise(p)+.29*noise(p*2.07+vec2(3.41,7.82))+
+    .17*noise(p*4.17+vec2(11.7,2.58));
+}
 float swirlingArm(vec2 p,float orientation,float handed,float twist,float width){
   float r=max(.17,length(p)),theta=atan(p.y,p.x);
   float peak=0.0;
@@ -58,18 +64,26 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   // luminous spiral arms from the default galaxy.
   if(galaxyType>2.5&&galaxyType<3.5){
     float ring=exp(-.5*pow((r-extraA.x)/max(.04,extraA.y),2.));
-    float knots=.73+.27*noise(p*24.0+orientation);
-    float disk=.16*exp(-r*3.0),bulge=.26*exp(-pow(r/.13,1.8));
+    float texture=cloudNoise(p*12.0+vec2(orientation,3.));
+    float knot=noise(p*36.0+vec2(2.,orientation));
+    float ringWidth=max(.04,extraA.y);
+    float dustArc=smoothstep(.49,.77,noise(p*28.0+vec2(orientation,6.)));
+    float knots=.34+.83*texture;
+    float disk=.14*exp(-r*3.0),bulge=.29*exp(-pow(r/.115,1.7));
     float glow=ring*knots*(1.-smoothstep(.98,1.21,r));
-    return vec4(bulgeColor*bulge+diskColor*disk+youngColor*glow*.92+
-      hiiColor*glow*.12,clamp(glow*.69+bulge*.68+disk*.45,0.,.94));
+    glow*=1.0-(dust/60.)*.48*dustArc*exp(-pow((r-extraA.x-ringWidth*.42)/max(.03,ringWidth*.48),2.));
+    float pink=glow*smoothstep(.58,.84,knot)*.55;
+    return vec4(bulgeColor*(bulge*1.24)+diskColor*(disk*.70)+youngColor*glow*.95+
+      hiiColor*pink*.75,clamp(glow*.72+bulge*.77+disk*.40,0.,.94));
   }
   if(galaxyType>3.5&&galaxyType<4.5){
     float q=length(vec2(p.x,p.y/max(.16,1.-extraA.z*.78)));
-    float bulge=exp(-pow(q/.40,1.32))*(.77+.24*coreGlow);
-    float halo=exp(-pow(q/.76,1.65))*.16;
-    return vec4(bulgeColor*bulge*.88+diskColor*halo*.60,
-      clamp(bulge*.76+halo*.5,0.,.91));
+    float grain=.94+.15*cloudNoise(p*17.+vec2(orientation,2.));
+    float bulge=exp(-pow(q/.34,1.30))*(.82+.31*coreGlow)*grain;
+    float halo=exp(-pow(q/.75,1.65))*.23;
+    float nucleus=exp(-pow(q/.057,1.8))*.34;
+    return vec4(bulgeColor*(bulge*.95+nucleus)+diskColor*halo*.65,
+      clamp(bulge*.72+halo*.53+nucleus*.22,0.,.91));
   }
   if(galaxyType>4.5&&galaxyType<5.5){
     float clouds=0.;
@@ -81,11 +95,14 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       float d=length((p-anchor)/scale);
       clouds+=exp(-d*d*1.2);
     }
-    clouds=min(1.4,clouds)*(.58+.36*noise(p*28.+vec2(orientation,1.)));
+    float texture=cloudNoise(p*12.0+vec2(orientation,3.));
+    clouds=min(1.4,clouds)*(.39+.90*texture);
+    float young=clouds*(.76+.25*noise(p*37.+vec2(2.,orientation)));
+    float pink=clouds*smoothstep(.58,.82,noise(p*25.+vec2(orientation,8.)));
     float warm=clouds*max(.10,.39*(1.-extraB.y));
-    return vec4(diskColor*warm+youngColor*clouds*.73+
-      hiiColor*clouds*max(.1,extraB.y)*.26,
-      clamp(clouds*.45,0.,.80));
+    return vec4(diskColor*warm+youngColor*young*.80+
+      hiiColor*pink*max(.2,extraB.y)*.47,
+      clamp(clouds*.49+pink*.12,0.,.82));
   }
   if(galaxyType>5.5){
     float gap=extraB.z,companion=max(.25,extraB.w);
@@ -106,16 +123,26 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       tail+=exp(-pow(deviation/.17,2.))*smoothstep(.35,.55,radial)*
         (1.-smoothstep(.98,1.24,radial));
     }
-    tail*=tidalStrength;
-    return vec4(bulgeColor*(ga*.76+gb*.62)+diskColor*(ga*.23+gb*.17+tail*.37)+
-      youngColor*(armsA*.66+armsB*.35+tail*.24),
-      clamp(ga*.64+gb*.62+armsA*.36+armsB*.28+tail*.20,0.,.92));
+    float texture=cloudNoise(p*10.0+vec2(orientation,3.));
+    tail*=tidalStrength*(.40+.87*texture);
+    armsA*=.65+.60*texture;
+    armsB*=.66+.54*cloudNoise(p*16.+vec2(4.,orientation));
+    float coreA=exp(-pow(length(first)/.06,1.6));
+    float coreB=exp(-pow(length(second)/.08,1.7));
+    return vec4(bulgeColor*(ga*.71+gb*.60+coreA*.34+coreB*.24)+
+      diskColor*(ga*.21+gb*.14+tail*.39)+
+      youngColor*(armsA*.73+armsB*.47+tail*.34),
+      clamp(ga*.60+gb*.61+armsA*.40+armsB*.30+tail*.26,0.,.92));
   }
   float edge=1.0-smoothstep(0.93,1.16,r);
-  float angle=atan(p.y,p.x)-handed*uTime*uRotationSpeed*.055;
+  // Keep the diffuse arm pattern in step with the particles' differential
+  // orbital angular velocity at the same radius.
+  float angle=atan(p.y,p.x)-
+    handed*uTime*uRotationSpeed*(.025+.08/(.40+r*1.5));
   float rSafe=max(mix(.145,.25,barred),r);
   float winding=handed*(1.65+twist*.35)*log(rSafe/mix(.145,.25,barred));
   float armsBrightness=0.0;
+  float filaments=0.0;
   float lane=0.0;
   for(int j=0;j<8;j++){
     if(float(j)<arms){
@@ -125,17 +152,21 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
       float spine=orientation+TAU*a/arms+winding+feather;
       float gap=abs(angleDelta(angle,spine));
       float sw=(.17+r*.29)*width;
-      armsBrightness=max(armsBrightness,exp(-.58*pow(gap/max(sw,.02),2.)));
+      armsBrightness=max(armsBrightness,exp(-.68*pow(gap/max(sw,.02),2.)));
+      float narrow=abs(angleDelta(angle,spine+handed*(.035+.02*r)));
+      filaments=max(filaments,exp(-2.55*pow(narrow/max(sw,.02),2.)));
       float dustCenter=spine+handed*(.095+.025*r);
       float d=abs(angleDelta(angle,dustCenter));
-      lane=max(lane,exp(-pow(d/max((.030+.028*r)*width,.012),2.)));
+      // Two dark strands, one narrow and one diffuse, trace the luminous arm.
+      lane=max(lane,.80*exp(-pow(d/max((.033+.030*r)*width,.012),2.))+
+        .23*exp(-pow((d-.056)/max(.022,.052*r*width),2.)));
     }
   }
-  float broadNoise=noise(p*15.0+vec2(orientation,1.7));
-  float fineNoise=noise(p*37.0+vec2(1.3,orientation));
-  float disk=exp(-r*1.76)*edge*(.88+.37*broadNoise);
-  float arm=armsBrightness*edge*smoothstep(.10,.24,r)*
-    (.54+.37*broadNoise+.19*fineNoise);
+  float broadNoise=cloudNoise(p*11.0+vec2(orientation,1.7));
+  float fineNoise=noise(p*42.0+vec2(1.3,orientation));
+  float disk=exp(-r*1.76)*edge*(.75+.43*broadNoise);
+  float arm=(armsBrightness*.68+filaments*.38)*edge*smoothstep(.10,.24,r)*
+    (.23+.98*broadNoise+.16*fineNoise);
   if(galaxyType>1.5&&galaxyType<2.5){
     // Flocculent galaxies: scattered bright segments, not two smooth ribbons.
     float patches=noise(p*(6.8+extraA.w*4.)+vec2(orientation,2.));
@@ -145,11 +176,13 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     arm=arm*(.13+.82*smoothstep(.20,.80,patches))*(.65+.26*spurs)+
       smoothstep(.67,.91,spurs)*.10*exp(-r*1.8);
   }
-  float obscuration=lane*(dust/60.0)*.54*(.68+.32*broadNoise)*step(.16,r);
-  arm*=1.0-obscuration;
-  disk*=1.0-obscuration*.48;
-  float nucleus=exp(-pow(r/.136,1.65))*(.48+.44*coreGlow);
-  float oldStars=exp(-pow(r/.31,1.85))*(.27+.17*coreGlow);
+  float obscuration=clamp(lane*(dust/60.0)*(.92+.23*broadNoise),0.,.94)*
+    smoothstep(.15,.23,r);
+  arm*=1.0-obscuration*.82;
+  disk*=1.0-obscuration*.80;
+  float nucleus=exp(-pow(r/.103,1.7))*(.56+.52*coreGlow);
+  float oldStars=exp(-pow(r/.31,1.85))*(.25+.17*coreGlow)*
+    (.94+.09*broadNoise);
   float bulge=nucleus+oldStars;
   if(barred>0.5){
     vec2 q=vec2(dot(p,vec2(cos(orientation),sin(orientation))),
@@ -157,13 +190,14 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     float barStrength=galaxyType>.5&&galaxyType<1.5?.73:.16;
     bulge+=exp(-pow(length(q/vec2(.35,.062)),1.6))*barStrength;
   }
-  float hii=smoothstep(.70,.90,noise(p*24.0+vec2(orientation,2.3)))*arm*.9;
-  float alpha=clamp(bulge*.78+disk*.55+arm*.50+hii*.12,0.0,.93);
-  vec3 rgb=bulgeColor*(bulge*1.22)+diskColor*(disk*.88)+
-    youngColor*(arm*.94)+hiiColor*(hii*.56);
-  // The dusty lanes dim the disk; without this the overlaid soft disk
-  // would wash out the dark, trailing arm detail.
-  rgb*=1.0-obscuration*.29;
+  float hii=arm*smoothstep(.65,.87,
+    mix(noise(p*28.0+vec2(orientation,2.3)),broadNoise,.24));
+  float alpha=clamp(bulge*.73+disk*.53+arm*.59+hii*.30,0.0,.93);
+  vec3 rgb=bulgeColor*(bulge*1.20)+diskColor*(disk*.86)+
+    youngColor*(arm*1.08)+hiiColor*(hii*.92);
+  // A Hubble-like dark dust lane is a local loss of starlight, not a
+  // painted black line. This is a low-cost opacity approximation.
+  rgb*=1.0-obscuration*.47;
   return vec4(rgb,alpha);
 }
 void main(){
