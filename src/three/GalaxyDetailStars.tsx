@@ -26,11 +26,14 @@ void main(){
   vec4 view=modelViewMatrix*vec4(pos,1.0);
   gl_Position=projectionMatrix*view;
   float distance=max(0.001,-view.z);
-  float closeFade=1.0-smoothstep(3.0,9.0,distance);
-  // Never inflate a close star into a disk; even a very deep zoom
-  // resolves tiny bright specks and not opaque 50px light circles.
-  gl_PointSize=clamp(aSize*uDpr*7.5/max(.35,distance),1.5,4.8)*uExportScale;
-  vColor=aColor;
+  // The previous 3..9 fade made stars nearly disappear before the camera
+  // actually entered the stellar disk. Keep the *distant* image unchanged,
+  // then fade in bright resolved points across a wider near-field range.
+  float closeFade=1.0-smoothstep(6.0,15.0,distance);
+  float proximity=1.0-smoothstep(0.35,5.0,distance);
+  // Even at extreme zoom a star is a small point, never a 50px disk.
+  gl_PointSize=clamp(aSize*uDpr*9.5/max(.28,distance),2.0,7.0)*uExportScale;
+  vColor=aColor*(1.18+proximity*.24);
   vOpacity=aOpacity*closeFade*uEntrance;
 }
 `;
@@ -40,10 +43,13 @@ varying float vOpacity;
 void main(){
   vec2 p=gl_PointCoord-vec2(.5);
   float d=length(p);
-  float halo=exp(-d*d*25.0);
-  float alpha=clamp(vOpacity*halo*.52,0.0,.38);
-  if(alpha<.008)discard;
-  gl_FragColor=vec4(vColor*1.18,alpha);
+  // A defined white-hot pinpoint plus a short colored halo. The old
+  // purely Gaussian .52 opacity multiplier gave ~subpixel faint dots.
+  float core=1.0-smoothstep(0.035,0.17,d);
+  float halo=exp(-d*d*19.0);
+  float alpha=clamp(vOpacity*(halo*.76+core*.52),0.0,.82);
+  if(alpha<.01)discard;
+  gl_FragColor=vec4(vColor*(1.38+core*.26),alpha);
 }
 `;
 
@@ -91,7 +97,7 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
     }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyDetailCount=String(data.count);
-      progressHost.current.dataset.galaxyDetailRange='3-9';
+      progressHost.current.dataset.galaxyDetailRange='6-15';
       progressHost.current.dataset.galaxyDetailTime=time.toFixed(3);
     }
   });
