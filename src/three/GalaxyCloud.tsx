@@ -163,10 +163,10 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
     uniforms.uDpr.value=low?1:1.75;
-    // Use an area-energy normalization rather than brightness proportional
-    // to star count. Both 3,600-star mobile and 30,000-star desktop galaxies
-    // retain visible spiral arms without turning into a white cloud.
-    uniforms.uStarEnergy.value=.58*Math.sqrt(3600/Math.max(1000,data.count));
+    // Preserve total stellar light as quality changes: 30k detailed stars
+    // should have roughly the same overall exposure as 3,600 mobile stars.
+    // Sqrt(count) compensation still makes high-quality arms nearly white.
+    uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count);
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
