@@ -165,7 +165,9 @@ describe('GALAXY MODE',()=>{
       const mean=zs.reduce((a,b)=>a+b,0)/zs.length;
       const deviation=Math.sqrt(zs.reduce((a,b)=>a+(b-mean)**2,0)/zs.length);
       // A real volumetric field has measurable thickness from edge-on.
-      expect(deviation,galaxyType+' must have 3D depth').toBeGreaterThan(settings.radius*.035);
+      // A thin disk remains volumetric, but no longer needs the oversized
+      // 0.09R vertical gas scatter that produced the edge-on cotton-ball fog.
+      expect(deviation,galaxyType+' must have 3D depth').toBeGreaterThan(settings.radius*.015);
       expect(gas.opacities.every(x=>x>=0&&x<=1)).toBe(true);
       expect(gas.coreFactors.length).toBe(gas.count);
       expect(gas.coreFactors.every(x=>Number.isFinite(x)&&x>=0&&x<=1)).toBe(true);
@@ -180,7 +182,9 @@ describe('GALAXY MODE',()=>{
     const brightable=Array.from(clouds.coreFactors).filter(x=>x>.12);
     // The old volumetric setup allocated almost all gas to spiral arms,
     // leaving the central stellar bulge black once the XY gas sheet was removed.
-    expect(brightable.length/clouds.count).toBeGreaterThan(.13);
+    // A separate unresolved 3D bulge supplies the smooth central glow;
+    // fewer large gas blobs should be concentrated directly on the nucleus.
+    expect(brightable.length/clouds.count).toBeGreaterThan(.08);
     const centers=Array.from({length:clouds.count},(_,i)=>
       Math.hypot(clouds.positions[i*3],clouds.positions[i*3+1])/settings.radius);
     const inner=centers.filter(x=>x<.25).length;
@@ -219,7 +223,14 @@ describe('GALAXY MODE',()=>{
         gas.positions[p+1]-gas.positions[q+1]);
     }
     expect(distance/(gas.count-1)).toBeGreaterThan(settings.radius*.40);
-    expect(Math.max(...gas.sizes)).toBeLessThan(32);
+    expect(Math.max(...gas.sizes)).toBeLessThan(18);
+    expect(gas.count).toBeGreaterThan(2000);
+    const nonCoreHeights=Array.from({length:gas.count},(_,i)=>i)
+      .filter(i=>gas.coreFactors[i]<.01)
+      .map(i=>Math.abs(gas.positions[i*3+2]))
+      .sort((a,b)=>a-b);
+    expect(nonCoreHeights[Math.floor(nonCoreHeights.length*.9)])
+      .toBeLessThan(settings.radius*.09);
     expect(Math.max(...gas.opacities)).toBeLessThan(.27);
   });
   it('adds a reproducible, locally concentrated 3D hot nucleus and warm bulge',()=>{
