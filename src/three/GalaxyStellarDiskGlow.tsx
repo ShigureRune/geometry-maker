@@ -35,7 +35,10 @@ void main(){
     float radius=length(point.xy);
     // Old, faint stars spread continuously between the bright blue arms.
     // The short physical Z scale is supplied by the ellipsoid geometry.
-    integrated+=exp(-2.35*radius)*exp(-3.0*point.z*point.z);
+    // Fade to true transparency at the physical radial edge. Without this
+    // taper the clipped ellipsoid forms an unnatural circular outline.
+    float outerFade=1.0-smoothstep(0.72,1.0,radius);
+    integrated+=exp(-2.05*radius)*exp(-3.0*point.z*point.z)*outerFade;
   }
   integrated*=travel/12.0;
   float alpha=(1.0-exp(-integrated*uDensity))*uEntrance;
@@ -119,7 +122,7 @@ export function GalaxyStellarDiskGlow({seed,options,stars,low,seconds,animation,
       const r=options.radius*(options.galaxyType==='interacting'?.86:1.06)*factor;
       return <DiskVolume key={i} pivot={pivot} radius={r}
         thickness={options.radius*.038*factor}
-        color={diskColor} density={low?.20:.25}
+        color={diskColor} density={low?.28:.35}
         seconds={seconds} animation={animation}
         morph={morph} morphDuration={morphDuration}/>;
     })}
