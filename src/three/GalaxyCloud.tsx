@@ -178,7 +178,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     // HDR star contribution in high quality so dense rings stay colored.
     uniforms.uStarEnergy.value=.65*3600/Math.max(3600,data.count)*
       (low?1:Math.max(.27,.72*Math.pow(3600/Math.max(3600,data.count),.4)))*
-      (!low&&options.galaxyType==='ring'?.76:1);
+      (!low&&options.galaxyType==='ring'?.55:1);
     // Write through to the mounted material as well as the declarative
     // uniform bag. Both shader layers must see the SAME scene clock.
     const gpu=material.current?.uniforms;
