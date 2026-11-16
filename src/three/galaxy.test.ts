@@ -243,6 +243,20 @@ describe('GALAXY MODE',()=>{
     const repeat=generateGalaxyDetailStars('zoom-fine-structure',settings,false,galaxy);
     expect(detail.count).toBeGreaterThan(galaxy.count*4);
     expect(detail.count).toBeLessThanOrEqual(65000);
+    // A substantial near-bulge population must survive zoom. Do not just
+    // raise global exposure, which previously washed out spiral-arm colors.
+    const parentBulge=Array.from(galaxy.cores).filter(x=>x>0).length;
+    expect(parentBulge/galaxy.count).toBeGreaterThan(.125);
+    const innerCount=Array.from({length:detail.count},(_,i)=>i).filter(i=>{
+      const cx=detail.orbitCenters[2*i],cy=detail.orbitCenters[2*i+1];
+      const radius=Math.hypot(detail.positions[3*i]-cx,
+        detail.positions[3*i+1]-cy)/settings.radius;
+      return radius>.08&&radius<.32;
+    }).length;
+    expect(innerCount/detail.count,'star density around the bulge should be high')
+      .toBeGreaterThan(.29);
+    expect(innerCount/detail.count,'avoid replacing the entire outer disk')
+      .toBeLessThan(.50);
     expect(detail.positions).toEqual(repeat.positions);
     expect(detail.colors).toEqual(repeat.colors);
     expect(Math.min(...detail.sizes)).toBeGreaterThanOrEqual(.63);

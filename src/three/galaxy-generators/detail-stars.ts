@@ -21,6 +21,7 @@ export function generateGalaxyDetailStars(
   const target=Math.min(budget,Math.max(low?4000:16000,
     Math.floor(stars.count*(low?4:6))));
   const eligible:number[]=[];
+  const innerEligible:number[]=[],outerEligible:number[]=[];
   for(let i=0;i<stars.count;i++){
     if(stars.kinds[i]>.5)continue;
     const p=i*3,q=i*2;
@@ -37,8 +38,14 @@ export function generateGalaxyDetailStars(
     // disk and outer bulge have additional individually resolved stars.
     if(radial<options.radius*minRadius*scale)continue;
     eligible.push(i);
+    // Reserve a dedicated near-bulge population. Uniform random selection
+    // from the whole spiral used to put most LOD stars far from the center.
+    if(radial/(options.radius*scale)<.32)innerEligible.push(i);
+    else outerEligible.push(i);
   }
   const count=eligible.length?target:0;
+  const innerShare=(options.galaxyType==='grand_design'||
+    options.galaxyType==='barred_spiral')?.34:.27;
   const positions=new Float32Array(count*3);
   const colors=new Float32Array(count*3);
   const sizes=new Float32Array(count);
@@ -48,7 +55,11 @@ export function generateGalaxyDetailStars(
   const orbitCenters=new Float32Array(count*2);
   const random=seededRandom('galaxy-nearby-stars-lod-v1:'+seed+':'+options.galaxyType);
   for(let i=0;i<count;i++){
-    const source=eligible[Math.floor(random()*eligible.length)];
+    // Redistribute the same finite star budget: more fine, old stars near
+    // the bulge without increasing overall exposure or mobile GPU cost.
+    const pool=i<Math.floor(count*innerShare)&&innerEligible.length
+      ?innerEligible:outerEligible.length?outerEligible:eligible;
+    const source=pool[Math.floor(random()*pool.length)];
     const src=source*3,dst=i*3,srcPivot=source*2,dstPivot=i*2;
     const scale=options.galaxyType==='interacting'&&
       (stars.orbitCenters?.[srcPivot]??0)>0
@@ -73,13 +84,18 @@ export function generateGalaxyDetailStars(
     const pivotY=stars.orbitCenters?.[srcPivot+1]??0;
     const localRadius=Math.hypot(positions[dst]-pivotX,
       positions[dst+1]-pivotY)/(options.radius*scale);
-    const ramp=Math.max(0,Math.min(1,(localRadius-.06)/.13));
+    // Do not resolve the tiny central nucleus, but reveal individual stars
+    // as soon as the camera moves out to its stellar shoulder.
+    const ramp=Math.max(0,Math.min(1,(localRadius-.055)/.105));
     const innerFade=ramp*ramp*(3-2*ramp);
-    const bright=random()<(localRadius<.26?.18:.105);
+    const innerRim=localRadius<.32;
+    const bright=random()<(innerRim?.12:.105);
     highlights[i]=bright?1:0;
     sizes[i]=bright?1.00+random()*.40:.63+random()*.39;
+    // Inner stars are NUMEROUS rather than each being over-bright. Keep
+    // sparse clear pinpoints within the warm glow without white-out.
     opacities[i]=(bright?.43+random()*.22:
-      .12+random()*.16)*innerFade;
+      .12+random()*.16)*innerFade*(innerRim?.64:1);
     spins[i]=stars.spins[source];
     orbitCenters[dstPivot]=stars.orbitCenters?.[srcPivot]??0;
     orbitCenters[dstPivot+1]=stars.orbitCenters?.[srcPivot+1]??0;

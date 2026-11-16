@@ -96,7 +96,9 @@ void main(){
   // Outer spiral stars remain individually resolved.
   // The very center remains a smooth volume. At its *shoulder*, old stars
   // reappear continuously instead of leaving a missing-star ring.
-  alpha*=vKind>0.5?1.0:smoothstep(.46,1.04,vBulgeRadius);
+  // The very center remains smooth and unresolved. A little farther out,
+  // restore discrete amber bulge stars instead of blanking an entire ring.
+  alpha*=vKind>0.5?1.0:smoothstep(.35,.94,vBulgeRadius);
   if(alpha<0.008)discard;
   // Light per star falls as density increases. More stars in high quality
   // should add DETAIL, not multiply overall exposure by >3x.

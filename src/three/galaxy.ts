@@ -140,8 +140,11 @@ export function generateGalaxy(seed:string,options:GalaxySettings,low:boolean):G
   });
   // A broad disk remains visible BETWEEN the arms. Real spirals are not
   // thin strings of stars separated by completely empty black space.
-  const bulgeEnd=Math.floor(count*.105);
-  const diskEnd=bulgeEnd+Math.floor(count*.305);
+  // Increase REAL old stars in the inner bulge without increasing the
+  // total point count: move a small share of the diffuse disk inward.
+  // The unresolved pinpoint nucleus is still handled by the 3D volume.
+  const bulgeEnd=Math.floor(count*.135);
+  const diskEnd=bulgeEnd+Math.floor(count*.275);
   const knotEnd=diskEnd+Math.floor(count*.12);
   const cloudCount=Math.floor(count*(.025+options.dust/60*.055));
   const armEnd=count-cloudCount;
