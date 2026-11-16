@@ -73,6 +73,11 @@ test('gravity mode numerically bends stellar and gas orbits with two mass center
   const browserErrors:string[]=[];
   page.on('pageerror',error=>browserErrors.push(error.message));
   await openGalaxy(page);
+  // This suite emulates reduced motion; explicitly start the simulation
+  // clock, otherwise the physical integrator correctly remains paused.
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await category(page,'図形');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','off');
   await page.getByLabel('銀河の重力シミュレーションを有効化').check();
