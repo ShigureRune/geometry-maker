@@ -12,11 +12,13 @@ const vertexShader=String.raw`
 attribute vec3 aColor;
 attribute float aSize;
 attribute float aOpacity;
+attribute float aHighlight;
 attribute float aSpin;
 attribute vec2 aOrbitCenter;
 uniform float uTime,uRotationSpeed,uEntrance,uDpr,uExportScale;
 varying vec3 vColor;
 varying float vOpacity;
+varying float vHighlight;
 void main(){
   float angle=aSpin*uRotationSpeed*uTime;
   float cs=cos(angle),sn=sin(angle);
@@ -33,21 +35,25 @@ void main(){
   gl_PointSize=clamp(aSize*uDpr*8.4/max(.32,distance),1.6,5.8)*uExportScale;
   vColor=aColor*(1.05+proximity*.12);
   vOpacity=aOpacity*closeFade*uEntrance;
+  vHighlight=aHighlight;
 }
 `;
 const fragmentShader=String.raw`
 varying vec3 vColor;
 varying float vOpacity;
+varying float vHighlight;
 void main(){
   vec2 p=gl_PointCoord-vec2(.5);
   float d=length(p);
-  // Distinct star cores, but low-opacity colored halos to keep neighboring
-  // stars from accumulating into a solid white sheet under extreme zoom.
-  float core=1.0-smoothstep(0.03,0.15,d);
-  float halo=exp(-d*d*27.0);
-  float alpha=clamp(vOpacity*(halo*.37+core*.40),0.0,.53);
+  // All stars have faint colored halos. Only a small deterministic subset
+  // has a bright localized core; neighboring star light stays chromatic.
+  float core=1.0-smoothstep(0.025,0.145,d);
+  float halo=exp(-d*d*28.0);
+  float coreWeight=mix(.26,.82,vHighlight);
+  float alpha=clamp(vOpacity*(halo*.30+core*coreWeight),0.0,.72);
   if(alpha<.008)discard;
-  gl_FragColor=vec4(vColor*(1.13+core*.16),alpha);
+  vec3 color=vColor*(1.10+core*vHighlight*1.20);
+  gl_FragColor=vec4(color,alpha);
 }
 `;
 
@@ -66,6 +72,7 @@ export function GalaxyDetailStars({seed,options,stars,low,seconds,animation,morp
     result.setAttribute('aColor',new BufferAttribute(data.colors,3));
     result.setAttribute('aSize',new BufferAttribute(data.sizes,1));
     result.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
+    result.setAttribute('aHighlight',new BufferAttribute(data.highlights,1));
     result.setAttribute('aSpin',new BufferAttribute(data.spins,1));
     result.setAttribute('aOrbitCenter',new BufferAttribute(data.orbitCenters,2));
     return result;
