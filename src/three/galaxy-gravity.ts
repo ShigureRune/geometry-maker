@@ -361,7 +361,7 @@ export function createGalaxyGravitySimulation(
           // bridge and tail trajectories as the cores sweep past.
           fx+=tideScale*(-ex*influence-hx*atHost);
           fy+=tideScale*(-ey*influence-hy*atHost);
-          fz+=tideScale*(-ez*influence+hz*atHost)*.8;
+          fz+=tideScale*(-ez*influence-hz*atHost)*.8;
         }
         acceleration[p]=fx;acceleration[p+1]=fy;acceleration[p+2]=fz;
       }
