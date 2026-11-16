@@ -193,6 +193,22 @@ describe('GALAXY MODE',()=>{
     expect(generateGalaxyGas('different',settings,false,differentSeed).positions)
       .not.toEqual(gas.positions);
   });
+  it('distributes 3D gas along the arms instead of stamping repeated clumps',()=>{
+    const settings={...galaxyDefaults,galaxyType:'grand_design' as const,count:12000};
+    const stars=generateGalaxy('gas-blobs-regression',settings,false);
+    const gas=generateGalaxyGas('gas-blobs-regression',settings,false,stars);
+    // Previous code reused each star anchor for 3-13 consecutive cloud
+    // billboards, causing grape-like clusters and a lumpy bright nucleus.
+    let distance=0;
+    for(let i=1;i<gas.count;i++){
+      const p=i*3,q=(i-1)*3;
+      distance+=Math.hypot(gas.positions[p]-gas.positions[q],
+        gas.positions[p+1]-gas.positions[q+1]);
+    }
+    expect(distance/(gas.count-1)).toBeGreaterThan(settings.radius*.40);
+    expect(Math.max(...gas.sizes)).toBeLessThan(32);
+    expect(Math.max(...gas.opacities)).toBeLessThan(.27);
+  });
   it('ease is seekable and exact at endpoints',()=>{
     expect(galaxyMorphEasing(-4)).toBe(0);
     expect(galaxyMorphEasing(0)).toBe(0);
