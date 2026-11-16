@@ -74,6 +74,7 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
   const mesh=useRef<Mesh>(null);
   const gpu=useRef<ShaderMaterial>(null);
   const eye=useMemo(()=>new Vector3(),[]);
+  const worldCenter=useMemo(()=>new Vector3(),[]);
   const uniforms=useMemo(()=>({
     uEyeLocal:{value:new Vector3(0,0,3)},
     uStrength:{value:1},uWhiteCore:{value:1},uEntrance:{value:1},
@@ -85,12 +86,21 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
     eye.copy(camera.position);
     object.worldToLocal(eye);
     uniforms.uEyeLocal.value.copy(eye);
+    // At high magnification, broad unresolved bulge emission otherwise
+    // fills the whole screen with a beige-white fog. Keep the tiny smooth
+    // bright core, but fade the outer luminosity to reveal nearby stars.
+    object.getWorldPosition(worldCenter);
+    const viewDistance=camera.position.distanceTo(worldCenter);
+    const t=Math.max(0,Math.min(1,
+      (viewDistance-axes[0]*1.2)/(axes[0]*1.8)));
+    const nearFade=t*t*(3-2*t);
     const time=seconds.current;
     const entrance=morph.current
       ?galaxyMorphEasing(time/Math.max(.001,morphDuration.current))
       :!animation&&time===0?1:galaxyMorphEasing(time/2.6);
-    uniforms.uStrength.value=0.12+options.coreGlow/95;
-    uniforms.uWhiteCore.value=18*Math.pow(Math.max(0,options.coreGlow/100),1.25);
+    uniforms.uStrength.value=(0.12+options.coreGlow/95)*(.12+.88*nearFade);
+    uniforms.uWhiteCore.value=18*Math.pow(Math.max(0,options.coreGlow/100),1.25)*
+      (.35+.65*nearFade);
     uniforms.uEntrance.value=entrance;
     if(gpu.current){
       gpu.current.uniforms.uEyeLocal.value.copy(eye);
