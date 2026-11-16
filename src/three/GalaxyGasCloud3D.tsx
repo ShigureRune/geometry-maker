@@ -133,7 +133,8 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uMorph.value=phase;
     uniforms.uDpr.value=low?1:1.45;
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
-    uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count));
+    uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count))*
+      (!low&&options.galaxyType==='ring'?.60:1);
     uniforms.uCoreGlow.value=options.coreGlow/100;
     if(gpu.current){
       for(const key of Object.keys(uniforms) as (keyof typeof uniforms)[])
