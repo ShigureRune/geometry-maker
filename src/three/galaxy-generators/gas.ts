@@ -51,7 +51,9 @@ export function generateGalaxyGas(
 ):GalaxyGasData{
   const r=seededRandom('galaxy-gas-volumetric-v1:'+seed+':'+options.galaxyType);
   // 3D transparency costs more than point stars. Cap separately for mobile.
-  const target=Math.floor(stars.count*(low?.34:.17));
+  // Many small wisps blend into a continuous veil; fewer giant cloudlets
+  // were visible as isolated cotton balls in both face-on and edge-on views.
+  const target=Math.floor(stars.count*(low?.34:.23));
   const count=Math.max(340,Math.min(low?1600:4200,target));
   const positions=new Float32Array(count*3),colors=new Float32Array(count*3);
   const sizes=new Float32Array(count),opacities=new Float32Array(count);
@@ -61,8 +63,10 @@ export function generateGalaxyGas(
   const type=options.galaxyType;
   const R=options.radius;
   const palette=galaxyAppearance(seed,options.palette).colors;
-  const thickness=type==='elliptical'?.19:
-    type==='irregular'?.12:type==='interacting'?.085:.090;
+  // Spiral dust/gas occupies a genuinely thin 3D midplane. The previous
+  // 0.09R vertical scatter made a tall lumpy fog around a needle-thin disk.
+  const thickness=type==='elliptical'?.15:
+    type==='irregular'?.08:type==='interacting'?.043:.029;
   const spread=type==='elliptical'?.08:type==='irregular'?.056:
     type==='flocculent'?.038:type==='ring'?.024:.029;
   // The retired flat gas plane used to fill the galactic nucleus. With
@@ -73,8 +77,8 @@ export function generateGalaxyGas(
   for(let j=0;j<stars.count;j++){
     if(stars.cores[j]>.12)nucleusStars.push(j);
   }
-  const coreShare=type==='ring'?.08:type==='irregular'?.08:
-    type==='elliptical'?.19:type==='interacting'?.16:.15;
+  const coreShare=type==='ring'?.07:type==='irregular'?.08:
+    type==='elliptical'?.16:type==='interacting'?.12:.085;
   for(let i=0;i<count;i++){
     // IMPORTANT: do not repeat the same anchor for 3–13 particles.
     // Grouped billboards were becoming disconnected grape-sized clumps
@@ -102,14 +106,15 @@ export function generateGalaxyGas(
     positions[pos+1]=stars.positions[source+1]+gaussian(r)*jitter;
     // Real 3D distribution. Inclining the galaxy reveals distinct cloud
     // heights and parallax, instead of a flat sheet seen edge-on.
-    positions[pos+2]=stars.positions[source+2]+gaussian(r)*R*thickness;
+    positions[pos+2]=stars.positions[source+2]+gaussian(r)*R*
+      (isCore&&type!=='elliptical'?Math.max(thickness,.042):thickness);
     orbitCenters[center]=stars.orbitCenters?.[anchor*2]??0;
     orbitCenters[center+1]=stars.orbitCenters?.[anchor*2+1]??0;
     spins[i]=stars.spins[anchor];
     phases[i]=r()*Math.PI*2;
     // A many-particle veil is more convincing than a few high-opacity
     // overlapping stamps. Core haze is smaller and smoother than the arms.
-    sizes[i]=(isCore?9:isElliptical?13:17)+r()*(isCore?9:12);
+    sizes[i]=(isCore?5:isElliptical?9:8)+r()*(isCore?5:isElliptical?8:8);
     const typeOpacity=isElliptical?.52:type==='irregular'?.70:.95;
     opacities[i]=(.095+r()*.14)*typeOpacity*
       (isCore?.72:1)*
