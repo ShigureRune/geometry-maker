@@ -467,7 +467,12 @@ function SceneRuntime({composition, background, settings, restartKey, view, api,
         standbySettings.reconnectIntensity/100:0;
     const glow = Math.max(background.glowIntensity??0,network.enabled?network.glow:0,neon.enabled?neon.glow:0,floor.enabled?floor.glow:0,celestial.enabled?120:0,reconnecting?40*standbySettings.reconnectIntensity/100:0,wholeFlash*40) / 100;
     if (pipeline.current) {
-      pipeline.current.bloom.enabled = glow > 0;
+      // GALAXY MODE already renders a multi-layer luminous field. Sending
+      // tens of thousands of additive stars through a second bloom pass
+      // clips the entire disk to white when quality="high".
+      // Keep the normal scene's bloom untouched; galaxy has its own halo.
+      const galaxyActive=!!settings.galaxy?.enabled;
+      pipeline.current.bloom.enabled = !galaxyActive && glow > 0;
       pipeline.current.bloom.strength = Math.min(.55, glow * .28);
       // Dark scenes can reveal colored glow without overexposing the surface;
       // lift the threshold on pale backgrounds so the background itself won't bloom.
