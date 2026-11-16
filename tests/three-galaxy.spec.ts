@@ -106,6 +106,8 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   for(const type of GALAXY_TYPES){
     await page.locator('#galaxy-type').selectOption(type);
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
+    await expect(preview).toHaveAttribute('data-galaxy-bulge-representation','3d-unresolved-volume');
+    await expect(preview).toHaveAttribute('data-galaxy-bulge-count',type==='interacting'?'2':'1');
     const screenshot=await preview.locator('canvas').screenshot({
       path:`test-results/galaxy-v4-${type}.png`,
     });
@@ -413,6 +415,8 @@ test('central photographic hotspot intensifies without washing out distant arms'
   await expect(preview).toHaveAttribute('data-quality','high');
   await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-nucleus-count')))
     .toBeGreaterThan(400);
+  await expect(preview).toHaveAttribute('data-galaxy-bulge-representation','3d-unresolved-volume');
+  await expect(preview).toHaveAttribute('data-galaxy-bulge-count','1');
   async function sample(){
     const screenshot=(await preview.locator('canvas').screenshot()).toString('base64');
     return page.evaluate(async b64=>{
