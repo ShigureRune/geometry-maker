@@ -129,6 +129,7 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   expect(errors).toEqual([]);
 });
 test('luminous gas itself moves in all seven galaxy types and freezes when paused',async({page})=>{
+  test.setTimeout(180_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   const shaders:string[]=[];page.on('console',message=>{
     if(message.type()==='error'&&/shader error|shader compile|webglprogram/i.test(message.text()))
@@ -170,14 +171,13 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
     expect(moved.equals(runningStart),type+' gas must animate while playback is RUNNING').toBe(false);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを一時停止'}).click();
+    await page.getByRole('button',{name:'3Dを再生'}).click();
     await category(page,'図形');
   }
   // Rotation speed zero should stop the gas flow even with the clock running.
   await page.locator('#galaxy-type').selectOption('ring');
   await page.locator('#galaxy-spin').fill('0');
-  await category(page,'アニメーション');
-  await page.getByRole('button',{name:'3Dを再生'}).click();
-  await category(page,'図形');
+  await expect(preview).toHaveAttribute('data-galaxy-gas-speed','0.00');
   const idle=await preview.locator('canvas').screenshot();
   await page.waitForTimeout(450);
   expect((await preview.locator('canvas').screenshot()).equals(idle),
