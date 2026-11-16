@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {BufferAttribute,BufferGeometry,NormalBlending,ShaderMaterial} from 'three';
 import {galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyGas,type GalaxyGasData} from './galaxy-generators/gas';
+import {createGalaxyGravitySimulation} from './galaxy-gravity';
 
 const vertexShader=String.raw`
 attribute vec3 aColor;
@@ -13,7 +14,7 @@ attribute float aSpin;
 attribute float aPhase;
 attribute float aCore;
 attribute vec2 aOrbitCenter;
-uniform float uTime,uRotationSpeed,uEntrance,uMorph,uMorphEnabled,uDpr,uExportScale;
+uniform float uTime,uRotationSpeed,uGravityEnabled,uEntrance,uMorph,uMorphEnabled,uDpr,uExportScale;
 varying vec3 vColor;
 varying float vOpacity;
 varying float vPhase;
@@ -22,7 +23,8 @@ void main(){
   float angular=aSpin*uRotationSpeed*uTime;
   float c=cos(angular),s=sin(angular);
   vec2 local=position.xy-aOrbitCenter;
-  vec3 target=vec3(aOrbitCenter.x+local.x*c-local.y*s,
+  vec3 target=uGravityEnabled>.5?position:vec3(
+    aOrbitCenter.x+local.x*c-local.y*s,
     aOrbitCenter.y+local.x*s+local.y*c,position.z);
   float blend=uMorphEnabled>.5?uMorph:1.0;
   vec3 point=mix(aFrom,target,blend);
@@ -84,10 +86,18 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
   morph:RefObject<boolean>;morphDuration:RefObject<number>;
   progressHost?:RefObject<HTMLDivElement|null>;
 }){
-  const data=useMemo(()=>generateGalaxyGas(seed,options,low,stars),[seed,options,low,stars]);
+  // Changes to gravity strength change the force, not the generated seed
+  // distribution. Keep the gas buffers and velocities stable while dragging.
+  const data=useMemo(()=>generateGalaxyGas(seed,options,low,stars),[
+    seed,low,stars,options.galaxyType,options.radius,options.palette,
+    options.dust,options.clumpiness,
+  ]);
+  const gravity=useMemo(()=>options.gravityEnabled?
+    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
-    buffer.setAttribute('position',new BufferAttribute(data.positions,3));
+    buffer.setAttribute('position',new BufferAttribute(
+      gravity?gravity.positions:data.positions,3));
     buffer.setAttribute('aColor',new BufferAttribute(data.colors,3));
     buffer.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
     buffer.setAttribute('aSize',new BufferAttribute(data.sizes,1));
@@ -97,13 +107,14 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     buffer.setAttribute('aOrbitCenter',new BufferAttribute(data.orbitCenters,2));
     buffer.setAttribute('aFrom',new BufferAttribute(new Float32Array(data.positions),3));
     return buffer;
-  },[data]);
+  },[data,gravity]);
   useEffect(()=>()=>geometry.dispose(),[geometry]);
   const previous=useRef<Previous|null>(null);
   const transitioning=useRef(false);
   const gpu=useRef<ShaderMaterial>(null);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
+    uGravityEnabled:{value:0},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uDpr:{value:1},uEnergy:{value:1},uCoreGlow:{value:options.coreGlow/100},
     uExportScale:{value:1},
@@ -126,11 +137,17 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     const clock=import.meta.env.DEV&&progressHost?.current
       ?Number(progressHost.current.dataset.galaxyMotionClock):NaN;
     const time=Number.isFinite(clock)?clock:seconds.current;
+    if(gravity?.advance(time,options.gravityStrength,options.gravityHalo,
+      options.rotationSpeed)){
+      (geometry.getAttribute('position') as BufferAttribute).needsUpdate=true;
+    }
     const phase=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    uniforms.uGravityEnabled.value=gravity?1:0;
     uniforms.uEntrance.value=!animation&&time===0?1:galaxyMorphEasing(time/2.6);
-    uniforms.uMorphEnabled.value=transitioning.current&&morph.current?1:0;
+    uniforms.uMorphEnabled.value=gravity?0:
+      transitioning.current&&morph.current?1:0;
     uniforms.uMorph.value=phase;
     uniforms.uDpr.value=low?1:1.45;
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
@@ -145,6 +162,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     }
     if(progressHost?.current){
       progressHost.current.dataset.galaxyGasTime=time.toFixed(3);
+      progressHost.current.dataset.galaxyGravityGasSteps=String(gravity?.steps??0);
       progressHost.current.dataset.galaxyGasMaterialTime=
         Number(gpu.current?.uniforms.uTime.value??-1).toFixed(3);
       progressHost.current.dataset.galaxyGasSpeed=options.rotationSpeed.toFixed(2);
