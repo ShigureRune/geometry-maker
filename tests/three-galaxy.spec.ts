@@ -112,6 +112,41 @@ test('gravity mode numerically bends stellar and gas orbits with two mass center
   expect(gravityScreenshot.equals(after)).toBe(false);
   expect(browserErrors).toEqual([]);
 });
+test('Barnes-Hut stellar self-gravity uses bounded octree-style approximations in WebGL',async({page})=>{
+  test.setTimeout(150_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await openGalaxy(page);
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await category(page,'図形');
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-mode','off');
+  await page.getByLabel('銀河の重力シミュレーションを有効化').check();
+  await page.getByLabel('Barnes-Hut法で星同士の自己重力を計算').check();
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-mode','on');
+  // The test runs in low quality: cap 3,600 render stars to 384
+  // sampled gravity sources to keep browser frame times bounded.
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-sources','384');
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-nbody-tree-nodes')))
+    .toBeGreaterThan(20);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-nbody-updates')))
+    .toBeGreaterThan(1);
+  await page.locator('#galaxy-self-gravity-samples').fill('2048');
+  await expect(page.locator('#galaxy-self-gravity-samples')).toHaveValue('2048');
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-sources','384');
+  await page.locator('#galaxy-self-gravity-strength').fill('1.5');
+  await expect(page.locator('#galaxy-self-gravity-strength')).toHaveValue('1.5');
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-mode','on');
+  await mkdir('test-results',{recursive:true});
+  await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-stellar-nbody.png',
+  });
+  await page.getByLabel('Barnes-Hut法で星同士の自己重力を計算').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-nbody-mode','off');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','on');
+  expect(errors).toEqual([]);
+});
 test('moving galactic nuclei attract, drag their luminous bulges and can be switched off',async({page})=>{
   test.setTimeout(150_000);
   const pageErrors:string[]=[];
