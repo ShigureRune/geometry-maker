@@ -1,8 +1,9 @@
 import {seededRandom} from '../../scene';
 import type {GalaxyData,GalaxySettings,GalaxyType} from '../galaxy';
+import {galaxyAngularRate,galaxySpiralSpine} from '../galaxy-motion';
 
 type Random=()=>number;
-type Point={x:number;y:number;z:number;radius:number;core:boolean;cloud:boolean;young:boolean;pink?:boolean};
+type Point={x:number;y:number;z:number;radius:number;core:boolean;cloud:boolean;young:boolean;pink?:boolean;orbitX?:number;orbitY?:number};
 type RGB=readonly [number,number,number];
 const TAU=Math.PI*2;
 const COLORS:Record<GalaxySettings['palette'],{old:RGB,disk:RGB,young:RGB,hii:RGB}>={
@@ -21,9 +22,8 @@ function centerPoint(random:Random,R:number,scale:number):Point{
 function spinPoint(random:Random,R:number,arms:number,twist:number,width:number,
   orientation:number,handed:number,barred:boolean):Point{
   const radius=.16+.83*Math.sqrt(random());
-  const arm=Math.floor(random()*arms),r0=barred?.25:.145;
-  const angle=orientation+TAU*arm/arms+
-    handed*(1.65+twist*.35)*Math.log(Math.max(radius,r0)/r0)+
+  const arm=Math.floor(random()*arms);
+  const angle=galaxySpiralSpine(radius,arm,arms,orientation,handed,twist,barred)+
     gaussian(random)*(.095+radius*.205)*width*.60;
   const r=radius*R;
   return {x:r*Math.cos(angle),y:r*Math.sin(angle),z:gaussian(random)*R*.018,
@@ -98,7 +98,8 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
     const angle=a*(.45+2.1*t)+orientation*.38;
     return {x:center+Math.cos(angle)*r+gaussian(random)*R*.032,
       y:(which?.16:-.15)*R+Math.sin(angle)*r*(.38+options.tidalStrength*.35)+gaussian(random)*R*.032,
-      z:gaussian(random)*R*.014,radius:t,core:false,cloud:false,young:random()<.5};
+      z:gaussian(random)*R*.014,radius:t,core:false,cloud:false,young:random()<.5,
+      orbitX:center,orbitY:(which?.10:-.12)*R};
   }
   const companion=index>=companionStart;
   const local=spinPoint(random,R,2,options.twist,options.armWidth,
@@ -106,6 +107,8 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
   const s=companion?options.companionSize:.67;
   local.x=local.x*s+(companion?secondCenter:mainCenter);
   local.y=local.y*s+(companion?R*.10:-R*.12);
+  local.orbitX=companion?secondCenter:mainCenter;
+  local.orbitY=companion?R*.10:-R*.12;
   local.z*=s;
   const inner=local.radius<.22;
   local.core=inner&&random()<.55;
@@ -127,6 +130,7 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
   const sizes=new Float32Array(count),spins=new Float32Array(count);
   const phases=new Float32Array(count),cores=new Float32Array(count);
   const opacities=new Float32Array(count),kinds=new Float32Array(count);
+  const orbitCenters=new Float32Array(count*2);
   const type=options.galaxyType as GalaxyType;
   const original=seededRandom('galaxy-realism-v2:'+seed);
   const orientation=original()*TAU,handed=original()<.5?-1:1;
@@ -149,6 +153,8 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
     else p=spinPoint(random,R,options.arms,options.twist,options.armWidth,orientation,handed,true);
     const j=i*3;
     positions[j]=p.x;positions[j+1]=p.y;positions[j+2]=p.z;
+    orbitCenters[i*2]=p.orbitX??0;
+    orbitCenters[i*2+1]=p.orbitY??0;
     const color=p.core?shades.old:p.pink?shades.hii:
       p.young?shades.young:shades.disk;
     const luminosity=p.core ? .70+random()*.40 : p.cloud ? .27+random()*.22 : .46+random()*.75;
@@ -159,8 +165,8 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
     opacities[i]=p.cloud?.12+random()*.17:.35+random()*.57;
     kinds[i]=p.cloud?1:0;
     cores[i]=p.core?Math.max(.12,Math.pow(Math.max(0,1-p.radius/.25),2)):0;
-    spins[i]=handed*(.022+.055/(.5+p.radius*1.2))*(type==='elliptical'?.22:1);
+    spins[i]=handed*galaxyAngularRate(p.radius)*(type==='elliptical'?.22:1);
     phases[i]=random()*TAU;
   }
-  return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds};
+  return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds,orbitCenters};
 }
