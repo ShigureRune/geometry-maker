@@ -325,7 +325,11 @@ export function GalaxyDiffuse({seed,options,seconds,animation,morph,morphDuratio
     if(!changedSeed&&!morph.current)old.current=now;
   },[seed,now,uniforms,morph]);
   useFrame(()=>{
-    const time=seconds.current;
+    // Dev-only deterministic clock for actual pixel motion/direction tests.
+    // Production builds never read or accept this DOM override.
+    const probeClock=import.meta.env.DEV&&progressHost?.current
+      ?Number(progressHost.current.dataset.galaxyMotionClock):NaN;
+    const time=Number.isFinite(probeClock)?probeClock:seconds.current;
     const phase=morph.current?galaxyMorphEasing(time/Math.max(.001,morphDuration.current)):1;
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
