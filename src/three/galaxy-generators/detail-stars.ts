@@ -62,8 +62,11 @@ export function generateGalaxyDetailStars(
     colors[dst]=Math.min(1.45,stars.colors[src]*luminosity);
     colors[dst+1]=Math.min(1.45,stars.colors[src+1]*luminosity);
     colors[dst+2]=Math.min(1.45,stars.colors[src+2]*luminosity);
-    sizes[i]=.65+random()*.55;
-    opacities[i]=.24+random()*.45;
+    // The former .65-1.20px, .24-.69 opacity stars became nearly invisible
+    // inside dense gas when the camera got close. Keep them small, but give
+    // each resolved star a readable luminous center during deep zoom.
+    sizes[i]=.85+random()*.70;
+    opacities[i]=.46+random()*.37;
     spins[i]=stars.spins[source];
     orbitCenters[dstPivot]=stars.orbitCenters?.[srcPivot]??0;
     orbitCenters[dstPivot+1]=stars.orbitCenters?.[srcPivot+1]??0;
