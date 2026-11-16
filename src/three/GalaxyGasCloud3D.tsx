@@ -11,11 +11,13 @@ attribute float aSize;
 attribute float aOpacity;
 attribute float aSpin;
 attribute float aPhase;
+attribute float aCore;
 attribute vec2 aOrbitCenter;
 uniform float uTime,uRotationSpeed,uEntrance,uMorph,uMorphEnabled,uDpr;
 varying vec3 vColor;
 varying float vOpacity;
 varying float vPhase;
+varying float vCore;
 void main(){
   float angular=aSpin*uRotationSpeed*uTime;
   float c=cos(angular),s=sin(angular);
@@ -32,13 +34,15 @@ void main(){
   vColor=aColor;
   vOpacity=aOpacity*(uMorphEnabled>.5?blend:uEntrance);
   vPhase=aPhase;
+  vCore=aCore;
 }
 `;
 const fragmentShader=String.raw`
 varying vec3 vColor;
 varying float vOpacity;
 varying float vPhase;
-uniform float uEnergy;
+varying float vCore;
+uniform float uEnergy,uCoreGlow;
 void main(){
   // Each fragment belongs to a true 3D cloudlet billboard. There is no
   // large disk mesh, no uniform radial atlas and no screen-sized gas UVs.
@@ -50,9 +54,13 @@ void main(){
     .12*sin(p.x*13.+vPhase)*sin(p.y*11.-vPhase*1.9)+
     .08*sin(p.x*27.-vPhase*.6)*sin(p.y*21.+vPhase);
   float cloud=exp(-d*3.7)*pow(max(0.,1.-d),1.7)*filaments;
-  float alpha=clamp(vOpacity*cloud*uEnergy,0.,.40);
+  // Rebuild the bright nucleus with many truly 3D soft cloudlets, not
+  // another flat disk. The center-glow slider only amplifies nearby cores.
+  float nucleus=vCore*uCoreGlow;
+  float alpha=clamp(vOpacity*cloud*uEnergy*(1.+2.8*nucleus),0.,.40);
   if(alpha<.003)discard;
-  gl_FragColor=vec4(vColor*(.85+.22*filaments),alpha);
+  vec3 rgb=mix(vColor,vec3(1.,.81,.59),min(.30,nucleus*.16));
+  gl_FragColor=vec4(rgb*(.85+.22*filaments),alpha);
 }
 `;
 type Previous={seed:string;data:GalaxyGasData;rotationSpeed:number};
@@ -84,6 +92,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     buffer.setAttribute('aSize',new BufferAttribute(data.sizes,1));
     buffer.setAttribute('aSpin',new BufferAttribute(data.spins,1));
     buffer.setAttribute('aPhase',new BufferAttribute(data.phases,1));
+    buffer.setAttribute('aCore',new BufferAttribute(data.coreFactors,1));
     buffer.setAttribute('aOrbitCenter',new BufferAttribute(data.orbitCenters,2));
     buffer.setAttribute('aFrom',new BufferAttribute(new Float32Array(data.positions),3));
     return buffer;
@@ -95,7 +104,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
-    uDpr:{value:1},uEnergy:{value:1},
+    uDpr:{value:1},uEnergy:{value:1},uCoreGlow:{value:options.coreGlow/100},
   }),[]);
   useLayoutEffect(()=>{
     const prior=previous.current;
@@ -124,6 +133,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uDpr.value=low?1:1.45;
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
     uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count));
+    uniforms.uCoreGlow.value=options.coreGlow/100;
     if(gpu.current){
       for(const key of Object.keys(uniforms) as (keyof typeof uniforms)[])
         gpu.current.uniforms[key].value=uniforms[key].value;
