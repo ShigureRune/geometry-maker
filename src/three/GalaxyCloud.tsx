@@ -5,7 +5,7 @@ import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {GalaxyDetailStars} from './GalaxyDetailStars';
 import {GalaxyStellarDiskGlow} from './GalaxyStellarDiskGlow';
 import {GalaxyBulgeGlow} from './GalaxyBulgeGlow';
-import {createGalaxyGravitySimulation} from './galaxy-gravity';
+import {createGalaxyCoreMotion,createGalaxyGravitySimulation} from './galaxy-gravity';
 import {
   galaxyAppearance,galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -25,6 +25,8 @@ attribute vec2 aOrbitCenter;
 uniform float uTime;
 uniform float uRotationSpeed;
 uniform float uGravityEnabled;
+uniform float uGravityMoving;
+uniform vec2 uGravityCoreA,uGravityCoreB;
 uniform float uEntrance;
 uniform float uMorph;
 uniform float uMorphEnabled;
@@ -78,6 +80,12 @@ void main(){
   float axisAngle=uBulgeRotation+(companion<.999?2.35:0.0);
   vec2 orbitLocal=uGravityEnabled>.5?local:
     vec2(local.x*c-local.y*s,local.x*s+local.y*c);
+  // The central smooth-light mask follows the REAL moving bulge, not
+  // the initial orbital center (otherwise stars vanish in the wrong spot).
+  if(uGravityMoving>.5){
+    vec2 movingPivot=companion<.999?uGravityCoreB:uGravityCoreA;
+    orbitLocal=position.xy-movingPivot;
+  }
   vec2 aligned=vec2(orbitLocal.x*cos(axisAngle)+orbitLocal.y*sin(axisAngle),
     -orbitLocal.x*sin(axisAngle)+orbitLocal.y*cos(axisAngle));
   vBulgeRadius=length(aligned/max(vec2(.001),vec2(uBulgeX,uBulgeY)*companion));
@@ -169,11 +177,19 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     options.clumpiness,options.branchiness,options.irregularity,
     options.companionDistance,options.companionSize,options.tidalStrength,
   ]);
+  const coreMotion=useMemo(()=>options.gravityEnabled&&options.movingCoresEnabled&&
+    options.galaxyType==='interacting'?createGalaxyCoreMotion(data,options):null,[
+    data,options.gravityEnabled,options.movingCoresEnabled,options.galaxyType,
+    options.coreApproachSpeed,options.coreImpactParameter,options.coreMergeDistance,
+  ]);
   const gravity=useMemo(()=>options.gravityEnabled?
-    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
+    createGalaxyGravitySimulation(data,options,coreMotion):null,[
+    data,options.gravityEnabled,coreMotion,
+  ]);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
-    uGravityEnabled:{value:0},
+    uGravityEnabled:{value:0},uGravityMoving:{value:0},
+    uGravityCoreA:{value:[0,0]},uGravityCoreB:{value:[0,0]},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uGlow:{value:options.coreGlow/100},uDpr:{value:1},
     uStarEnergy:{value:1},
@@ -219,6 +235,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
     uniforms.uGravityEnabled.value=gravity?1:0;
+    uniforms.uGravityMoving.value=coreMotion?1:0;
+    if(coreMotion){
+      uniforms.uGravityCoreA.value=[coreMotion.bodies[0].x,coreMotion.bodies[0].y];
+      uniforms.uGravityCoreB.value=[coreMotion.bodies[1].x,coreMotion.bodies[1].y];
+    }
     uniforms.uEntrance.value=!settings.animation&&time===0?1:galaxyMorphEasing(time/2.6);
     uniforms.uMorphEnabled.value=gravity?0:isMorph.current?1:0;
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
@@ -247,6 +268,9 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       gpu.uTime.value=time;
       gpu.uRotationSpeed.value=options.rotationSpeed;
       gpu.uGravityEnabled.value=gravity?1:0;
+      gpu.uGravityMoving.value=coreMotion?1:0;
+      gpu.uGravityCoreA.value=uniforms.uGravityCoreA.value;
+      gpu.uGravityCoreB.value=uniforms.uGravityCoreB.value;
       gpu.uEntrance.value=uniforms.uEntrance.value;
       gpu.uMorph.value=uniforms.uMorph.value;
       gpu.uMorphEnabled.value=uniforms.uMorphEnabled.value;
@@ -269,6 +293,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyGravitySteps=String(gravity?.steps??0);
       progressHost.current.dataset.galaxyGravityDrift=gravity?gravity.meanDrift().toFixed(5):'0.00000';
       progressHost.current.dataset.galaxyGravitySources=String(gravity?.attractors.length??0);
+      progressHost.current.dataset.galaxyCoreMoving=coreMotion?'on':'off';
+      progressHost.current.dataset.galaxyCoreCount=String(coreMotion?.count??0);
+      progressHost.current.dataset.galaxyCoreDistance=(coreMotion?.distance??0).toFixed(4);
+      progressHost.current.dataset.galaxyCoreMerged=coreMotion?.merged?'true':'false';
+      progressHost.current.dataset.galaxyCoreAX=(coreMotion?.bodies[0]?.x??0).toFixed(4);
+      progressHost.current.dataset.galaxyCoreBX=(coreMotion?.bodies[1]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
@@ -279,7 +309,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     }
   },[seconds,uniforms,data.count,options.galaxyType,options.rotationSpeed,options.coreGlow,options.radius,
     options.barred,options.companionSize,options.gravityStrength,options.gravityHalo,
-    bulgeOrientation,low,settings.animation,progressHost,gravity,geometry]);
+    bulgeOrientation,low,settings.animation,progressHost,gravity,coreMotion,geometry]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
@@ -313,16 +343,19 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <group visible={!starsOnlyProbe&&!gasOnlyProbe&&!detailOnlyProbe}>
       <GalaxyStellarDiskGlow seed={seed} options={options} stars={data} low={low}
+        coreMotion={coreMotion}
         seconds={seconds} animation={settings.animation} morph={isMorph}
         morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
     <group visible={!starsOnlyProbe&&!detailOnlyProbe}>
       <GalaxyGasCloud3D key={options.galaxyType} seed={seed} options={options} stars={data}
         seconds={seconds} low={low} animation={settings.animation}
+        coreMotion={coreMotion}
         morph={isMorph} morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
     <group visible={!gasOnlyProbe&&!detailOnlyProbe}>
       <GalaxyBulgeGlow seed={seed} options={options} stars={data} low={low}
+        coreMotion={coreMotion}
         seconds={seconds} animation={settings.animation} morph={isMorph}
         morphDuration={morphDuration} progressHost={progressHost}/>
     </group>
@@ -332,6 +365,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     </points>
     <group visible={!gasOnlyProbe}>
       <GalaxyDetailStars seed={seed} options={options} stars={data} low={low}
+        coreMotion={coreMotion}
         seconds={seconds} animation={settings.animation} morph={isMorph}
         morphDuration={morphDuration} progressHost={progressHost}/>
     </group>

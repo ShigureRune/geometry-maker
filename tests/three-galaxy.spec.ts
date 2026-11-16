@@ -110,6 +110,51 @@ test('gravity mode numerically bends stellar and gas orbits with two mass center
   expect(gravityScreenshot.equals(after)).toBe(false);
   expect(browserErrors).toEqual([]);
 });
+test('moving galactic nuclei attract, drag their luminous bulges and can be switched off',async({page})=>{
+  test.setTimeout(150_000);
+  const pageErrors:string[]=[];
+  page.on('pageerror',error=>pageErrors.push(error.message));
+  await openGalaxy(page);
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await category(page,'図形');
+  await page.locator('#galaxy-type').selectOption('interacting');
+  await page.getByLabel('銀河の重力シミュレーションを有効化').check();
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-sources','2');
+  await expect(preview).toHaveAttribute('data-galaxy-core-moving','off');
+  await page.getByLabel('銀河核同士を重力で動かす').check();
+  await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
+  await expect(preview).toHaveAttribute('data-galaxy-core-count','2');
+  await expect(preview).toHaveAttribute('data-galaxy-core-merged','false');
+  const startDistance=Number(await preview.getAttribute('data-galaxy-core-distance'));
+  expect(startDistance).toBeGreaterThan(1);
+  await expect.poll(async()=>
+    Number(await preview.getAttribute('data-galaxy-core-distance')),{
+    timeout:15000,
+  }).toBeLessThan(startDistance-.04);
+  const ax=Number(await preview.getAttribute('data-galaxy-core-a-x'));
+  const bx=Number(await preview.getAttribute('data-galaxy-core-b-x'));
+  expect(Math.abs(bx-ax)).toBeGreaterThan(.5);
+  await expect(preview).toHaveAttribute('data-galaxy-bulge-count','2');
+  await expect.poll(async()=>
+    Number(await preview.getAttribute('data-galaxy-gravity-gas-steps')))
+    .toBeGreaterThan(1);
+  await page.locator('#galaxy-core-impact').fill('0.5');
+  await page.locator('#galaxy-core-approach').fill('1');
+  await page.locator('#galaxy-core-merge').fill('0.3');
+  await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
+  await mkdir('test-results',{recursive:true});
+  await preview.locator('canvas').screenshot({
+    path:'test-results/galaxy-moving-cores.png',
+  });
+  await page.getByLabel('銀河核同士を重力で動かす').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-core-moving','off');
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','on');
+  await page.getByLabel('銀河の重力シミュレーションを有効化').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','off');
+  expect(pageErrors).toEqual([]);
+});
 test('faint 3D disk keeps distinct face-on and steep edge-on silhouettes',async({page})=>{
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');

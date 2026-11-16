@@ -3,7 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {BufferAttribute,BufferGeometry,NormalBlending,ShaderMaterial} from 'three';
 import {galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyGas,type GalaxyGasData} from './galaxy-generators/gas';
-import {createGalaxyGravitySimulation} from './galaxy-gravity';
+import {createGalaxyGravitySimulation,type GalaxyCoreMotion} from './galaxy-gravity';
 
 const vertexShader=String.raw`
 attribute vec3 aColor;
@@ -80,10 +80,11 @@ function oldPosition(old:Previous,index:number,time:number):[number,number,numbe
  * billboards with 3D centers. Gas inherits orbital direction and orbit
  * pivot directly from the selected stellar source points. */
 export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph,morphDuration,
-  progressHost}:{
+  coreMotion,progressHost}:{
   seed:string;options:GalaxySettings;stars:GalaxyData;
   seconds:RefObject<number>;low:boolean;animation:boolean;
   morph:RefObject<boolean>;morphDuration:RefObject<number>;
+  coreMotion?:GalaxyCoreMotion|null;
   progressHost?:RefObject<HTMLDivElement|null>;
 }){
   // Changes to gravity strength change the force, not the generated seed
@@ -93,7 +94,9 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     options.dust,options.clumpiness,
   ]);
   const gravity=useMemo(()=>options.gravityEnabled?
-    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
+    createGalaxyGravitySimulation(data,options,coreMotion):null,[
+    data,options.gravityEnabled,coreMotion,
+  ]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
     buffer.setAttribute('position',new BufferAttribute(

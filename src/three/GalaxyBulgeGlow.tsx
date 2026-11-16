@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {BackSide,Mesh,NormalBlending,ShaderMaterial,Vector3} from 'three';
 import {galaxyAppearance,galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyNucleus} from './galaxy-nucleus';
+import type {GalaxyCoreMotion} from './galaxy-gravity';
 
 // This is an actual ellipsoidal 3D volume, not a flat camera-facing disk.
 // Integrate several Gaussian stellar densities along the camera ray through
@@ -66,9 +67,10 @@ void main(){
 }
 `;
 
-function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDuration}:{
+function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDuration,coreMotion,coreIndex}:{
   pivot:readonly [number,number];axes:readonly [number,number,number];
   angle:number;options:GalaxySettings;seconds:RefObject<number>;
+  coreMotion:GalaxyCoreMotion|null;coreIndex:number;
   animation:boolean;morph:RefObject<boolean>;morphDuration:RefObject<number>;
 }){
   const mesh=useRef<Mesh>(null);
@@ -82,6 +84,12 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
   useFrame(({camera})=>{
     const object=mesh.current;
     if(!object)return;
+    if(coreMotion){
+      coreMotion.advance(seconds.current,options.gravityStrength,options.gravityHalo,
+        options.rotationSpeed);
+      const body=coreMotion.bodies[coreIndex];
+      if(body){object.position.set(body.x,body.y,body.z);object.visible=body.active;}
+    }
     object.updateWorldMatrix(true,false);
     eye.copy(camera.position);
     object.worldToLocal(eye);
@@ -124,10 +132,11 @@ function BulgeVolume({pivot,axes,angle,options,seconds,animation,morph,morphDura
 /** Smooth, unresolved cream-to-ivory stellar bulge.
  * In interacting galaxies each nucleus has its own true 3D ellipsoid. */
 export function GalaxyBulgeGlow({seed,options,stars,low,seconds,animation,morph,morphDuration,
-  progressHost}:{
+  coreMotion,progressHost}:{
   seed:string;options:GalaxySettings;stars:GalaxyData;low:boolean;
   seconds:RefObject<number>;animation:boolean;morph:RefObject<boolean>;
-  morphDuration:RefObject<number>;progressHost?:RefObject<HTMLDivElement|null>;
+  morphDuration:RefObject<number>;coreMotion?:GalaxyCoreMotion|null;
+  progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const nuclei=useMemo(()=>generateGalaxyNucleus(seed,options,low,stars),
     [seed,options.galaxyType,options.radius,low,stars]);
@@ -139,7 +148,7 @@ export function GalaxyBulgeGlow({seed,options,stars,low,seconds,animation,morph,
   const round=options.galaxyType==='elliptical';
   useFrame(()=>{
     if(progressHost?.current){
-      progressHost.current.dataset.galaxyBulgeCount=String(centers.length);
+      progressHost.current.dataset.galaxyBulgeCount=String(coreMotion?.count??centers.length);
       progressHost.current.dataset.galaxyBulgeRepresentation='3d-unresolved-volume';
       // Maintain the existing nucleus diagnostics without rendering grainy
       // nuclear point sprites: their luminosity is now purely volumetric.
@@ -157,6 +166,7 @@ export function GalaxyBulgeGlow({seed,options,stars,low,seconds,animation,morph,
         R*(round?.22:.095)*scale,
       ];
       return <BulgeVolume key={index} pivot={center} axes={axes}
+        coreMotion={coreMotion??null} coreIndex={index}
         angle={orientation+(companion?2.35:0)} options={options}
         seconds={seconds} animation={animation} morph={morph}
         morphDuration={morphDuration}/>;

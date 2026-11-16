@@ -3,6 +3,7 @@ import {useFrame} from '@react-three/fiber';
 import {BackSide,Mesh,NormalBlending,ShaderMaterial,Vector3} from 'three';
 import {galaxyAppearance,galaxyMorphEasing,type GalaxyData,type GalaxySettings} from './galaxy';
 import {generateGalaxyNucleus} from './galaxy-nucleus';
+import type {GalaxyCoreMotion} from './galaxy-gravity';
 
 // A low-surface-brightness three-dimensional stellar disk. Unlike a wide
 // camera-facing glow sprite, it foreshortens to a thin midplane edge-on and
@@ -47,9 +48,10 @@ void main(){
 }
 `;
 
-function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morph,morphDuration}:{
+function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morph,morphDuration,coreMotion,coreIndex,options}:{
   pivot:readonly [number,number];radius:number;thickness:number;
   color:readonly [number,number,number];density:number;
+  coreMotion:GalaxyCoreMotion|null;coreIndex:number;options:GalaxySettings;
   seconds:RefObject<number>;animation:boolean;morph:RefObject<boolean>;
   morphDuration:RefObject<number>;
 }){
@@ -63,6 +65,13 @@ function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morp
   }),[]);
   useFrame(({camera})=>{
     if(!mesh.current)return;
+    if(coreMotion){
+      coreMotion.advance(seconds.current,options.gravityStrength,options.gravityHalo,
+        options.rotationSpeed);
+      const body=coreMotion.bodies[coreIndex];
+      if(body){mesh.current.position.set(body.x,body.y,body.z);
+        mesh.current.visible=body.active;}
+    }
     mesh.current.updateWorldMatrix(true,false);
     eye.copy(camera.position);
     mesh.current.worldToLocal(eye);
@@ -104,10 +113,11 @@ function DiskVolume({pivot,radius,thickness,color,density,seconds,animation,morp
 
 /** Real 3D low-density stellar disk, independent from dense spiral arm stars. */
 export function GalaxyStellarDiskGlow({seed,options,stars,low,seconds,animation,morph,morphDuration,
-  progressHost}:{
+  coreMotion,progressHost}:{
   seed:string;options:GalaxySettings;stars:GalaxyData;low:boolean;
   seconds:RefObject<number>;animation:boolean;morph:RefObject<boolean>;
-  morphDuration:RefObject<number>;progressHost?:RefObject<HTMLDivElement|null>;
+  morphDuration:RefObject<number>;coreMotion?:GalaxyCoreMotion|null;
+  progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const isDisk=['grand_design','barred_spiral','flocculent','interacting'].includes(options.galaxyType);
   const nuclei=useMemo(()=>generateGalaxyNucleus(seed,options,low,stars),
@@ -131,6 +141,7 @@ export function GalaxyStellarDiskGlow({seed,options,stars,low,seconds,animation,
       const factor=companion?Math.max(.35,options.companionSize):1;
       const r=options.radius*(options.galaxyType==='interacting'?.86:1.06)*factor;
       return <DiskVolume key={i} pivot={pivot} radius={r}
+        coreMotion={coreMotion??null} coreIndex={i} options={options}
         thickness={options.radius*.038*factor}
         color={diskColor} density={low?.28:.35}
         seconds={seconds} animation={animation}
