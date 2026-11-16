@@ -3,7 +3,7 @@ import type {GalaxyData,GalaxySettings,GalaxyType} from '../galaxy';
 import {galaxyAngularRate,galaxySpiralSpine} from '../galaxy-motion';
 
 type Random=()=>number;
-type Point={x:number;y:number;z:number;radius:number;core:boolean;cloud:boolean;young:boolean;pink?:boolean;orbitX?:number;orbitY?:number};
+type Point={x:number;y:number;z:number;radius:number;core:boolean;cloud:boolean;young:boolean;pink?:boolean;orbitX?:number;orbitY?:number;orbitHanded?:number};
 type RGB=readonly [number,number,number];
 const TAU=Math.PI*2;
 const COLORS:Record<GalaxySettings['palette'],{old:RGB,disk:RGB,young:RGB,hii:RGB}>={
@@ -99,7 +99,7 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
     return {x:center+Math.cos(angle)*r+gaussian(random)*R*.032,
       y:(which?.16:-.15)*R+Math.sin(angle)*r*(.38+options.tidalStrength*.35)+gaussian(random)*R*.032,
       z:gaussian(random)*R*.014,radius:t,core:false,cloud:false,young:random()<.5,
-      orbitX:center,orbitY:(which?.10:-.12)*R};
+      orbitX:center,orbitY:(which?.10:-.12)*R,orbitHanded:which?-handed:handed};
   }
   const companion=index>=companionStart;
   const local=spinPoint(random,R,2,options.twist,options.armWidth,
@@ -109,6 +109,7 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
   local.y=local.y*s+(companion?R*.10:-R*.12);
   local.orbitX=companion?secondCenter:mainCenter;
   local.orbitY=companion?R*.10:-R*.12;
+  local.orbitHanded=companion?-handed:handed;
   local.z*=s;
   const inner=local.radius<.22;
   local.core=inner&&random()<.55;
@@ -165,7 +166,7 @@ export function generateGalaxyVariant(seed:string,options:GalaxySettings,low:boo
     opacities[i]=p.cloud?.12+random()*.17:.35+random()*.57;
     kinds[i]=p.cloud?1:0;
     cores[i]=p.core?Math.max(.12,Math.pow(Math.max(0,1-p.radius/.25),2)):0;
-    spins[i]=handed*galaxyAngularRate(p.radius)*(type==='elliptical'?.22:1);
+    spins[i]=(p.orbitHanded??handed)*galaxyAngularRate(p.radius)*(type==='elliptical'?.22:1);
     phases[i]=random()*TAU;
   }
   return {count,positions,colors,sizes,spins,phases,cores,opacities,kinds,orbitCenters};
