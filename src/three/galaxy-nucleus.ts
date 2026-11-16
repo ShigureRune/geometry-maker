@@ -19,7 +19,10 @@ export function generateGalaxyNucleus(
 ):GalaxyNucleusData{
   const groups=new Map<string,{x:number;y:number;count:number;spin:number}>();
   for(let i=0;i<stars.count;i++){
-    if(stars.cores[i]<=.12)continue;
+    // Interacting galaxies have two real orbital pivots, even when their
+    // sparse bulge stars report only a small .12 core factor. Group ALL
+    // stellar orbits there, keeping the two main/companion nuclei separate.
+    if(options.galaxyType!=='interacting'&&stars.cores[i]<=.105)continue;
     const x=stars.orbitCenters?.[i*2]??0;
     const y=stars.orbitCenters?.[i*2+1]??0;
     const key=x.toFixed(3)+','+y.toFixed(3);
