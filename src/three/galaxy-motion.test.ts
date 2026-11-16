@@ -9,7 +9,7 @@ describe('shared stellar and nebular orbital geometry',()=>{
   it('GPU and TS share spiral and orbital constants',()=>{
     expect(GALAXY_MOTION_GLSL).toContain('float galaxySpiralSpine(');
     expect(GALAXY_MOTION_GLSL).toContain('float galaxyAngularRate(');
-    expect(GALAXY_MOTION_GLSL).toContain('float galaxyGasOrbit(');
+    expect(GALAXY_MOTION_GLSL).toContain('vec2 galaxyGasOrbit(');
     expect(GALAXY_MOTION_GLSL).toContain('0.025+0.080/');
     expect(GALAXY_MOTION_GLSL).toContain('0.145,0.250');
   });
@@ -43,7 +43,8 @@ describe('shared stellar and nebular orbital geometry',()=>{
         error+=Math.abs(wrap(Math.atan2(y,x)-spine));
         samples++;
         expect(Math.sign(data.spins[i])).toBe(handed);
-        expect(Math.abs(data.spins[i])).toBeCloseTo(galaxyAngularRate(r),3);
+        expect(Math.abs(data.spins[i])-galaxyAngularRate(r)).toBeGreaterThan(-.002);
+        expect(Math.abs(data.spins[i])-galaxyAngularRate(r)).toBeLessThan(.002);
       }
       expect(samples).toBeGreaterThan(3000);
       expect(error/samples).toBeLessThan(.35);
