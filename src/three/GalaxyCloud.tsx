@@ -58,8 +58,8 @@ void main(){
   // original stellar particle into an opaque 52px circle. Gas keeps its
   // independent soft-cloud size rules.
   float close=1.0-smoothstep(1.25,4.0,max(.0,-mvPosition.z));
-  float starMax=mix(52.0,13.0,close);
-  float starMin=mix(1.5,2.3,close);
+  float starMax=mix(52.0,11.5,close);
+  float starMin=mix(1.5,1.9,close);
   // Don't shrink close parent stars into near-invisible subpixels.
   // Keep cloud points and the smooth unresolved bulge unchanged.
   gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,
@@ -94,7 +94,9 @@ void main(){
   float alpha=(vKind>0.5?halo*0.24:(halo*0.29+center*0.92))*min(1.0,vOpacity*1.60);
   // Keep the unresolved inner bulge smooth even under close camera zoom.
   // Outer spiral stars remain individually resolved.
-  alpha*=vKind>0.5?1.0:smoothstep(.62,1.20,vBulgeRadius);
+  // The very center remains a smooth volume. At its *shoulder*, old stars
+  // reappear continuously instead of leaving a missing-star ring.
+  alpha*=vKind>0.5?1.0:smoothstep(.46,1.04,vBulgeRadius);
   if(alpha<0.008)discard;
   // Light per star falls as density increases. More stars in high quality
   // should add DETAIL, not multiply overall exposure by >3x.

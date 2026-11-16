@@ -122,14 +122,24 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
       const ctx=work.getContext('2d',{willReadFrequently:true})!;
       ctx.drawImage(img,0,0,320,240);
       const pixels=ctx.getImageData(0,0,320,240).data;
-      let bright=0,core=0,strong=0;
+      let bright=0,core=0;
       for(let y=0;y<240;y++)for(let x=0;x<320;x++){
         const p=(y*320+x)*4;
-        if(Math.max(pixels[p],pixels[p+1],pixels[p+2])>110)strong++;
         if(pixels[p]+pixels[p+1]+pixels[p+2]>95){
           bright++;
           if(Math.hypot(x-160,y-120)<40)core++;
         }
+      }
+      // Do NOT downsample sharp stellar cores for brightness measurement:
+      // a 2px bright pinpoint at 920x518 becomes a dim subpixel at 320x240.
+      const native=document.createElement('canvas');
+      native.width=img.width;native.height=img.height;
+      const source=native.getContext('2d',{willReadFrequently:true})!;
+      source.drawImage(img,0,0);
+      const raw=source.getImageData(0,0,img.width,img.height).data;
+      let strong=0;
+      for(let p=0;p<raw.length;p+=4){
+        if(Math.max(raw[p],raw[p+1],raw[p+2])>170)strong++;
       }
       return {bright,core,strong};
     }
@@ -142,9 +152,61 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
     .toBeLessThan(450);
   expect(measure.close.bright,'zoom should reveal much denser resolved stars')
     .toBeGreaterThan(measure.distant.bright*4);
-  expect(measure.close.strong,'nearby stars must have visible bright cores, not just faint dots')
-    .toBeGreaterThan(measure.distant.strong+70);
+  expect(measure.close.strong,'nearby stars must have visibly sharp cores at native resolution')
+    .toBeGreaterThan(measure.distant.strong+250);
   expect(shaderErrors).toEqual([]);
+});
+test('deep zoom keeps the stellar disk colorful without a washed-out white field',async({page})=>{
+  await openGalaxy(page);
+  const preview=page.getByTestId('three-preview');
+  const canvas=preview.locator('canvas');
+  await page.getByLabel('3D描画品質').selectOption('high');
+  await page.locator('#galaxy-count').fill('9000');
+  await page.locator('#galaxy-inclination').fill('0');
+  await canvas.hover();
+  await page.mouse.wheel(0,-430);
+  await page.waitForTimeout(350);
+  await mkdir('test-results',{recursive:true});
+  const photo=(await canvas.screenshot({path:'test-results/galaxy-star-color-deep-zoom.png'}))
+    .toString('base64');
+  const sample=await page.evaluate(async b64=>{
+    const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();
+    // Measure at native screen resolution. Resizing ~2px stars to 320x240
+    // falsely removes their colored cores and confuses a warm central bulge
+    // with an entirely monochromatic galaxy.
+    const surface=document.createElement('canvas');
+    surface.width=img.width;surface.height=img.height;
+    const ctx=surface.getContext('2d',{willReadFrequently:true})!;
+    ctx.drawImage(img,0,0);
+    const pixels=ctx.getImageData(0,0,img.width,img.height).data;
+    let bright=0,warm=0,cool=0,pale=0,corner=0,cornerCount=0;
+    for(let y=0;y<img.height;y++)for(let x=0;x<img.width;x++){
+      const p=(y*img.width+x)*4;
+      const red=pixels[p],green=pixels[p+1],blue=pixels[p+2];
+      if(x<img.width*.08&&y<img.height*.08){
+        corner+=(red+green+blue)/3;cornerCount++;
+      }
+      const r=Math.hypot(x/img.width*320-160,y/img.height*240-120);
+      // Preserve the intentionally smooth ivory nuclear core, but check
+      // both the warm inner rim and outer blue/pink stellar arms.
+      if(r<22)continue;
+      const max=Math.max(red,green,blue),min=Math.min(red,green,blue);
+      if(max<65)continue;
+      bright++;
+      if(red>blue+12)warm++;
+      if(blue>red+12)cool++;
+      if(min>190&&max-min<24)pale++;
+    }
+    return {bright,warm,cool,pale,cornerMean:corner/cornerCount};
+  },photo);
+  console.log('GALAXY DEEP ZOOM COLORS',sample);
+  expect(sample.bright,'nearby stars should illuminate the disk').toBeGreaterThan(6000);
+  expect(sample.warm,'old amber stars must survive zoom').toBeGreaterThan(1500);
+  expect(sample.cool,'outer blue stars must survive zoom').toBeGreaterThan(200);
+  expect(sample.cornerMean,'deep zoom must retain dark sky, not uniform beige fog')
+    .toBeLessThan(48);
+  expect(sample.pale/(sample.bright||1),'the disk must not turn into a pale white haze')
+    .toBeLessThan(.30);
 });
 test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await openGalaxy(page);

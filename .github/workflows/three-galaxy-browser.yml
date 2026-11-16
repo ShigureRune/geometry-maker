@@ -33,6 +33,7 @@ jobs:
             test-results/galaxy-exposure-*.png
             test-results/galaxy-nucleus-zoom-high.png
             test-results/galaxy-star-lod-*.png
+            test-results/galaxy-star-color-deep-zoom.png
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v4
