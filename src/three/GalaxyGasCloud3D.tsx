@@ -132,8 +132,12 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uniforms.uEntrance.value=!animation&&time===0?1:galaxyMorphEasing(time/2.6);
     uniforms.uMorphEnabled.value=transitioning.current&&morph.current?1:0;
     uniforms.uMorph.value=phase;
-    // Identical physical-pixel scale for live preview, PNG and video.
-    uniforms.uDpr.value=gl.getDrawingBufferSize(drawingBuffer.current).y/size.height;
+    // Preserve the existing preview sprite sizes at every device DPR.
+    // During PNG/video capture only, scale them proportionally to the
+    // temporary physical framebuffer so the apparent glow does not change.
+    const previewDpr=low?1:Math.min(1.75,Math.max(1,window.devicePixelRatio||1));
+    uniforms.uDpr.value=(low?1:1.45)*
+      gl.getDrawingBufferSize(drawingBuffer.current).y/(size.height*previewDpr);
     // Normal alpha blending, not the unbounded energy of AdditiveBlending.
     uniforms.uEnergy.value=(low?.82:.39)*Math.sqrt(1400/Math.max(650,data.count));
     uniforms.uCoreGlow.value=options.coreGlow/100;
