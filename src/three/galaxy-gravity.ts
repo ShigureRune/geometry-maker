@@ -129,7 +129,16 @@ export function createGalaxyCoreMotion(
     const dt=Math.min(.18,Math.max(0,clock-previousClock))*
       Math.max(0,speed)/.6;
     previousClock=clock;
-    if(dt<1e-6||bodies.length<2||wasMerged)return false;
+    if(dt<1e-6||bodies.length<2)return false;
+    if(wasMerged){
+      // The remnant continues on the pair's conserved center-of-mass
+      // trajectory; merging must not suddenly freeze the luminous nucleus.
+      const a=bodies[0],b=bodies[1];
+      a.x+=a.vx*dt;a.y+=a.vy*dt;a.z+=a.vz*dt;
+      b.x=a.x;b.y=a.y;b.z=a.z;
+      steps++;
+      return true;
+    }
     const parts=Math.max(1,Math.ceil(dt/.035)),h=dt/parts;
     const force=Math.max(.1,Math.min(2.5,strength));
     const haloWeight=Math.max(0,Math.min(2,halo));
