@@ -13,7 +13,7 @@ attribute float aSpin;
 attribute float aPhase;
 attribute float aCore;
 attribute vec2 aOrbitCenter;
-uniform float uTime,uRotationSpeed,uEntrance,uMorph,uMorphEnabled,uDpr;
+uniform float uTime,uRotationSpeed,uEntrance,uMorph,uMorphEnabled,uDpr,uExportScale;
 varying vec3 vColor;
 varying float vOpacity;
 varying float vPhase;
@@ -30,7 +30,7 @@ void main(){
   vec4 view=modelViewMatrix*vec4(point,1.);
   gl_Position=projectionMatrix*view;
   float distanceScale=clamp(19./max(.5,-view.z),.45,2.0);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale,3.,76.);
+  gl_PointSize=clamp(aSize*uDpr*distanceScale,3.,76.)*uExportScale;
   vColor=aColor;
   vOpacity=aOpacity*(uMorphEnabled>.5?blend:uEntrance);
   vPhase=aPhase;
@@ -49,18 +49,18 @@ void main(){
   vec2 p=gl_PointCoord*2.-1.;
   float d=dot(p,p);
   if(d>1.)discard;
-  // Slightly asymmetric, wispy cloud boundaries instead of hard circles.
-  float filaments=.80+
-    .12*sin(p.x*13.+vPhase)*sin(p.y*11.-vPhase*1.9)+
-    .08*sin(p.x*27.-vPhase*.6)*sin(p.y*21.+vPhase);
-  float cloud=exp(-d*3.7)*pow(max(0.,1.-d),1.7)*filaments;
+  // No high-contrast sine stripes or hard cloud boundaries: these created
+  // visible individual "cotton balls" on the galaxy arms.
+  // A softly offset Gaussian lets thousands of 3D wisps overlap smoothly.
+  float asymmetry=.93+.07*sin(p.x*4.4+vPhase)*sin(p.y*4.6-vPhase);
+  float cloud=exp(-d*2.35)*(1.-smoothstep(.52,1.,d))*asymmetry;
   // Rebuild the bright nucleus with many truly 3D soft cloudlets, not
   // another flat disk. The center-glow slider only amplifies nearby cores.
   float nucleus=vCore*uCoreGlow;
-  float alpha=clamp(vOpacity*cloud*uEnergy*(1.+2.8*nucleus),0.,.40);
+  float alpha=clamp(vOpacity*cloud*uEnergy*(1.+1.75*nucleus),0.,.22);
   if(alpha<.003)discard;
   vec3 rgb=mix(vColor,vec3(1.,.81,.59),min(.30,nucleus*.16));
-  gl_FragColor=vec4(rgb*(.85+.22*filaments),alpha);
+  gl_FragColor=vec4(rgb,alpha);
 }
 `;
 type Previous={seed:string;data:GalaxyGasData;rotationSpeed:number};
@@ -105,6 +105,7 @@ export function GalaxyGasCloud3D({seed,options,stars,seconds,low,animation,morph
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uDpr:{value:1},uEnergy:{value:1},uCoreGlow:{value:options.coreGlow/100},
+    uExportScale:{value:1},
   }),[]);
   useLayoutEffect(()=>{
     const prior=previous.current;
