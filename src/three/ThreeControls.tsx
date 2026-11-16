@@ -205,6 +205,24 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={dust=>onChange({...settings,galaxy:{...galaxy,dust}})}/>
         <ThreeRange id="galaxy-spin" label="銀河の回転速度" value={galaxy.rotationSpeed} min={0} max={2} step={.1}
           onChange={rotationSpeed=>onChange({...settings,galaxy:{...galaxy,rotationSpeed}})}/>
+        <label className="three-checkbox"><input id="galaxy-gravity-enabled"
+          type="checkbox" aria-label="銀河の重力シミュレーションを有効化"
+          checked={galaxy.gravityEnabled}
+          onChange={event=>onChange({...settings,galaxy:{
+            ...galaxy,gravityEnabled:event.target.checked}})}/>
+          <strong>重力シミュレーション（試作）</strong>
+        </label>
+        {galaxy.gravityEnabled&&<>
+          <ThreeRange id="galaxy-gravity-strength" label="重力の強さ"
+            value={galaxy.gravityStrength} min={.1} max={2.5} step={.1}
+            onChange={gravityStrength=>onChange({...settings,galaxy:{
+              ...galaxy,gravityStrength}})}/>
+          <ThreeRange id="galaxy-gravity-halo" label="暗黒物質ハローの強さ"
+            value={galaxy.gravityHalo} min={0} max={2} step={.1}
+            onChange={gravityHalo=>onChange({...settings,galaxy:{
+              ...galaxy,gravityHalo}})}/>
+          <HelpInfo>星とガスが中心バルジと暗黒物質ハローの重力場を受け、時間とともに軌道が変化します。相互作用銀河では2つの重力源を使用します。完全N体計算ではなく、各星の相互重力は省いた軽量な近似です。再生・停止や重力パラメーターで動きが変わり、OFFにすると元の銀河表示に戻ります。</HelpInfo>
+        </>}
         <label htmlFor="galaxy-palette">銀河の色テーマ</label>
         <select id="galaxy-palette" value={galaxy.palette}
           onChange={event=>onChange({...settings,galaxy:{...galaxy,palette:event.target.value as GalaxyPalette}})}>

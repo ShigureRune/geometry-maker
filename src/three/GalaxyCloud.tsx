@@ -5,6 +5,7 @@ import {GalaxyGasCloud3D} from './GalaxyGasCloud3D';
 import {GalaxyDetailStars} from './GalaxyDetailStars';
 import {GalaxyStellarDiskGlow} from './GalaxyStellarDiskGlow';
 import {GalaxyBulgeGlow} from './GalaxyBulgeGlow';
+import {createGalaxyGravitySimulation} from './galaxy-gravity';
 import {
   galaxyAppearance,galaxyDefaults,galaxyMorphEasing,generateGalaxy,
   type GalaxyData,type GalaxySettings,
@@ -23,6 +24,7 @@ attribute float aOpacity;
 attribute vec2 aOrbitCenter;
 uniform float uTime;
 uniform float uRotationSpeed;
+uniform float uGravityEnabled;
 uniform float uEntrance;
 uniform float uMorph;
 uniform float uMorphEnabled;
@@ -40,7 +42,8 @@ void main(){
   float spin=aSpin*uRotationSpeed*uTime;
   float c=cos(spin),s=sin(spin);
   vec2 local=position.xy-aOrbitCenter;
-  vec3 target=vec3(aOrbitCenter.x+local.x*c-local.y*s,
+  vec3 target=uGravityEnabled>.5?position:vec3(
+    aOrbitCenter.x+local.x*c-local.y*s,
     aOrbitCenter.y+local.x*s+local.y*c,position.z);
   float fade=uMorphEnabled>0.5?uMorph:1.0;
   vec3 spiral=vec3(cos(aPhase+uMorph*9.0),sin(aPhase+uMorph*9.0),0.0)*
@@ -73,7 +76,8 @@ void main(){
   // Interacting companion stars have their own smaller bulge and angle.
   float companion=uInteracting>.5&&aOrbitCenter.x>0.0?uCompanionScale:1.0;
   float axisAngle=uBulgeRotation+(companion<.999?2.35:0.0);
-  vec2 orbitLocal=vec2(local.x*c-local.y*s,local.x*s+local.y*c);
+  vec2 orbitLocal=uGravityEnabled>.5?local:
+    vec2(local.x*c-local.y*s,local.x*s+local.y*c);
   vec2 aligned=vec2(orbitLocal.x*cos(axisAngle)+orbitLocal.y*sin(axisAngle),
     -orbitLocal.x*sin(axisAngle)+orbitLocal.y*cos(axisAngle));
   vBulgeRadius=length(aligned/max(vec2(.001),vec2(uBulgeX,uBulgeY)*companion));
@@ -165,8 +169,11 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     options.clumpiness,options.branchiness,options.irregularity,
     options.companionDistance,options.companionSize,options.tidalStrength,
   ]);
+  const gravity=useMemo(()=>options.gravityEnabled?
+    createGalaxyGravitySimulation(data,options):null,[data,options.gravityEnabled]);
   const uniforms=useMemo(()=>({
     uTime:{value:0},uRotationSpeed:{value:options.rotationSpeed},
+    uGravityEnabled:{value:0},
     uEntrance:{value:1},uMorph:{value:1},uMorphEnabled:{value:0},
     uGlow:{value:options.coreGlow/100},uDpr:{value:1},
     uStarEnergy:{value:1},
@@ -178,7 +185,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
   }),[]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
-    buffer.setAttribute('position',new BufferAttribute(data.positions,3));
+    buffer.setAttribute('position',new BufferAttribute(
+      gravity?gravity.positions:data.positions,3));
     buffer.setAttribute('aColor',new BufferAttribute(data.colors,3));
     buffer.setAttribute('aSize',new BufferAttribute(data.sizes,1));
     buffer.setAttribute('aSpin',new BufferAttribute(data.spins,1));
@@ -193,7 +201,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     buffer.setAttribute('aFrom',new BufferAttribute(new Float32Array(data.positions),3));
     buffer.setAttribute('aFromColor',new BufferAttribute(new Float32Array(data.colors),3));
     return buffer;
-  },[data]);
+  },[data,gravity]);
   useEffect(()=>()=>geometry.dispose(),[geometry]);
   const last=useRef<SceneSnapshot|null>(null);
   const isMorph=useRef(false),morphDuration=useRef(options.transitionSeconds);
@@ -204,10 +212,15 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     const probeClock=import.meta.env.DEV&&progressHost?.current
       ?Number(progressHost.current.dataset.galaxyMotionClock):NaN;
     const time=Number.isFinite(probeClock)?probeClock:seconds.current;
+    if(gravity?.advance(time,options.gravityStrength,options.gravityHalo,
+      options.rotationSpeed)){
+      (geometry.getAttribute('position') as BufferAttribute).needsUpdate=true;
+    }
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
+    uniforms.uGravityEnabled.value=gravity?1:0;
     uniforms.uEntrance.value=!settings.animation&&time===0?1:galaxyMorphEasing(time/2.6);
-    uniforms.uMorphEnabled.value=isMorph.current?1:0;
+    uniforms.uMorphEnabled.value=gravity?0:isMorph.current?1:0;
     uniforms.uMorph.value=galaxyMorphEasing(time/Math.max(.001,morphDuration.current));
     uniforms.uGlow.value=options.coreGlow/100;
     const flat=options.galaxyType==='ring'?.75:1;
@@ -233,6 +246,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     if(gpu){
       gpu.uTime.value=time;
       gpu.uRotationSpeed.value=options.rotationSpeed;
+      gpu.uGravityEnabled.value=gravity?1:0;
       gpu.uEntrance.value=uniforms.uEntrance.value;
       gpu.uMorph.value=uniforms.uMorph.value;
       gpu.uMorphEnabled.value=uniforms.uMorphEnabled.value;
@@ -249,6 +263,12 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyGasOnlyProbe=gasOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyStarsOnlyProbe=starsOnlyProbe?'true':'false';
       progressHost.current.dataset.galaxyDetailOnlyProbe=detailOnlyProbe?'true':'false';
+      progressHost.current.dataset.galaxyGravityMode=gravity?'on':'off';
+      progressHost.current.dataset.galaxyGravityModel=gravity?'softened-bulge-halo':'analytic-orbits';
+      progressHost.current.dataset.galaxyGravityTime=gravity?gravity.time.toFixed(3):'0.000';
+      progressHost.current.dataset.galaxyGravitySteps=String(gravity?.steps??0);
+      progressHost.current.dataset.galaxyGravityDrift=gravity?gravity.meanDrift().toFixed(5):'0.00000';
+      progressHost.current.dataset.galaxyGravitySources=String(gravity?.attractors.length??0);
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
       progressHost.current.dataset.galaxyStarMaterialTime=Number(
         material.current?.uniforms.uTime.value??-1).toFixed(3);
@@ -258,7 +278,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
         Math.min(1,time/morphDuration.current).toFixed(3):'1.000';
     }
   },[seconds,uniforms,data.count,options.galaxyType,options.rotationSpeed,options.coreGlow,options.radius,
-    options.barred,options.companionSize,bulgeOrientation,low,settings.animation,progressHost]);
+    options.barred,options.companionSize,options.gravityStrength,options.gravityHalo,
+    bulgeOrientation,low,settings.animation,progressHost,gravity,geometry]);
   useLayoutEffect(()=>{
     const previous=last.current;
     if(previous&&previous.seed!==seed&&options.seedTransition&&settings.animation){
@@ -276,7 +297,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       (geometry.getAttribute('aFromColor') as BufferAttribute).needsUpdate=true;
       isMorph.current=true;
       morphDuration.current=transitionDuration??options.transitionSeconds;
-    }else if(previous?.seed!==seed || previous?.restartKey!==restartKey){
+    }else if(previous?.seed!==seed || previous?.restartKey!==restartKey || gravity){
       isMorph.current=false;
     }
     last.current={
@@ -287,7 +308,7 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     };
     update();
   },[seed,restartKey,data,geometry,options.rotationSpeed,options.seedTransition,options.transitionSeconds,
-    settings.animation,transitionDuration,seconds,update]);
+    settings.animation,transitionDuration,seconds,update,gravity]);
   useFrame(update);
   return <group rotation={[options.inclination*Math.PI/180,0,0]}>
     <group visible={!starsOnlyProbe&&!gasOnlyProbe&&!detailOnlyProbe}>

@@ -21,9 +21,20 @@ describe('GALAXY MODE',()=>{
     for(const value of [{count:30001},{count:Infinity},{arms:1},{arms:9},{palette:'unknown'},{radius:100},{coreGlow:-1},{seedTransition:'yes'},
       {armWidth:0},{armWidth:3},{inclination:-1},{inclination:80},{barred:'yes'},{darkBackground:'bad'},
       {galaxyType:'banana'},{ringRadius:1},{ringWidth:0},{ellipticity:2},{clumpiness:-1},
-      {branchiness:2},{irregularity:5},{companionDistance:5},{companionSize:2},{tidalStrength:2}]){
+      {branchiness:2},{irregularity:5},{companionDistance:5},{companionSize:2},{tidalStrength:2},
+      {gravityEnabled:'yes'},{gravityStrength:0},{gravityStrength:3},{gravityHalo:-1},
+      {gravityHalo:3}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
+  });
+  it('loads legacy saved galaxies with gravity disabled',()=>{
+    const old={...galaxyDefaults} as Partial<typeof galaxyDefaults>;
+    delete old.gravityEnabled;
+    delete old.gravityStrength;
+    delete old.gravityHalo;
+    expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
+    const enabled={...galaxyDefaults,gravityEnabled:true,gravityStrength:2,gravityHalo:.4};
+    expect(validateGalaxySettings(enabled)).toEqual(enabled);
   });
   it('generates identical data for the same seed and settings',()=>{
     const a=generateGalaxy('spiral-seed',galaxyDefaults,false);
