@@ -14,6 +14,7 @@ export type GalaxyGasData={
   spins:Float32Array;
   phases:Float32Array;
   orbitCenters:Float32Array;
+  coreFactors:Float32Array; // per-cloud nuclear contribution, kept in 3D
 };
 
 const gaussian=(random:()=>number)=>
@@ -56,6 +57,7 @@ export function generateGalaxyGas(
   const sizes=new Float32Array(count),opacities=new Float32Array(count);
   const spins=new Float32Array(count),phases=new Float32Array(count);
   const orbitCenters=new Float32Array(count*2);
+  const coreFactors=new Float32Array(count);
   const type=options.galaxyType;
   const R=options.radius;
   const palette=galaxyAppearance(seed,options.palette).colors;
@@ -63,16 +65,29 @@ export function generateGalaxyGas(
     type==='irregular'?.12:type==='interacting'?.085:.090;
   const spread=type==='elliptical'?.08:type==='irregular'?.056:
     type==='flocculent'?.038:type==='ring'?.024:.029;
+  // The retired flat gas plane used to fill the galactic nucleus. With
+  // genuinely 3D gas that fill must come from real cloudlets instead.
+  // Prefer some of the ORIGINAL stellar nuclei so both galaxies in an
+  // interacting pair retain their own cores and orbit pivots.
+  const nucleusStars:number[]=[];
+  for(let j=0;j<stars.count;j++){
+    if(stars.cores[j]>.12)nucleusStars.push(j);
+  }
+  const coreShare=type==='ring'?.09:type==='irregular'?.11:
+    type==='elliptical'?.28:type==='interacting'?.25:.24;
   let anchor=0,remaining=0,cloudGroup=0;
   for(let i=0;i<count;i++){
     if(remaining<=0){
-      anchor=pickStar(r,stars,options);
+      anchor=nucleusStars.length&&r()<coreShare
+        ?nucleusStars[Math.floor(r()*nucleusStars.length)]
+        :pickStar(r,stars,options);
       remaining=3+Math.floor(r()*10);
       cloudGroup=r();
     }
     remaining--;
     const source=anchor*3,pos=i*3,center=i*2;
-    const isCore=stars.cores[anchor]>.16;
+    const isCore=stars.cores[anchor]>.12;
+    coreFactors[i]=isCore?Math.min(1,stars.cores[anchor]*1.35):0;
     const isElliptical=type==='elliptical';
     const isPink=!isElliptical&&!isCore&&(r()<(.10+options.clumpiness*.13));
     const base=isCore?palette.bulge:isElliptical?palette.disk:
@@ -91,11 +106,11 @@ export function generateGalaxyGas(
     orbitCenters[center+1]=stars.orbitCenters?.[anchor*2+1]??0;
     spins[i]=stars.spins[anchor];
     phases[i]=r()*Math.PI*2;
-    sizes[i]=(isElliptical?10:12)+(r()*16)+(cloudGroup*.6*8);
-    const typeOpacity=isElliptical?.24:type==='irregular'?.70:.90;
+    sizes[i]=(isCore?18:isElliptical?10:12)+(r()*16)+(cloudGroup*.6*8);
+    const typeOpacity=isElliptical?.42:type==='irregular'?.70:.90;
     opacities[i]=(.12+r()*.26)*typeOpacity*
-      (isCore?.60:1)*
+      (isCore?.95:1)*
       (1-options.dust/145)*(.78+cloudGroup*.44);
   }
-  return {count,positions,colors,sizes,opacities,spins,phases,orbitCenters};
+  return {count,positions,colors,sizes,opacities,spins,phases,orbitCenters,coreFactors};
 }
