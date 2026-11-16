@@ -56,7 +56,13 @@ void main(){
   vec3 ivory=vec3(1.0,1.0,0.99);
   vec3 color=mix(amber,cream,smoothstep(0.10,0.75,warmth));
   color=mix(color,ivory,smoothstep(0.55,1.0,warmth));
-  gl_FragColor=vec4(color,alpha);
+  // Standard RGB 1.0 is only ~224 in the high-quality HDR OutputPass.
+  // Apply HDR intensity to the tiny *unresolved* ivory core alone; the
+  // warm ellipsoid and colorful arms stay below the clipping threshold.
+  float centralFraction=white/(inner+0.02);
+  float localized=smoothstep(0.18,0.45,centralFraction);
+  float hdr=1.0+3.0*localized*clamp(uWhiteCore/10.0,0.0,1.0);
+  gl_FragColor=vec4(color*hdr,alpha);
 }
 `;
 
