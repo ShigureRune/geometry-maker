@@ -57,10 +57,12 @@ export function generateGalaxyNucleus(
       const hot=j<Math.floor(perCore*.66);
       // A near-unresolved white-hot center surrounded by a gentle warm bulge.
       // Both distributions have actual Z depth and orbit their own nucleus.
-      const spread=options.radius*(hot?.026:.112);
+      // Expand the bright white nucleus to five times its former radius, while
+      // retaining a wider, much fainter warm envelope.
+      const spread=options.radius*(hot?.130:.190);
       positions[p]=pivot.x+gaussian(random)*spread;
       positions[p+1]=pivot.y+gaussian(random)*spread;
-      positions[p+2]=gaussian(random)*options.radius*(hot?.020:.045);
+      positions[p+2]=gaussian(random)*options.radius*(hot?.065:.075);
       orbitCenters[q]=pivot.x;orbitCenters[q+1]=pivot.y;
       const variation=.83+random()*.34;
       colors[p]=(hot?1.45:1.04)*variation;
