@@ -26,7 +26,10 @@ describe('GALAXY MODE',()=>{
       {gravityHalo:3},{movingCoresEnabled:'yes'},
       {coreApproachSpeed:-1},{coreApproachSpeed:3},{coreImpactParameter:-1},
       {coreImpactParameter:2},{coreMergeDistance:0},{coreMergeDistance:.9},
-      {coreFriction:-.1},{coreFriction:3},{tidalDynamicsEnabled:'yes'}]){
+      {coreFriction:-.1},{coreFriction:3},{tidalDynamicsEnabled:'yes'},
+      {selfGravityEnabled:'yes'},{selfGravityStrength:-.1},
+      {selfGravityStrength:2.1},{selfGravitySamples:255},
+      {selfGravitySamples:2049}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
   });
@@ -41,6 +44,9 @@ describe('GALAXY MODE',()=>{
     delete old.coreMergeDistance;
     delete old.coreFriction;
     delete old.tidalDynamicsEnabled;
+    delete old.selfGravityEnabled;
+    delete old.selfGravityStrength;
+    delete old.selfGravitySamples;
     expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
     const mobile={...galaxyDefaults,gravityEnabled:true,movingCoresEnabled:true,
       galaxyType:'interacting' as const,coreApproachSpeed:1.25,
@@ -48,6 +54,9 @@ describe('GALAXY MODE',()=>{
     expect(validateGalaxySettings(mobile)).toEqual(mobile);
     const enabled={...galaxyDefaults,gravityEnabled:true,gravityStrength:2,gravityHalo:.4};
     expect(validateGalaxySettings(enabled)).toEqual(enabled);
+    const nbody={...enabled,selfGravityEnabled:true,
+      selfGravityStrength:1.5,selfGravitySamples:1536};
+    expect(validateGalaxySettings(nbody)).toEqual(nbody);
   });
   it('only the new tidal mode removes decorative prebuilt tails from initial galaxy disks',()=>{
     const options={...galaxyDefaults,galaxyType:'interacting' as const,
