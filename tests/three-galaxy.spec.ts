@@ -6,9 +6,9 @@ async function category(page:Page,name:string){
   const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
   if(await button.getAttribute('aria-expanded')!=='true')await button.click();
 }
-async function openGalaxy(page:Page,gasOnly=false){
+async function openGalaxy(page:Page,gasOnly=false,starsOnly=false){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto(gasOnly?'./?galaxyGasOnly=1':'./');
+  await page.goto(gasOnly?'./?galaxyGasOnly=1':starsOnly?'./?galaxyStarsOnly=1':'./');
   await page.getByLabel('シード値',{exact:true}).fill('galaxy-ci');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -128,6 +128,48 @@ test('all seven galaxies render distinct 3D silhouettes and have type-specific c
   expect(shaders).toEqual([]);
   expect(errors).toEqual([]);
 });
+test('stellar arm particles independently orbit, pause and stop at zero speed',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  const shaders:string[]=[];page.on('console',msg=>{
+    if(msg.type()==='error'&&/shader error|shader compile|webglprogram/i.test(msg.text()))
+      shaders.push(msg.text());
+  });
+  await openGalaxy(page,false,true);
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-galaxy-stars-only-probe','true');
+  await page.locator('#galaxy-spin').fill('2');
+  await category(page,'アニメーション');
+  await page.getByLabel('3Dアニメーションを有効化').check();
+  await page.waitForTimeout(2900);
+  await page.getByRole('button',{name:'3Dを一時停止'}).click();
+  await category(page,'図形');
+  await page.waitForTimeout(120);
+  const t0=Number(await preview.getAttribute('data-galaxy-star-time'));
+  const frozen=await preview.locator('canvas').screenshot();
+  await page.waitForTimeout(220);
+  expect((await preview.locator('canvas').screenshot()).equals(frozen),
+    'stars must freeze on pause').toBe(true);
+  expect(Number(await preview.getAttribute('data-galaxy-star-time'))).toBe(t0);
+  await category(page,'アニメーション');
+  await page.getByRole('button',{name:'3Dを再生'}).click();
+  await category(page,'図形');
+  await page.waitForTimeout(800);
+  const t1=Number(await preview.getAttribute('data-galaxy-star-time'));
+  expect(t1).toBeGreaterThan(t0+.1);
+  expect(Number(await preview.getAttribute('data-galaxy-star-material-time'))).toBeGreaterThan(t0+.1);
+  const moved=await preview.locator('canvas').screenshot();
+  expect(moved.equals(frozen),'the star-only GPU image must actually rotate').toBe(false);
+  await page.locator('#galaxy-spin').fill('0');
+  await expect(preview).toHaveAttribute('data-galaxy-star-material-time',/^\d+\.\d{3}$/);
+  await page.waitForTimeout(180);
+  const stopped=await preview.locator('canvas').screenshot();
+  await page.waitForTimeout(420);
+  expect((await preview.locator('canvas').screenshot()).equals(stopped),
+    'zero spin must freeze the star image while the scene clock advances').toBe(true);
+  expect(shaders).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test('luminous gas itself moves in all seven galaxy types and freezes when paused',async({page})=>{
   test.setTimeout(225_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));

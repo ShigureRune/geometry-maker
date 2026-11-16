@@ -2,6 +2,7 @@ import {useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {AdditiveBlending,DoubleSide,ShaderMaterial,Vector3} from 'three';
 import {GALAXY_TYPES,galaxyAppearance,galaxyMorphEasing,type GalaxySettings} from './galaxy';
+import {GALAXY_MOTION_GLSL} from './galaxy-motion';
 
 const vertexShader=String.raw`
 varying vec2 vLocal;
@@ -21,7 +22,7 @@ uniform float uOldOrientation,uOldHanded,uOldArms,uOldTwist,uOldWidth,uOldDust,u
 uniform vec3 uOldBulge,uOldDisk,uOldYoung,uOldHii;
 uniform float uOldType,uOldTidal;
 uniform vec4 uOldExtraA,uOldExtraB;
-const float TAU=6.28318530718;
+${GALAXY_MOTION_GLSL}
 float hash(vec2 p){
   p=fract(p*vec2(123.34,345.45));
   p+=dot(p,p+34.345);
@@ -36,18 +37,6 @@ float noise(vec2 p){
 float angleDelta(float a,float b){
   return atan(sin(a-b),cos(a-b));
 }
-// Inverse orbital advection: sampling the luminous gas at an earlier
-// angle makes the rendered clouds orbit forward with the stars. All
-// morphology branches must use this local coordinate, not static UVs.
-vec2 counterRotate(vec2 p,float angle){
-  float c=cos(angle),s=sin(angle);
-  return vec2(p.x*c+p.y*s,-p.x*s+p.y*c);
-}
-vec2 gasOrbit(vec2 p,float handed,float time,float speed){
-  float radius=length(p);
-  float angularSpeed=(.025+.08/(.40+radius*1.5));
-  return counterRotate(p,handed*time*speed*angularSpeed);
-}
 // Two additional, softly blended octaves break up the synthetic smooth
 // ribbons without hard pixel edges or randomly flickering each frame.
 float cloudNoise(vec2 p){
@@ -58,8 +47,7 @@ float swirlingArm(vec2 p,float orientation,float handed,float twist,float width)
   float r=max(.17,length(p)),theta=atan(p.y,p.x);
   float peak=0.0;
   for(int j=0;j<2;j++){
-    float spiral=orientation+float(j)*3.14159265+
-      handed*(1.65+twist*.35)*log(r/.16);
+    float spiral=galaxySpiralSpine(r,float(j),2.,orientation,handed,twist,0.0);
     float d=atan(sin(theta-spiral),cos(theta-spiral));
     peak=max(peak,exp(-.68*pow(d/max(.04,width*(.11+.24*r)),2.)));
   }
@@ -73,7 +61,9 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   if(r>1.25)return vec4(0.);
   // Shared gas/stellar clock. A paused scene keeps uTime fixed; PNG and
   // video export set that same clock deterministically per captured frame.
-  vec2 gasP=gasOrbit(p,handed,uTime,uRotationSpeed);
+  // Elliptical populations rotate slowly in BOTH particle and diffuse layers.
+  float orbitalFactor=galaxyType>3.5&&galaxyType<4.5?.22:1.0;
+  vec2 gasP=galaxyGasOrbit(p,handed,uTime,uRotationSpeed*orbitalFactor);
   // 3:ring 4:elliptical 5:irregular 6:interacting.
   // Separate morphology functions are vital: a ring should NOT inherit
   // luminous spiral arms from the default galaxy.
@@ -124,8 +114,12 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
     float gap=extraB.z,companion=max(.25,extraB.w);
     // Each galaxy's luminous arms rotate around its OWN core; rotating
     // all gas about the midpoint would drag the companion nucleus away.
-    vec2 first=gasOrbit(p-vec2(-gap*.36,-.12),handed,uTime,uRotationSpeed);
-    vec2 second=gasOrbit((p-vec2(gap*.60,.10))/companion,handed,uTime,uRotationSpeed);
+    // The primary stellar disk is scaled to 0.67 of the scene radius;
+    // use the SAME local coordinates to align gas with its stellar arms.
+    vec2 first=galaxyGasOrbit((p-vec2(-gap*.36,-.12))/.67,
+      handed,uTime,uRotationSpeed);
+    vec2 second=galaxyGasOrbit((p-vec2(gap*.60,.10))/companion,
+      handed,uTime,uRotationSpeed);
     float ga=exp(-pow(length(first)/.20,1.4));
     float gb=exp(-pow(length(second)/.24,1.5));
     float armsA=swirlingArm(first,orientation,handed,twist,width);
@@ -159,18 +153,16 @@ vec4 galaxyLight(vec2 p,float orientation,float handed,float arms,float twist,
   // Stationary p here would leave bright patches glued to the screen.
   float angle=atan(gasP.y,gasP.x);
   float rSafe=max(mix(.145,.25,barred),r);
-  float winding=handed*(1.65+twist*.35)*log(rSafe/mix(.145,.25,barred));
   float armsBrightness=0.0;
   float filaments=0.0;
   float lane=0.0;
   for(int j=0;j<8;j++){
     if(float(j)<arms){
       float a=float(j);
-      float feather=.065*sin(rSafe*19.0+a*3.4+orientation)+
-        .027*sin(rSafe*44.0+a*2.7);
-      float spine=orientation+TAU*a/arms+winding+feather;
+      // The GPU compiles the exact TS stellar spine constants.
+      float spine=galaxySpiralSpine(rSafe,a,arms,orientation,handed,twist,barred);
       float gap=abs(angleDelta(angle,spine));
-      float sw=(.17+r*.29)*width;
+      float sw=(.095+r*.205)*width;
       armsBrightness=max(armsBrightness,exp(-.68*pow(gap/max(sw,.02),2.)));
       float narrow=abs(angleDelta(angle,spine+handed*(.035+.02*r)));
       filaments=max(filaments,exp(-2.55*pow(narrow/max(sw,.02),2.)));
