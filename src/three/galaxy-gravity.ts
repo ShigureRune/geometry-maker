@@ -55,6 +55,12 @@ export type GalaxyGravitySimulation={
   attractors:readonly GravityAttractor[];
   time:number;
   steps:number;
+  /** 1 for a dynamically stripped particle, 0 for a bound disk tracer. */
+  tidalFlags:Float32Array;
+  readonly tidalEnabled:boolean;
+  readonly tidalStrippedCount:number;
+  readonly tidalTailExtent:number;
+  readonly tidalBridgeCount:number;
   advance:(clock:number,strength:number,halo:number,rotationSpeed:number)=>boolean;
   reset:()=>void;
   meanDrift:()=>number;
@@ -267,6 +273,13 @@ export function createGalaxyGravitySimulation(
   const count=Math.floor(initial.length/3);
   const centers=coreMotion?.bodies??galaxyGravityAttractors(tracers,options);
   const orbitCenters=tracers.orbitCenters;
+  const tidalEnabled=!!(options.tidalDynamicsEnabled&&coreMotion&&
+    options.galaxyType==='interacting'&&coreMotion.bodies.length===2);
+  const tidalFlags=new Float32Array(count);
+  const originalRadii=new Float32Array(count);
+  const hostIndices=new Uint8Array(count);
+  const tideScale=tidalEnabled?Math.min(1.6,options.tidalStrength/.65):0;
+  let tidalStrippedCount=0,tidalTailExtent=0,tidalBridgeCount=0;
   // Initialize a physically supported near-circular orbital velocity in the
   // *same trailing direction* as the existing analytic galaxy animation.
   // Slight deterministic epicycles make the gravity effect visible over time.
@@ -275,18 +288,25 @@ export function createGalaxyGravitySimulation(
     const x=initial[j],y=initial[j+1],z=initial[j+2];
     const cx=orbitCenters?.[k]??0,cy=orbitCenters?.[k+1]??0;
     const dx=x-cx,dy=y-cy,r=Math.max(options.radius*.035,Math.hypot(dx,dy));
-    const own=centers.reduce((best,center)=>
-      Math.hypot(cx-center.x,cy-center.y)<
-        Math.hypot(cx-best.x,cy-best.y)?center:best,centers[0]);
+    const host=centers.length>1&&
+      Math.hypot(cx-centers[1].x,cy-centers[1].y)<
+        Math.hypot(cx-centers[0].x,cy-centers[0].y)?1:0;
+    hostIndices[i]=host;
+    originalRadii[i]=Math.hypot(dx,dy);
+    const own=centers[host];
     const r2=r*r;
     const v2=r2*galaxyGravitySourceStrength(own,r2,options.radius);
     const speed=Math.sqrt(Math.max(0,v2))*
       (1+.07*Math.sin(i*1.733+z*3.17));
     const sign=Math.sign(tracers.spins[i]||1);
     const radial=.026*Math.cos(i*2.11+z);
-    velocities[j]=-sign*dy/r*speed+radial*dx/r*speed;
-    velocities[j+1]=sign*dx/r*speed+radial*dy/r*speed;
-    velocities[j+2]=-.02*z;
+    // The stellar disk must inherit its parent's bulk orbital velocity:
+    // without this the glowing nucleus flies off while its own stars lag
+    // behind, and a physical tidal bridge never forms coherently.
+    const mobile=tidalEnabled?coreMotion?.bodies[host]:undefined;
+    velocities[j]=-sign*dy/r*speed+radial*dx/r*speed+(mobile?.vx??0);
+    velocities[j+1]=sign*dx/r*speed+radial*dy/r*speed+(mobile?.vy??0);
+    velocities[j+2]=-.02*z+(mobile?.vz??0);
   }
   const initialVelocities=new Float32Array(velocities);
   function accelerationAt(strength:number,haloWeight:number){
