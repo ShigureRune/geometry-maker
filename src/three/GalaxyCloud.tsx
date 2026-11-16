@@ -58,8 +58,12 @@ void main(){
   // original stellar particle into an opaque 52px circle. Gas keeps its
   // independent soft-cloud size rules.
   float close=1.0-smoothstep(1.25,4.0,max(.0,-mvPosition.z));
-  float starMax=mix(52.0,10.0,close);
-  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,1.5,
+  float starMax=mix(52.0,13.0,close);
+  float starMin=mix(1.5,2.3,close);
+  // Don't shrink close parent stars into near-invisible subpixels.
+  // Keep cloud points and the smooth unresolved bulge unchanged.
+  gl_PointSize=clamp(aSize*uDpr*distanceScale*2.65,
+    aKind>0.5?1.5:starMin,
     aKind>0.5?52.0:starMax)*uExportScale;
   vColor=mix(aFromColor,aColor,fade);
   vCore=aCore;
