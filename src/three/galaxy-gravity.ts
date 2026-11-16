@@ -55,6 +55,12 @@ export type GalaxyGravitySimulation={
   attractors:readonly GravityAttractor[];
   time:number;
   steps:number;
+  /** 1 for a dynamically stripped particle, 0 for a bound disk tracer. */
+  tidalFlags:Float32Array;
+  readonly tidalEnabled:boolean;
+  readonly tidalStrippedCount:number;
+  readonly tidalTailExtent:number;
+  readonly tidalBridgeCount:number;
   advance:(clock:number,strength:number,halo:number,rotationSpeed:number)=>boolean;
   reset:()=>void;
   meanDrift:()=>number;
@@ -267,6 +273,13 @@ export function createGalaxyGravitySimulation(
   const count=Math.floor(initial.length/3);
   const centers=coreMotion?.bodies??galaxyGravityAttractors(tracers,options);
   const orbitCenters=tracers.orbitCenters;
+  const tidalEnabled=!!(options.tidalDynamicsEnabled&&coreMotion&&
+    options.galaxyType==='interacting'&&coreMotion.bodies.length===2);
+  const tidalFlags=new Float32Array(count);
+  const originalRadii=new Float32Array(count);
+  const hostIndices=new Uint8Array(count);
+  const tideScale=tidalEnabled?Math.min(1.6,options.tidalStrength/.65):0;
+  let tidalStrippedCount=0,tidalTailExtent=0,tidalBridgeCount=0;
   // Initialize a physically supported near-circular orbital velocity in the
   // *same trailing direction* as the existing analytic galaxy animation.
   // Slight deterministic epicycles make the gravity effect visible over time.
@@ -275,21 +288,87 @@ export function createGalaxyGravitySimulation(
     const x=initial[j],y=initial[j+1],z=initial[j+2];
     const cx=orbitCenters?.[k]??0,cy=orbitCenters?.[k+1]??0;
     const dx=x-cx,dy=y-cy,r=Math.max(options.radius*.035,Math.hypot(dx,dy));
-    const own=centers.reduce((best,center)=>
-      Math.hypot(cx-center.x,cy-center.y)<
-        Math.hypot(cx-best.x,cy-best.y)?center:best,centers[0]);
+    const host=centers.length>1&&
+      Math.hypot(cx-centers[1].x,cy-centers[1].y)<
+        Math.hypot(cx-centers[0].x,cy-centers[0].y)?1:0;
+    hostIndices[i]=host;
+    originalRadii[i]=Math.hypot(dx,dy);
+    const own=centers[host];
     const r2=r*r;
     const v2=r2*galaxyGravitySourceStrength(own,r2,options.radius);
     const speed=Math.sqrt(Math.max(0,v2))*
       (1+.07*Math.sin(i*1.733+z*3.17));
     const sign=Math.sign(tracers.spins[i]||1);
     const radial=.026*Math.cos(i*2.11+z);
-    velocities[j]=-sign*dy/r*speed+radial*dx/r*speed;
-    velocities[j+1]=sign*dx/r*speed+radial*dy/r*speed;
-    velocities[j+2]=-.02*z;
+    // The stellar disk must inherit its parent's bulk orbital velocity:
+    // without this the glowing nucleus flies off while its own stars lag
+    // behind, and a physical tidal bridge never forms coherently.
+    const mobile=tidalEnabled?coreMotion?.bodies[host]:undefined;
+    velocities[j]=-sign*dy/r*speed+radial*dx/r*speed+(mobile?.vx??0);
+    velocities[j+1]=sign*dx/r*speed+radial*dy/r*speed+(mobile?.vy??0);
+    velocities[j+2]=-.02*z+(mobile?.vz??0);
   }
   const initialVelocities=new Float32Array(velocities);
+  /** Use a co-moving frame for each stellar disk, then add only the
+   * DIFFERENTIAL gravity due to its companion. The uniform acceleration
+   * exactly matches the acceleration applied to the parent nucleus; this
+   * prevents the stars from leaving their own galaxies for a fake reason.
+   * At physical tide strength (the legacy slider's default .65), the
+   * differential field is unscaled. Other values are explicitly illustrative.
+   * This still uses massless tracers; the material ripped out has no
+   * back-reaction on the two galaxy potentials. */
   function accelerationAt(strength:number,haloWeight:number){
+    if(tidalEnabled&&coreMotion){
+      const a=coreMotion.bodies[0],b=coreMotion.bodies[1];
+      const active=b.active;
+      const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
+      const d2=dx*dx+dy*dy+dz*dz;
+      const total=a.mass+b.mass;
+      // Match the live core integrator's softened mutual force exactly.
+      const mu=active?(
+        total/Math.pow(d2+(options.radius*.20)**2,1.5)+
+        (a.halo+b.halo)*haloWeight/
+          (d2+(options.radius*.30)**2))*strength:0;
+      const ax0=dx*mu*b.mass/total,ay0=dy*mu*b.mass/total;
+      const az0=dz*mu*b.mass/total;
+      const ax1=-dx*mu*a.mass/total,ay1=-dy*mu*a.mass/total;
+      const az1=-dz*mu*a.mass/total;
+      const gBA=active?galaxyGravitySourceStrength(
+        b,d2,options.radius,strength,haloWeight):0;
+      const gAB=active?galaxyGravitySourceStrength(
+        a,d2,options.radius,strength,haloWeight):0;
+      // External force at the host center, subtracted from the force at
+      // the particle; a non-stripped star at r=0 follows its nucleus.
+      for(let i=0;i<count;i++){
+        const p=i*3,host=active?hostIndices[i]:0;
+        const own=host===0?a:b;
+        const other=host===0?b:a;
+        const x=positions[p],y=positions[p+1],z=positions[p+2];
+        const lx=x-own.x,ly=y-own.y,lz=z-own.z;
+        const ownStrength=galaxyGravitySourceStrength(own,
+          lx*lx+ly*ly+lz*lz,options.radius,strength,haloWeight);
+        let fx=-lx*ownStrength+(host===0?ax0:ax1);
+        let fy=-ly*ownStrength+(host===0?ay0:ay1);
+        let fz=-lz*ownStrength*.8+(host===0?az0:az1);
+        if(active&&tideScale>0){
+          const ex=x-other.x,ey=y-other.y,ez=z-other.z;
+          const influence=galaxyGravitySourceStrength(other,
+            ex*ex+ey*ey+ez*ez,options.radius,strength,haloWeight);
+          const atHost=host===0?gBA:gAB;
+          const hx=host===0?dx:-dx,hy=host===0?dy:-dy;
+          const hz=host===0?dz:-dz;
+          // Nonlinear differential acceleration creates physical tidal
+          // bridge and tail trajectories as the cores sweep past.
+          fx+=tideScale*(-ex*influence-hx*atHost);
+          fy+=tideScale*(-ey*influence-hy*atHost);
+          fz+=tideScale*(-ez*influence-hz*atHost)*.8;
+        }
+        acceleration[p]=fx;acceleration[p+1]=fy;acceleration[p+2]=fz;
+      }
+      return;
+    }
+    // Original fixed-potential and solo-galaxy dynamics are byte-for-byte
+    // unchanged when the optional tidal feature is off.
     for(let i=0;i<count;i++){
       const p=i*3,x=positions[p],y=positions[p+1],z=positions[p+2];
       let ax=0,ay=0,az=0;
@@ -301,17 +380,61 @@ export function createGalaxyGravitySimulation(
         const factor=-galaxyGravitySourceStrength(
           center,dist2,options.radius,strength,haloWeight);
         ax+=dx*factor;ay+=dy*factor;
-        // Halo confines the Z thickness but does not flatten stars to a 2D plane.
         az+=dz*(factor*.8);
       }
       acceleration[p]=ax;acceleration[p+1]=ay;acceleration[p+2]=az;
     }
+  }
+  /** A conservative Roche-lobe/expansion diagnostic. Stripping is recorded
+   * only after a tracer has expanded beyond its own original orbit and crossed
+   * a mass-ratio-dependent tidal boundary while moving outward. Status does
+   * not create or move stars: all tail geometry comes from the integrator. */
+  function updateTidalDiagnostics(){
+    if(!tidalEnabled||!coreMotion)return;
+    const a=coreMotion.bodies[0],b=coreMotion.bodies[1];
+    const active=b.active;
+    const separation=active?Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z):0;
+    let extent=0,bridge=0;
+    for(let i=0;i<count;i++){
+      const p=i*3;
+      const host=active?hostIndices[i]:0;
+      const own=host===0?a:b,other=host===0?b:a;
+      const dx=positions[p]-own.x,dy=positions[p+1]-own.y;
+      const r=Math.hypot(dx,dy);
+      if(!tidalFlags[i]&&active&&tideScale>0&&
+        separation<options.radius*.85){
+        const q=own.mass/other.mass;
+        const q13=Math.cbrt(q),q23=q13*q13;
+        const roche=separation*.49*q23/
+          (.6*q23+Math.log(1+q13));
+        const rv=dx*(velocities[p]-own.vx)+
+          dy*(velocities[p+1]-own.vy);
+        if(r>Math.max(roche,originalRadii[i]*1.20,
+          options.radius*.16*own.softeningScale)&&rv>0){
+          tidalFlags[i]=1;tidalStrippedCount++;
+        }
+      }
+      if(!tidalFlags[i])continue;
+      extent=Math.max(extent,r);
+      if(active){
+        const vx=b.x-a.x,vy=b.y-a.y;
+        const len2=vx*vx+vy*vy;
+        const tx=positions[p]-a.x,ty=positions[p+1]-a.y;
+        const t=(tx*vx+ty*vy)/Math.max(.0001,len2);
+        const transverse=Math.abs(tx*vy-ty*vx)/
+          Math.sqrt(Math.max(.0001,len2));
+        if(t>.08&&t<.92&&transverse<options.radius*.22)bridge++;
+      }
+    }
+    tidalTailExtent=extent;tidalBridgeCount=bridge;
   }
   let previousClock:number|null=null;
   let elapsed=0,steps=0;
   function reset(){
     positions.set(initial);
     velocities.set(initialVelocities);
+    tidalFlags.fill(0);
+    tidalStrippedCount=0;tidalTailExtent=0;tidalBridgeCount=0;
     previousClock=null;
     elapsed=0;steps=0;
   }
@@ -343,6 +466,7 @@ export function createGalaxyGravitySimulation(
       steps++;
     }
     elapsed+=dt;
+    if(tidalEnabled&&steps%8<parts)updateTidalDiagnostics();
     return true;
   }
   function meanDrift(){
@@ -357,7 +481,11 @@ export function createGalaxyGravitySimulation(
     }
     return drift/samples;
   }
-  return {positions,velocities,attractors:centers,
+  return {positions,velocities,attractors:centers,tidalFlags,
+    tidalEnabled,
+    get tidalStrippedCount(){return tidalStrippedCount;},
+    get tidalTailExtent(){return tidalTailExtent;},
+    get tidalBridgeCount(){return tidalBridgeCount;},
     get time(){return elapsed;},get steps(){return steps;},
     advance,reset,meanDrift};
 }

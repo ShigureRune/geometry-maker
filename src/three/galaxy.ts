@@ -28,6 +28,7 @@ export type GalaxySettings={
   ringRadius:number;ringWidth:number;ellipticity:number;
   clumpiness:number;branchiness:number;irregularity:number;
   companionDistance:number;companionSize:number;tidalStrength:number;
+  tidalDynamicsEnabled:boolean;
 };
 export const galaxyDefaults:GalaxySettings={
   enabled:false,count:12000,arms:2,twist:1.5,radius:5.5,
@@ -40,6 +41,7 @@ export const galaxyDefaults:GalaxySettings={
   galaxyType:'grand_design',ringRadius:.64,ringWidth:.12,ellipticity:.42,
   clumpiness:.68,branchiness:.55,irregularity:.7,
   companionDistance:.9,companionSize:.45,tidalStrength:.65,
+  tidalDynamicsEnabled:false,
 };
 export const GALAXY_LOW_STAR_LIMIT=3600,GALAXY_HIGH_STAR_LIMIT=30000;
 export function validateGalaxySettings(value:unknown):GalaxySettings{
@@ -78,6 +80,7 @@ export function validateGalaxySettings(value:unknown):GalaxySettings{
     companionDistance:numberField(d.companionDistance,.5,1.3,'伴銀河の距離'),
     companionSize:numberField(d.companionSize,.25,.70,'伴銀河のサイズ'),
     tidalStrength:numberField(d.tidalStrength,0,1,'潮汐の尾'),
+    tidalDynamicsEnabled:booleanField(d.tidalDynamicsEnabled,'動的潮汐尾・星の引きはがし'),
   };
 }
 export type GalaxyData={

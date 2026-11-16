@@ -26,7 +26,7 @@ describe('GALAXY MODE',()=>{
       {gravityHalo:3},{movingCoresEnabled:'yes'},
       {coreApproachSpeed:-1},{coreApproachSpeed:3},{coreImpactParameter:-1},
       {coreImpactParameter:2},{coreMergeDistance:0},{coreMergeDistance:.9},
-      {coreFriction:-.1},{coreFriction:3}]){
+      {coreFriction:-.1},{coreFriction:3},{tidalDynamicsEnabled:'yes'}]){
       expect(()=>validateGalaxySettings({...galaxyDefaults,...value})).toThrow();
     }
   });
@@ -40,6 +40,7 @@ describe('GALAXY MODE',()=>{
     delete old.coreImpactParameter;
     delete old.coreMergeDistance;
     delete old.coreFriction;
+    delete old.tidalDynamicsEnabled;
     expect(validateGalaxySettings(old)).toEqual(galaxyDefaults);
     const mobile={...galaxyDefaults,gravityEnabled:true,movingCoresEnabled:true,
       galaxyType:'interacting' as const,coreApproachSpeed:1.25,
@@ -47,6 +48,37 @@ describe('GALAXY MODE',()=>{
     expect(validateGalaxySettings(mobile)).toEqual(mobile);
     const enabled={...galaxyDefaults,gravityEnabled:true,gravityStrength:2,gravityHalo:.4};
     expect(validateGalaxySettings(enabled)).toEqual(enabled);
+  });
+  it('only the new tidal mode removes decorative prebuilt tails from initial galaxy disks',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,
+      gravityEnabled:true,movingCoresEnabled:true,count:2400};
+    const legacy=generateGalaxy('cold-tidal-disk',options,true);
+    const physical=generateGalaxy('cold-tidal-disk',
+      {...options,tidalDynamicsEnabled:true},true);
+    expect(physical.count).toBe(legacy.count);
+    expect(physical.positions).not.toEqual(legacy.positions);
+    const from=Math.floor(physical.count*.90);
+    expect(physical.spins.slice(0,from)).toEqual(legacy.spins.slice(0,from));
+    let oldLong=0;
+    for(let i=from;i<physical.count;i++){
+      const p=i*3,q=i*2;
+      const radial=Math.hypot(
+        physical.positions[p]-physical.orbitCenters![q],
+        physical.positions[p+1]-physical.orbitCenters![q+1]);
+      const companion=physical.orbitCenters![q]>0;
+      expect(radial).toBeLessThanOrEqual(options.radius*
+        (companion?options.companionSize:.67)*1.01);
+      const oldRadius=Math.hypot(
+        legacy.positions[p]-legacy.orbitCenters![q],
+        legacy.positions[p+1]-legacy.orbitCenters![q+1]);
+      if(oldRadius>options.radius*.8)oldLong++;
+    }
+    expect(oldLong).toBeGreaterThan(40);
+    // The existing analytic/starfield mode remains unaffected.
+    expect(generateGalaxy('cold-tidal-disk',options,true).positions)
+      .toEqual(legacy.positions);
+    expect(validateGalaxySettings({...options,tidalDynamicsEnabled:true})
+      .tidalDynamicsEnabled).toBe(true);
   });
   it('generates identical data for the same seed and settings',()=>{
     const a=generateGalaxy('spiral-seed',galaxyDefaults,false);

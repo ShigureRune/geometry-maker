@@ -187,7 +187,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           <ThreeRange id="galaxy-companion-size" label="伴銀河のサイズ" value={galaxy.companionSize}
             min={.25} max={.7} step={.05}
             onChange={companionSize=>onChange({...settings,galaxy:{...galaxy,companionSize}})}/>
-          <ThreeRange id="galaxy-tidal" label="潮汐の尾" value={galaxy.tidalStrength} min={0} max={1} step={.05}
+          <ThreeRange id="galaxy-tidal" label={galaxy.tidalDynamicsEnabled?'潮汐力・引きはがし':'潮汐の尾'} value={galaxy.tidalStrength} min={0} max={1} step={.05}
             onChange={tidalStrength=>onChange({...settings,galaxy:{...galaxy,tidalStrength}})}/>
         </>}
         <ThreeRange id="galaxy-radius" label="銀河の広がり" value={galaxy.radius} min={3} max={10} step={.5}
@@ -246,6 +246,16 @@ export function ThreeShapeControls({settings, onChange}: Props) {
                 min={0} max={2} step={.1} value={galaxy.coreFriction}
                 onChange={coreFriction=>onChange({...settings,galaxy:{
                   ...galaxy,coreFriction}})}/>
+              <label className="three-checkbox">
+                <input id="galaxy-tidal-dynamics" type="checkbox"
+                  aria-label="重力で潮汐尾と星の引きはがしを生成"
+                  checked={galaxy.tidalDynamicsEnabled}
+                  onChange={event=>onChange({...settings,galaxy:{
+                    ...galaxy,tidalDynamicsEnabled:event.target.checked}})}/>
+                <strong>潮汐尾・星の引きはがし（重力計算）</strong>
+              </label>
+              {galaxy.tidalDynamicsEnabled&&
+                <HelpInfo>最初から描かれていた飾りの尾を使わず、両銀河の回転円盤から星を始動。移動する銀河核の速度を星に引き継ぎ、互いの重力の差で星が引きはがされ、橋や長い尾を作ります。「潮汐力・引きはがし」は0なら潮汐変形なし、通常値の0.65が物理近似に相当し、1で演出を少し強調します。コアの合体後も離れた星は飛行を続けます。完全N体計算ではありません。</HelpInfo>}
               <HelpInfo>銀河核はまず互いに近づき、回り込んで離れ、重力で再び接近します。2回以上の近接通過を実際に完了し、軌道減衰で次第に小さい軌道になったあとで合体します。「軌道減衰」が0なら自動合体せず、すれ違いを続けます。接近速度やずれを調整して軌道を変えられます。星・ガス・中心の光も動きます。質量と運動量を保存する軽量な2体＋粒子近似で、完全なN体銀河衝突ではありません。</HelpInfo>
             </>}
           </>}

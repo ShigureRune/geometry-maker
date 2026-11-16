@@ -151,6 +151,16 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await page.locator('#galaxy-core-merge').fill('0.3');
   await page.locator('#galaxy-core-friction').fill('0.8');
   await expect(page.locator('#galaxy-core-friction')).toHaveValue('0.8');
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-mode','off');
+  await page.getByLabel('重力で潮汐尾と星の引きはがしを生成').check();
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-mode','on');
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-stripped',/^\d+$/);
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-extent',/^\d+\.\d{4}$/);
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-bridge',/^\d+$/);
+  await page.locator('#galaxy-tidal').fill('1');
+  await expect(page.locator('#galaxy-tidal')).toHaveValue('1');
+  await expect.poll(async()=>Number(
+    await preview.getAttribute('data-galaxy-gravity-steps'))).toBeGreaterThan(2);
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','on');
   await expect(preview).toHaveAttribute('data-galaxy-core-merged','false');
   // A mere close distance must NOT collapse two nuclei on first approach.
@@ -159,6 +169,8 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await preview.locator('canvas').screenshot({
     path:'test-results/galaxy-moving-cores.png',
   });
+  await page.getByLabel('重力で潮汐尾と星の引きはがしを生成').uncheck();
+  await expect(preview).toHaveAttribute('data-galaxy-tidal-mode','off');
   await page.getByLabel('銀河核同士を重力で動かす').uncheck();
   await expect(preview).toHaveAttribute('data-galaxy-core-moving','off');
   await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','on');

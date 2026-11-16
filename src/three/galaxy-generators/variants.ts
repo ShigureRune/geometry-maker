@@ -89,7 +89,10 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
   const companionStart=Math.floor(count*.68),tailStart=Math.floor(count*.90);
   const gap=options.companionDistance;
   const mainCenter=-R*gap*.36,secondCenter=R*gap*.60;
-  if(index>=tailStart){
+  if(index>=tailStart&&!options.tidalDynamicsEnabled){
+    // Legacy decorative streams remain intact when the new physical tidal
+    // simulation is disabled. In simulation mode the 10% tail population
+    // instead begins inside the galaxy disks and must be pulled out by gravity.
     // A separate tidal stream, not random field stars.
     const t=random(),which=index%2;
     const a=which?1.0:-1.0;
@@ -103,7 +106,8 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
       // rather than orbiting the tail around a different vertical offset.
       orbitX:center,orbitY:(which?.16:-.15)*R,orbitHanded:which?-handed:handed};
   }
-  const companion=index>=companionStart;
+  const companion=index>=tailStart&&options.tidalDynamicsEnabled?
+    index%2===1:index>=companionStart;
   const local=spinPoint(random,R,2,options.twist,options.armWidth,
     orientation+(companion?2.35:0),companion?-handed:handed,!companion&&options.barred);
   const s=companion?options.companionSize:.67;
@@ -118,7 +122,7 @@ function interactingPoint(random:Random,options:GalaxySettings,index:number,coun
   local.young=!local.core;
   local.cloud=!local.core&&random()<.035;
   // Interacting tidal pull stretches the outer stars toward the companion.
-  if(!companion&&local.radius>.65){
+  if(!options.tidalDynamicsEnabled&&!companion&&local.radius>.65){
     const tug=(local.radius-.65)*options.tidalStrength*.23*R;
     local.x+=tug;local.y+=tug*(handed>0?1:-1);
   }

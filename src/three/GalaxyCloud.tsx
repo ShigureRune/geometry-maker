@@ -21,6 +21,7 @@ attribute float aPhase;
 attribute float aCore;
 attribute float aKind;
 attribute float aOpacity;
+attribute float aTidalEscape;
 attribute vec2 aOrbitCenter;
 uniform float uTime;
 uniform float uRotationSpeed;
@@ -39,6 +40,7 @@ varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
 varying float vKind;
+varying float vTidalEscape;
 varying float vBulgeRadius;
 void main(){
   float spin=aSpin*uRotationSpeed*uTime;
@@ -74,6 +76,7 @@ void main(){
   vCore=aCore;
   vOpacity=aOpacity*(uMorphEnabled>0.5?1.0:uEntrance);
   vKind=aKind;
+  vTidalEscape=aTidalEscape;
   // Match the spatial boundary of the smooth rotated 3D bulge exactly.
   // Interacting companion stars have their own smaller bulge and angle.
   float companion=uInteracting>.5&&aOrbitCenter.x>0.0?uCompanionScale:1.0;
@@ -96,6 +99,7 @@ varying vec3 vColor;
 varying float vCore;
 varying float vOpacity;
 varying float vKind;
+varying float vTidalEscape;
 varying float vBulgeRadius;
 uniform float uGlow;
 uniform float uStarEnergy;
@@ -111,13 +115,16 @@ void main(){
   // The very center remains smooth and unresolved. A little farther out,
   // restore discrete amber bulge stars instead of blanking an entire ring.
   alpha*=vKind>0.5?1.0:smoothstep(.35,.94,vBulgeRadius);
+  // A subtle brightness lift follows only stars actually stripped by the
+  // numerical integrator. This never synthesizes new decorative tail points.
+  alpha*=1.0+vTidalEscape*.18;
   if(alpha<0.008)discard;
   // Light per star falls as density increases. More stars in high quality
   // should add DETAIL, not multiply overall exposure by >3x.
   // Give the compact, warm stellar bulge its own local contrast. Only
   // stars with aCore>0 get the boost; distant spiral arms retain their
   // high-quality energy normalization and don't wash out.
-  vec3 rgb=vColor*(1.28+vCore*uGlow*3.1)*uStarEnergy;
+  vec3 rgb=vColor*(1.28+vCore*uGlow*3.1)*(1.0+vTidalEscape*.16)*uStarEnergy;
   gl_FragColor=vec4(rgb,alpha);
 }
 `;
@@ -176,12 +183,13 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     options.galaxyType,options.ringRadius,options.ringWidth,options.ellipticity,
     options.clumpiness,options.branchiness,options.irregularity,
     options.companionDistance,options.companionSize,options.tidalStrength,
+    options.tidalDynamicsEnabled,
   ]);
   const coreMotion=useMemo(()=>options.gravityEnabled&&options.movingCoresEnabled&&
     options.galaxyType==='interacting'?createGalaxyCoreMotion(data,options):null,[
     data,options.gravityEnabled,options.movingCoresEnabled,options.galaxyType,
     options.coreApproachSpeed,options.coreImpactParameter,options.coreMergeDistance,
-    options.coreFriction,
+    options.coreFriction,options.tidalDynamicsEnabled,
   ]);
   const gravity=useMemo(()=>options.gravityEnabled?
     createGalaxyGravitySimulation(data,options,coreMotion):null,[
@@ -211,6 +219,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     buffer.setAttribute('aCore',new BufferAttribute(data.cores,1));
     buffer.setAttribute('aOpacity',new BufferAttribute(data.opacities,1));
     buffer.setAttribute('aKind',new BufferAttribute(data.kinds,1));
+    buffer.setAttribute('aTidalEscape',new BufferAttribute(
+      gravity?.tidalFlags??new Float32Array(data.count),1));
     buffer.setAttribute('aOrbitCenter',new BufferAttribute(
       data.orbitCenters??new Float32Array(data.count*2),2));
     // Readable buffers: previous GPU frame is reproduced by the CPU snapshot
@@ -232,6 +242,8 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
     if(gravity?.advance(time,options.gravityStrength,options.gravityHalo,
       options.rotationSpeed)){
       (geometry.getAttribute('position') as BufferAttribute).needsUpdate=true;
+      if(gravity.tidalEnabled)
+        (geometry.getAttribute('aTidalEscape') as BufferAttribute).needsUpdate=true;
     }
     uniforms.uTime.value=time;
     uniforms.uRotationSpeed.value=options.rotationSpeed;
@@ -305,6 +317,13 @@ export function GalaxyCloud({seed,settings,seconds,low,restartKey,transitionDura
       progressHost.current.dataset.galaxyCoreMerged=coreMotion?.merged?'true':'false';
       progressHost.current.dataset.galaxyCorePassages=String(coreMotion?.passages??0);
       progressHost.current.dataset.galaxyCoreStage=coreMotion?.stage??'off';
+      progressHost.current.dataset.galaxyTidalMode=gravity?.tidalEnabled?'on':'off';
+      progressHost.current.dataset.galaxyTidalStripped=String(
+        gravity?.tidalStrippedCount??0);
+      progressHost.current.dataset.galaxyTidalExtent=(
+        gravity?.tidalTailExtent??0).toFixed(4);
+      progressHost.current.dataset.galaxyTidalBridge=String(
+        gravity?.tidalBridgeCount??0);
       progressHost.current.dataset.galaxyCoreAX=(coreMotion?.bodies[0]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyCoreBX=(coreMotion?.bodies[1]?.x??0).toFixed(4);
       progressHost.current.dataset.galaxyStarTime=time.toFixed(3);
