@@ -238,6 +238,14 @@ describe('GALAXY MODE',()=>{
       // oversized billboards merge into a featureless white ball on zoom.
       expect(Math.max(...data.sizes),galaxyType+' resolves fine nuclear stars').toBeLessThan(4);
       expect(Math.min(...data.sizes),galaxyType+' retains variable star sizes').toBeLessThan(1.5);
+      // The center must be a continuous, unresolved light volume rather than
+      // individual white pinpricks, even when the camera moves close.
+      for(let i=0;i<data.count;i++){
+        const pivot=Math.floor(i/520);
+        const [x,y]=data.centers[pivot];
+        const radius=Math.hypot(data.positions[i*3]-x,data.positions[i*3+1]-y)/options.radius;
+        if(radius<.11)expect(data.opacities[i],galaxyType+' should hide nuclear points').toBe(0);
+      }
       const [cx,cy]=data.centers[0];
       const innerPinpoints=Array.from({length:520},(_,i)=>i).filter(i=>
         Math.hypot(data.positions[i*3]-cx,data.positions[i*3+1]-cy)<options.radius*.035);
