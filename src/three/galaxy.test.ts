@@ -6,6 +6,7 @@ import {
 import {threeDefaults,validateThreeSettings} from './settings';
 import {GALAXY_PRESETS,galaxyWithPreset} from './galaxy-presets';
 import {generateGalaxyGas} from './galaxy-generators/gas';
+import {generateGalaxyNucleus} from './galaxy-nucleus';
 
 describe('GALAXY MODE',()=>{
   it('is opt-in and old 3D JSON stays in ordinary 3D mode',()=>{
@@ -208,6 +209,44 @@ describe('GALAXY MODE',()=>{
     expect(distance/(gas.count-1)).toBeGreaterThan(settings.radius*.40);
     expect(Math.max(...gas.sizes)).toBeLessThan(32);
     expect(Math.max(...gas.opacities)).toBeLessThan(.27);
+  });
+  it('adds a reproducible, locally concentrated 3D hot nucleus and warm bulge',()=>{
+    for(const galaxyType of GALAXY_TYPES){
+      const options={...galaxyDefaults,galaxyType,count:12000};
+      const stars=generateGalaxy('white-hot-nucleus',options,false);
+      const data=generateGalaxyNucleus('white-hot-nucleus',options,false,stars);
+      const again=generateGalaxyNucleus('white-hot-nucleus',options,false,stars);
+      expect(data.count,galaxyType).toBeGreaterThan(100);
+      expect(data.positions).toEqual(again.positions);
+      expect(data.colors).toEqual(again.colors);
+      expect(data.count).toBe(data.centers.length*520);
+      expect(data.positions.every(Number.isFinite)).toBe(true);
+      expect(data.opacities.every(x=>x>=0&&x<=1)).toBe(true);
+      expect(data.positions.some((v,i)=>i%3===2&&Math.abs(v)>.01)).toBe(true);
+      let inner=0,halo=0,far=0;
+      for(let i=0;i<data.count;i++){
+        const pivot=i/data.count<data.centers.length?Math.floor(i/520):0;
+        const [cx,cy]=data.centers[pivot];
+        const d=Math.hypot(data.positions[i*3]-cx,data.positions[i*3+1]-cy)/options.radius;
+        if(d<.07)inner++;
+        if(d>.075&&d<.22)halo++;
+        if(d>.32)far++;
+      }
+      expect(inner,galaxyType+' nucleus should be concentrated').toBeGreaterThan(data.count*.35);
+      expect(halo,galaxyType+' bulge should have a smooth warm envelope').toBeGreaterThan(data.count*.04);
+      expect(far/data.count,galaxyType+' nucleus should not illuminate outer arms').toBeLessThan(.02);
+    }
+  });
+  it('keeps interacting galaxies with two separate, rotating hot nuclei',()=>{
+    const options={...galaxyDefaults,galaxyType:'interacting' as const,count:12000};
+    const stars=generateGalaxy('dual-nucleus',options,false);
+    const nuclei=generateGalaxyNucleus('dual-nucleus',options,false,stars);
+    expect(nuclei.centers.length).toBe(2);
+    expect(nuclei.count).toBe(1040);
+    expect(Math.hypot(nuclei.centers[0][0]-nuclei.centers[1][0],
+      nuclei.centers[0][1]-nuclei.centers[1][1])).toBeGreaterThan(options.radius*.5);
+    expect(nuclei.spins.slice(0,520).every(x=>x===nuclei.spins[0])).toBe(true);
+    expect(Math.sign(nuclei.spins[0])).toBe(-Math.sign(nuclei.spins[520]));
   });
   it('ease is seekable and exact at endpoints',()=>{
     expect(galaxyMorphEasing(-4)).toBe(0);
