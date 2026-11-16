@@ -68,7 +68,9 @@ export function generateGalaxyNucleus(
       colors[p]=(hot?1.45:1.04)*variation;
       colors[p+1]=(hot?1.32:.79)*variation;
       colors[p+2]=(hot?1.08:.53)*variation;
-      sizes[i]=hot?1.35+random()*2.2:3.0+random()*5.0;
+      // Keep the enlarged nucleus luminous: scale each hot starlet along
+      // with its spread rather than thinning the white light 25-fold.
+      sizes[i]=hot?5.4+random()*8.8:3.0+random()*5.0;
       opacities[i]=(hot?.26+random()*.25:
         (.052+random()*.085)*bulgeDensityScale)*strength;
       spins[i]=pivot.spin/pivot.count;
