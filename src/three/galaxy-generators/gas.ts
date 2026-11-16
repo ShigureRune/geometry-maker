@@ -81,7 +81,9 @@ export function generateGalaxyGas(
       anchor=nucleusStars.length&&r()<coreShare
         ?nucleusStars[Math.floor(r()*nucleusStars.length)]
         :pickStar(r,stars,options);
-      remaining=3+Math.floor(r()*10);
+      // Spread cloudlets over more arm anchors: fewer repeated round clumps,
+      // while keeping a small coherent 3D neighborhood for each anchor.
+      remaining=2+Math.floor(r()*5);
       cloudGroup=r();
     }
     remaining--;
