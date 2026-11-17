@@ -764,8 +764,7 @@ export default function ThreePreview(input: Props) {
   const outlines=useOutlineGeometry(neon.enabled&&!voidMode&&!particleEnabled&&!galaxyEnabled,low);
   const onLost = useMemo(() => () => {props.onReady(false); setLost(true);}, [props.onReady]);
   const webParticleCount=effectiveVoidParticleCount(
-    props.settings.voidMode?.particleCount??VOID_PARTICLE_DEFAULT,
-    low,smallDevice,softwareDevice);
+    props.settings.voidMode?.particleCount??VOID_PARTICLE_DEFAULT,low);
   const particleCount=particleEnabled?(web?webParticleCount:
     Math.min(props.settings.particle?.count??0,low?1600:12000)):0;
   if (!supported || lost) return <div className="three-fallback" role="alert"><h3>{lost ? '3D描画が中断されました' : 'この環境では3Dを表示できません'}</h3><p>WebGL 2対応ブラウザとハードウェアアクセラレーションが必要です。2Dモードは引き続き利用できます。中断した場合は軽量設定で3Dモードを開き直してください。</p></div>;
