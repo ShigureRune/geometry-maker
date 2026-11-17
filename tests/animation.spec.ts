@@ -20,3 +20,45 @@ test('growth start, seek, completion, playback and complete exports',async({page
  await page.getByLabel('タイムライン',{exact:true}).fill('200');await page.getByRole('button',{name:'再生',exact:true}).click();await page.getByRole('button',{name:'一時停止',exact:true}).click();const pos=await page.getByTestId('playback-position').textContent();await page.waitForTimeout(150);expect(await page.getByTestId('playback-position').textContent()).toBe(pos);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+
+test('v4 classic figures keep floating after 100 percent, pause and resume, and keep still exports',async({page})=>{
+ await page.goto('./');
+ await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
+ await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v4');
+ await expect(page.getByLabel('完成後も図形を動かす')).toBeChecked();
+ await page.getByLabel('成長時間（秒）').fill('1');
+ await page.getByLabel('再生速度',{exact:true}).selectOption('4');
+ await page.getByRole('button',{name:'最初から再生',exact:true}).click();
+ await expect(page.getByTestId('playback-position')).toContainText('100%',{timeout:6000});
+ await expect.poll(async()=>Number.parseFloat(await page.getByTestId('post-growth-motion').textContent()??'0'),
+   {timeout:6000}).toBeGreaterThan(.25);
+ const hero=page.getByTestId('shapes').locator(':scope > g').first();
+ const moving=await hero.getAttribute('transform');
+ await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(moving);
+ await page.getByRole('button',{name:'一時停止',exact:true}).click();
+ await page.waitForTimeout(110);const frozen=await hero.getAttribute('transform');
+ await page.waitForTimeout(210);
+ expect(await hero.getAttribute('transform')).toBe(frozen);
+ await page.getByRole('button',{name:'再生',exact:true}).click();
+ await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(frozen);
+ // An explicit complete frame is stationary, including after SVG export.
+ await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
+ const complete=await hero.getAttribute('transform');
+ await page.waitForTimeout(140);
+ expect(await hero.getAttribute('transform')).toBe(complete);
+ const download=page.waitForEvent('download');
+ await page.getByRole('button',{name:'SVGを書き出す',exact:true}).click();
+ const svg=await (await import('node:fs/promises')).readFile((await (await download).path())!,'utf8');
+ expect(svg).not.toContain('finished-2d-motion');
+ // Turning motion off always restores the original coordinates.
+ await page.getByRole('button',{name:'再生',exact:true}).click();
+ await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(complete);
+ await page.getByLabel('完成後も図形を動かす').uncheck();
+ await expect(hero).toHaveAttribute('transform',complete);
+ await page.getByLabel('完成後も図形を動かす').check();
+ await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(complete);
+ // v5 uses the same completed-motion feature; its generator remains untouched.
+ await page.getByLabel('生成アルゴリズム').selectOption('2d-v5');
+ await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v5');
+ await expect(page.getByLabel('完成後も図形を動かす')).toBeChecked();
+});
