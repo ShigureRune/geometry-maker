@@ -84,7 +84,7 @@ export function AnimationControls({settings,onChange,playback,version}:{
  <input id="figure-motion-video-seconds" type="range" min="2" max="30" step="1"
    value={settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds}
    onChange={e=>onChange({...settings,motionVideoSeconds:+e.target.value})}/>
- <HelpInfo>v4クラシック・v5の完成後、太い帯と細い線が同じ方向に流れ続けます。画面の外に出た後だけ反対側から再登場します（往復なし）。ほかの輪郭には光が流れ、二重の弧では点線側だけが回転します。一時停止・再開、動画保存に対応しています。</HelpInfo>
+ <HelpInfo>v4クラシック・v5の完成後、太い帯と細い線が同じ方向に流れ続けます。帯の端はやわらかく消え、表面には白い光沢がスーッと流れます（元の色は維持）。画面外でのみループし、往復はしません。固定ハイライトは動かず、二重の弧の点線は回転します。一時停止・再開、動画保存に対応しています。</HelpInfo>
  </>}
  </>}
  <div className="play-buttons"><button disabled={!settings.animationEnabled} onClick={()=>{
