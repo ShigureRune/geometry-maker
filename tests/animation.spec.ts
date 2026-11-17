@@ -33,7 +33,8 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect.poll(async()=>Number.parseFloat(await page.getByTestId('post-growth-motion').textContent()??'0'),
    {timeout:6000}).toBeGreaterThan(.3);
  const flow=page.getByTestId('figure-flow').first();
- await expect(flow).toBeVisible();
+ await expect(flow).toHaveCount(1);
+ await expect.poll(async()=>Number(await flow.getAttribute('data-flow-opacity'))).toBeGreaterThan(.05);
  const parent=flow.locator('..');
  const shapeId=await parent.getAttribute('data-shape-id');
  expect(shapeId).toBeTruthy();
