@@ -3,7 +3,9 @@ import {generateVoidWeb} from './void-web';
 import {voidEdges} from './void-graph';
 import {visibleVoidObjects} from './void-web-runtime';
 import {
-  VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_HIGH_LIMIT,generateVoidParticles,
+  VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_HIGH_LIMIT,
+  VOID_PARTICLE_MOBILE_LIMIT,VOID_PARTICLE_SOFTWARE_LIMIT,VOID_PARTICLE_DEFAULT,
+  effectiveVoidParticleCount,generateVoidParticles,
 } from './void-particle';
 import type {Background} from '../scene';
 
@@ -18,9 +20,9 @@ describe('particle mode on cosmic web',()=>{
 
   it('covers the existing actual web nodes and filament edges deterministically',()=>{
     const edges=voidEdges(scene,lowObjects);
-    const a=generateVoidParticles(lowObjects,edges,'same-seed',background,4000,true);
-    const b=generateVoidParticles(lowObjects,edges,'same-seed',background,4000,true);
-    const c=generateVoidParticles(lowObjects,edges,'other-seed',background,4000,true);
+    const a=generateVoidParticles(lowObjects,edges,'same-seed',background,80000,true);
+    const b=generateVoidParticles(lowObjects,edges,'same-seed',background,80000,true);
+    const c=generateVoidParticles(lowObjects,edges,'other-seed',background,80000,true);
     expect(a.count).toBe(VOID_PARTICLE_LOW_LIMIT);
     expect(a.nodeParticles+a.filamentParticles).toBe(a.count);
     expect(a.nodeParticles).toBeGreaterThan(500);
@@ -58,9 +60,9 @@ describe('particle mode on cosmic web',()=>{
   it('caps full-web particles separately from its 2800 existing nodes',()=>{
     const edges=voidEdges(scene,fullObjects);
     const high=generateVoidParticles(fullObjects,edges,'max-web',
-      background,12000,false);
+      background,120000,false);
     const low=generateVoidParticles(lowObjects,voidEdges(scene,lowObjects),
-      'max-web',background,12000,true);
+      'max-web',background,120000,true);
     expect(fullObjects.length).toBeGreaterThan(2000);
     expect(high.count).toBe(VOID_PARTICLE_HIGH_LIMIT);
     expect(low.count).toBe(VOID_PARTICLE_LOW_LIMIT);
@@ -68,6 +70,17 @@ describe('particle mode on cosmic web',()=>{
     expect(high.colors.length).toBe(high.targets.length);
     expect(high.scatter.length).toBe(high.targets.length);
     expect(high.phases.length).toBe(high.count);
+  });
+
+  it('budgets huge density independently for mobile, software, low and high',()=>{
+    expect(VOID_PARTICLE_DEFAULT).toBe(80000);
+    expect(effectiveVoidParticleCount(120000,false)).toBe(VOID_PARTICLE_HIGH_LIMIT);
+    expect(effectiveVoidParticleCount(120000,true)).toBe(VOID_PARTICLE_LOW_LIMIT);
+    expect(effectiveVoidParticleCount(120000,false,true)).toBe(VOID_PARTICLE_MOBILE_LIMIT);
+    expect(effectiveVoidParticleCount(120000,false,false,true)).toBe(VOID_PARTICLE_SOFTWARE_LIMIT);
+    expect(effectiveVoidParticleCount(Infinity,false)).toBe(0);
+    expect(effectiveVoidParticleCount(-1,false)).toBe(0);
+    expect(effectiveVoidParticleCount(2500.8,false)).toBe(2500);
   });
 
   it('handles no objects, no edges, and min settings without allocation blowups',()=>{

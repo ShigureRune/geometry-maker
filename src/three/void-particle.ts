@@ -4,8 +4,22 @@ import type {NetworkEdge} from './network';
 
 /** Bounded GPU particle budget: node + filament particles replace thousands of
  * individual surface samplers and instanced solids in the cosmic web. */
-export const VOID_PARTICLE_LOW_LIMIT=1200;
-export const VOID_PARTICLE_HIGH_LIMIT=6000;
+export const VOID_PARTICLE_LOW_LIMIT=30000;
+export const VOID_PARTICLE_HIGH_LIMIT=120000;
+export const VOID_PARTICLE_MOBILE_LIMIT=16000;
+export const VOID_PARTICLE_SOFTWARE_LIMIT=6000;
+export const VOID_PARTICLE_DEFAULT=80000;
+
+/** The requested web density is independent of the ordinary solid particle mode.
+ * Force a conservative budget even if High is selected on mobile/software. */
+export function effectiveVoidParticleCount(
+  requested:number,low:boolean,smallDevice=false,softwareDevice=false,
+):number{
+  const cap=softwareDevice?VOID_PARTICLE_SOFTWARE_LIMIT:
+    smallDevice?VOID_PARTICLE_MOBILE_LIMIT:
+    low?VOID_PARTICLE_LOW_LIMIT:VOID_PARTICLE_HIGH_LIMIT;
+  return Number.isFinite(requested)?Math.min(Math.max(0,Math.floor(requested)),cap):0;
+}
 
 export type VoidParticleData={
   count:number;nodeParticles:number;filamentParticles:number;
@@ -25,9 +39,7 @@ export function generateVoidParticles(
   seed:string,background:Background,requested:number,low:boolean,
   spread=1.4,height=1.2,
 ):VoidParticleData{
-  const count=objects.length?Math.min(
-    Math.max(0,Math.floor(requested)),
-    low?VOID_PARTICLE_LOW_LIMIT:VOID_PARTICLE_HIGH_LIMIT):0;
+  const count=objects.length?effectiveVoidParticleCount(requested,low):0;
   const targets=new Float32Array(count*3);
   const colors=new Float32Array(count*3);
   const scatter=new Float32Array(count*3);
@@ -38,7 +50,7 @@ export function generateVoidParticles(
 
   const byId=new Map(objects.map(o=>[o.id,o]));
   const visibleEdges=edges.filter(e=>byId.has(e.a)&&byId.has(e.b));
-  const nodeParticles=visibleEdges.length?Math.round(count*.60):count;
+  const nodeParticles=visibleEdges.length?Math.round(count*.32):count;
   const filamentParticles=count-nodeParticles;
   const random=seededRandom('void-web-particle-v1:'+seed);
   const defaultColors={primary:'#b995ff',support:'#76cfe8',accent:'#beffd4'};
@@ -47,10 +59,10 @@ export function generateVoidParticles(
     return [1,3,5].map(i=>parseInt(value.slice(i,i+2),16)/255);
   };
   const palette=new Map(objects.map(o=>[o.id,colorFor(o)]));
-  function write(i:number,x:number,y:number,z:number,rgb:number[]){
+  function write(i:number,x:number,y:number,z:number,r:number,g:number,b:number){
     const p=i*3;
     targets[p]=x;targets[p+1]=y;targets[p+2]=z;
-    colors[p]=rgb[0];colors[p+1]=rgb[1];colors[p+2]=rgb[2];
+    colors[p]=r;colors[p+1]=g;colors[p+2]=b;
     // The dispersion stays in scene units, NOT multiplied by the huge VOID
     // field radius. The vertex shader completes the swirl on the GPU.
     scatter[p]=(.55+random()*.80)*spread;
@@ -66,9 +78,10 @@ export function generateVoidParticles(
     const node=objects[index],u=random()*2-1,phi=random()*Math.PI*2;
     const h=Math.sqrt(1-u*u);
     const r=node.radius*(.70+random()*.30);
+    const rgb=palette.get(node.id)!;
     write(i,node.position[0]+Math.cos(phi)*h*r,
       node.position[1]+Math.sin(phi)*h*r,
-      node.position[2]+u*r,palette.get(node.id)!);
+      node.position[2]+u*r,rgb[0],rgb[1],rgb[2]);
   }
   for(let i=0;i<filamentParticles;i++){
     const index=Math.min(visibleEdges.length-1,
@@ -81,7 +94,8 @@ export function generateVoidParticles(
     const y=a.position[1]*(1-t)+b.position[1]*t+(random()-.5)*jitter;
     const z=a.position[2]*(1-t)+b.position[2]*t+(random()-.5)*jitter;
     const ca=palette.get(a.id)!,cb=palette.get(b.id)!;
-    write(p,x,y,z,ca.map((v,k)=>v*(1-t)+cb[k]*t));
+    write(p,x,y,z,ca[0]*(1-t)+cb[0]*t,ca[1]*(1-t)+cb[1]*t,
+      ca[2]*(1-t)+cb[2]*t);
   }
   return {count,nodeParticles,filamentParticles,targets,colors,scatter,phases};
 }

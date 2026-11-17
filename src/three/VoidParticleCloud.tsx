@@ -36,28 +36,29 @@ void main(){
 `;
 const fragment=String.raw`
 varying vec3 vColor;
+uniform float uDensityGain;
 void main(){
   float d=length(gl_PointCoord-vec2(.5));
   float alpha=exp(-d*d*15.0)*(1.0-smoothstep(.40,.50,d));
   if(alpha<.014)discard;
-  gl_FragColor=vec4(vColor*1.3,alpha*.82);
+  gl_FragColor=vec4(vColor*1.3,alpha*.82*uDensityGain);
 }
 `;
 
 /** One GPU Points draw call for all knots and strands, even when the actual
  * VOID renderer would otherwise create thousands of solid instances.
  * Particle assembly depends only on the seekable shared scene clock. */
-export function VoidParticleCloud({objects,edges,seed,background,settings,
+export function VoidParticleCloud({objects,edges,count,seed,background,settings,
   seconds,low,progressHost}:{
-  objects:readonly ThreeObject[];edges:readonly NetworkEdge[];
+  objects:readonly ThreeObject[];edges:readonly NetworkEdge[];count:number;
   seed:string;background:Background;settings:ThreeSettings;
   seconds:RefObject<number>;low:boolean;
   progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const options=settings.particle!;
   const data=useMemo(()=>generateVoidParticles(
-    objects,edges,seed,background,options.count,low,options.spread,options.height
-  ),[objects,edges,seed,background,options.count,options.spread,options.height,low]);
+    objects,edges,seed,background,count,low,options.spread,options.height
+  ),[objects,edges,seed,background,count,options.spread,options.height,low]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
     buffer.setAttribute('position',new BufferAttribute(data.targets,3));
@@ -76,6 +77,7 @@ export function VoidParticleCloud({objects,edges,seed,background,settings,
       uTime:{value:0},uDuration:{value:options.duration},
       uSwirl:{value:options.swirl},uDirection:{value:direction},
       uPointScale:{value:low?2.1:2.8},uJitter:{value:options.jitter?1:0},
+      uDensityGain:{value:1},
     },
   }),[]);
   useEffect(()=>()=>material.dispose(),[material]);
@@ -88,6 +90,8 @@ export function VoidParticleCloud({objects,edges,seed,background,settings,
     u.uDirection.value=direction;
     u.uPointScale.value=low?2.1:2.8;
     u.uJitter.value=options.jitter?1:0;
+    // Prevent dense additive particles from washing out the dark voids.
+    u.uDensityGain.value=Math.max(.27,Math.sqrt(18000/Math.max(18000,data.count)));
     if(progressHost?.current){
       const host=progressHost.current;
       host.dataset.particleSeedPhase='settled';
