@@ -260,3 +260,45 @@ it('does not move actual generated v4/v5 accent highlights regardless of the see
     }
   }
 });
+
+it('adds softly feathered LCD-like white sheen only to moving bars, preserving motion and palette',()=>{
+  for(const version of ['2d-v4','2d-v5'] as const){
+    const seed='soft-white-sheen-'+version;
+    const original=generateScene(seed,'16:9',version);
+    const thick={...original.shapes[0],id:'thick-soft',kind:'band' as const,
+      role:'support' as const,filled:true,size:160,x:400,y:340,rotation:25,thickness:36};
+    const thin={...thick,id:'thin-soft',kind:'line' as const,
+      role:'support' as const,filled:false,size:110,x:480,y:460,rotation:75};
+    const overlay={...thin,id:'fixed-edge-highlight',role:'accent' as const,
+      layer:'foreground' as const,glow:true};
+    const scene={...original,shapes:[thick,thin,overlay]};
+    const plan=createFigureMotionPlan(scene,seed);
+    const t1=figureFlowAt(plan,1.5),t2=figureFlowAt(plan,3);
+    const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
+    const glow1=renderToStaticMarkup(createElement(Preview,{scene,background,flow:t1}));
+    const glow2=renderToStaticMarkup(createElement(Preview,{scene,background,flow:t2}));
+    expect(base).not.toContain('data-testid="bar-soft-sheen"');
+    for(const svg of [glow1,glow2]){
+      expect((svg.match(/data-testid="bar-soft-sheen"/g)??[]).length).toBe(2);
+      expect((svg.match(/data-testid="bar-soft-feather"/g)??[]).length).toBe(2);
+      expect((svg.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(2);
+      expect(svg).toContain('feGaussianBlur');
+      expect(svg).toContain('stop-color="#ffffff"');
+      expect(svg).toContain('stop-opacity="0"');
+      expect(svg).toContain('stop-color="black"');
+      expect(svg).toContain('data-bar-world-x="');
+      const overlayIndex=svg.indexOf('data-shape-id="fixed-edge-highlight"');
+      expect(overlayIndex).toBeGreaterThan(0);
+      const overlaySection=svg.slice(overlayIndex,svg.indexOf('</g>',overlayIndex)+4);
+      expect(overlaySection).not.toContain('bar-soft-sheen');
+      expect(overlaySection).not.toContain('bar-body-motion');
+    }
+    expect(t2[thick.id].barShift).toBeGreaterThan(t1[thick.id].barShift);
+    expect(t2[thin.id].barShift).toBeGreaterThan(t1[thin.id].barShift);
+    // The moving white gradient progresses independently of the whole-bar translation.
+    expect(glow1).not.toBe(glow2);
+    const noFlow=renderToStaticMarkup(createElement(Preview,{scene,background,
+      flow:figureFlowAt(plan,3,0)}));
+    expect(noFlow).not.toContain('data-testid="bar-soft-sheen"');
+  }
+});
