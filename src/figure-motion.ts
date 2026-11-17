@@ -1,17 +1,19 @@
 import {seededRandom,type Scene} from './scene';
 
-/** The completed figures keep their original coordinates. A seeded luminous
- * pulse travels along each SVG contour, never moving the figure itself.
- * The plan is computed once per scene, not once per animation frame.
+/** Finished contours carry a luminous tracer; unlike other shapes, filled
+ * bars slide as complete rigid bodies along their local long axis.
+ * All motion comes from the same deterministic, pausable clock.
  */
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
   intensity:number;
   spinSpeed:number; // degrees per second; rotating dashed arc stays inside its own figure
+  barAmplitude:number;barFrequency:number; // normalized rigid-body slide
 };
 export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
   spin:number; // starts at zero so dashed arcs never jump after growth
+  barShift:number; // displacement as a fraction of shape.size, zero at completion
 };
 const rounded=(n:number)=>Number(n.toFixed(5));
 export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan[]{
@@ -31,6 +33,8 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       headLength:.035+random()*.025,
       intensity:role,
       spinSpeed:(classic?17:12)*(0.75+random()*.5)*(random()>.5?1:-1),
+      barAmplitude:(classic?.2:.15)*(.8+random()*.4),
+      barFrequency:(classic?.2:.15)*(.8+random()*.4),
     }];
   });
 }
@@ -58,6 +62,10 @@ export function figureFlowAt(
       headLength:rounded(item.headLength),
       opacity:rounded(Math.min(1,intensity*fade*item.intensity)),
       spin:rounded((elapsed*item.spinSpeed)%360),
+      // Continuous, reversible, no discontinuous teleport at the edges.
+      // The bar starts in its exact original position at growth completion.
+      barShift:rounded(Math.sin(2*Math.PI*elapsed*item.barFrequency)*
+        item.barAmplitude*intensity*fade),
     }];
   }));
 }
