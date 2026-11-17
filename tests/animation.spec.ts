@@ -48,11 +48,15 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  const first=await flow.getAttribute('data-flow-offset');
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(first);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
- // Full bars glow internally while the dashed secondary arc alone rotates.
- const barSignal=page.getByTestId('bar-flow').first().locator('path').first();
- await expect(barSignal).toHaveCount(1);
- const oldBar=await barSignal.getAttribute('stroke-dashoffset');
- await expect.poll(async()=>barSignal.getAttribute('stroke-dashoffset'),{timeout:5000}).not.toBe(oldBar);
+ // The filled bar BODY moves. No internal highlight path is allowed.
+ await expect(page.getByTestId('bar-flow')).toHaveCount(0);
+ const movingBar=page.getByTestId('bar-body-motion').first();
+ await expect(movingBar).toHaveCount(1);
+ const barRoot=movingBar.locator('..');
+ const originalBarPosition=await barRoot.getAttribute('transform');
+ const oldBar=await movingBar.getAttribute('data-bar-shift');
+ await expect.poll(async()=>movingBar.getAttribute('data-bar-shift'),{timeout:5000}).not.toBe(oldBar);
+ expect(await barRoot.getAttribute('transform')).toBe(originalBarPosition);
  const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
  await expect(dottedArc).toHaveCount(1);
  const oldAngle=await dottedArc.getAttribute('transform');
@@ -60,13 +64,17 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.getByRole('button',{name:'一時停止',exact:true}).click();
  await page.waitForTimeout(110);
  const frozen=await flow.getAttribute('data-flow-offset');
+ const frozenBar=await movingBar.getAttribute('data-bar-shift');
  await page.waitForTimeout(220);
  expect(await flow.getAttribute('data-flow-offset')).toBe(frozen);
+ expect(await movingBar.getAttribute('data-bar-shift')).toBe(frozenBar);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  await page.getByRole('button',{name:'再生',exact:true}).click();
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(frozen);
+ await expect.poll(async()=>movingBar.getAttribute('data-bar-shift'),{timeout:5000}).not.toBe(frozenBar);
  await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
+ await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  const download=page.waitForEvent('download');
  await page.getByRole('button',{name:'SVGを書き出す',exact:true}).click();
@@ -76,6 +84,7 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(flow).toHaveCount(1);
  await page.getByLabel('完成後も線に光を流す').uncheck();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
+ await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  await page.getByLabel('完成後も線に光を流す').check();
  await expect(flow).toHaveCount(1);

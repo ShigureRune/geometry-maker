@@ -70,21 +70,7 @@ const FlowGeometry=memo(function FlowGeometry({shape,flow,ink,lineWidth}:{
           strokeDasharray={headDash} strokeDashoffset={offset}/>
       </g>;
     })}
-    {/* Filled plates should have a visible moving signal INSIDE them, not
-        merely a tracer around their rectangular outline. */}
-    {(shape.kind==='band'||shape.kind==='rectangle')&&shape.filled&&(()=>{
-      const thickness=shape.thickness??shape.size*(shape.kind==='band'?.3:.15);
-      const left=-shape.size+thickness*.8,right=shape.size-thickness*1.5;
-      if(right<=left)return null;
-      const d=`M ${left},0 L ${right},0`;
-      return <g data-testid="bar-flow">
-        <path d={d} pathLength={1} stroke={ink} strokeWidth={thickness*.6}
-          opacity={.85} strokeDasharray={tailDash} strokeDashoffset={flow.offset}/>
-        <path d={d} pathLength={1} stroke="#f4fbff"
-          strokeWidth={Math.max(lineWidth,thickness*.16)} opacity={.9}
-          strokeDasharray={headDash} strokeDashoffset={flow.offset}/>
-      </g>;
-    })()}
+
   </g>;
 });
 function localPoint(shape: Shape, p: Point): Point {
@@ -151,16 +137,28 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
         const solidFill = ['dot', 'dots', 'accent'].includes(shape.kind);
         const finalFillOpacity=solidFill || ['circuit','branch-circuit'].includes(shape.kind)?1:shape.fillOpacity;
         const ink = background.mode === 'gradient' && !(isMagic||(transparent&&roleColor(shape))) ? `url(#${gradientId}-ink-${shape.id})` : paint.color;
+        // Filled bars are the moving objects: shift the whole band/plate,
+        // including its fill, outline and glow. Other figures remain fixed.
+        const barMotion=(shape.kind==='band'||shape.kind==='rectangle')&&shape.filled
+          ?flow?.[shape.id]:undefined;
+        const artwork=<>
+          {paint.glow && <g filter={`url(#${gradientId}-glow-${shape.id})`} opacity={paint.glowOpacity} fill={background.glowIntensity===undefined?undefined:solidFill||['circuit','branch-circuit'].includes(shape.kind)?ink:"none"}><Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} /></g>}
+          <Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} />
+          {flow?.[shape.id]&&!barMotion&&<FlowGeometry shape={shape} flow={flow[shape.id]}
+            ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
+        </>;
         return <g key={shape.id} data-shape-id={shape.id} data-layer={shape.layer} data-role={shape.role} data-kind={shape.kind}
           data-group={shape.group} data-parent={shape.parent} data-glow={paint.glow || undefined}
           transform={`${motion?.[shape.id]??''} translate(${shape.x} ${shape.y}) rotate(${shape.rotation})`}
           stroke={ink} strokeWidth={shape.strokeWidth * (background.lineWidth ?? 100) / 100} opacity={paint.opacity}
           fill={shape.filled || ['circuit','branch-circuit'].includes(shape.kind) ? solidFill || ['circuit','branch-circuit'].includes(shape.kind) ? ink : `url(#${gradientId}-fill-${shape.id})` : 'none'}
           fillOpacity={finalFillOpacity}>
-          {paint.glow && <g filter={`url(#${gradientId}-glow-${shape.id})`} opacity={paint.glowOpacity} fill={background.glowIntensity===undefined?undefined:solidFill||['circuit','branch-circuit'].includes(shape.kind)?ink:"none"}><Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} /></g>}
-          <Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} />
-          {flow?.[shape.id]&&<FlowGeometry shape={shape} flow={flow[shape.id]}
-            ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
+          {barMotion
+            ?<g data-testid="bar-body-motion" data-bar-shift={barMotion.barShift}
+                transform={`translate(${Number((barMotion.barShift*shape.size).toFixed(5))} 0)`}>
+                {artwork}
+              </g>
+            :artwork}
         </g>;
       })}
     </g>
