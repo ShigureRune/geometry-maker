@@ -6,15 +6,17 @@ import type {ThreeObject} from './model';
 import type {NetworkEdge} from './network';
 import {particleSwirlDirection} from './particle';
 import type {ThreeSettings} from './settings';
-import {generateVoidParticles} from './void-particle';
+import {VOID_PARTICLE_NODE_SHARE_DEFAULT,generateVoidParticles} from './void-particle';
 
 const vertex=String.raw`
 attribute vec3 aTarget;
 attribute vec3 aScatter;
 attribute float aPhase;
 attribute vec3 aColor;
+attribute float aNode;
 uniform float uTime,uDuration,uSwirl,uDirection,uPointScale,uJitter;
 varying vec3 vColor;
+varying float vNode;
 void main(){
   float t=clamp(uTime/max(.001,uDuration),0.0,1.0);
   float ease=1.0-pow(1.0-t,3.0);
@@ -30,18 +32,21 @@ void main(){
     *uJitter*.025*(.3+.7*unformed);
   vec4 view=modelViewMatrix*vec4(displaced,1.0);
   gl_Position=projectionMatrix*view;
-  gl_PointSize=clamp(uPointScale*18.0/max(1.0,-view.z),1.1,5.0);
+  // Figure particles are easier to distinguish than the thinner wire dust.
+  gl_PointSize=clamp(uPointScale*18.0/max(1.0,-view.z)*(1.0+.65*aNode),1.1,8.0);
   vColor=aColor;
+  vNode=aNode;
 }
 `;
 const fragment=String.raw`
 varying vec3 vColor;
+varying float vNode;
 uniform float uDensityGain;
 void main(){
   float d=length(gl_PointCoord-vec2(.5));
   float alpha=exp(-d*d*15.0)*(1.0-smoothstep(.40,.50,d));
   if(alpha<.014)discard;
-  gl_FragColor=vec4(vColor*1.3,alpha*.82*uDensityGain);
+  gl_FragColor=vec4(vColor*1.3,alpha*.82*uDensityGain*mix(.55,1.3,vNode));
 }
 `;
 
@@ -56,9 +61,10 @@ export function VoidParticleCloud({objects,edges,count,seed,background,settings,
   progressHost?:RefObject<HTMLDivElement|null>;
 }){
   const options=settings.particle!;
+  const nodeShare=settings.voidMode?.nodeShare??VOID_PARTICLE_NODE_SHARE_DEFAULT;
   const data=useMemo(()=>generateVoidParticles(
-    objects,edges,seed,background,count,low,options.spread,options.height
-  ),[objects,edges,seed,background,count,options.spread,options.height,low]);
+    objects,edges,seed,background,count,low,options.spread,options.height,nodeShare
+  ),[objects,edges,seed,background,count,options.spread,options.height,nodeShare,low]);
   const geometry=useMemo(()=>{
     const buffer=new BufferGeometry();
     buffer.setAttribute('position',new BufferAttribute(data.targets,3));
@@ -66,6 +72,7 @@ export function VoidParticleCloud({objects,edges,count,seed,background,settings,
     buffer.setAttribute('aScatter',new BufferAttribute(data.scatter,3));
     buffer.setAttribute('aPhase',new BufferAttribute(data.phases,1));
     buffer.setAttribute('aColor',new BufferAttribute(data.colors,3));
+    buffer.setAttribute('aNode',new BufferAttribute(data.nodeFlags,1));
     return buffer;
   },[data]);
   useEffect(()=>()=>geometry.dispose(),[geometry]);
