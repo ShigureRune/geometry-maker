@@ -24,6 +24,11 @@ test('growth start, seek, completion, playback and complete exports',async({page
 test('v4 classic contour light flows after 100%, pauses, resumes and leaves shapes fixed',async({page})=>{
  await page.goto('./');
  await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
+ // This known seed contains both v4 bands and a two-layer arc. Include all
+ // density candidates so the secondary dotted arc is actually rendered.
+ await page.getByLabel('シード値',{exact:true}).fill('postgrowth-bar-and-arc');
+ await page.getByLabel('シード値',{exact:true}).press('Enter');
+ await page.getByLabel('図形密度').fill('100');
  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v4');
  await expect(page.getByLabel('完成後も線に光を流す')).toBeChecked();
  await page.getByLabel('成長時間（秒）').fill('1');
