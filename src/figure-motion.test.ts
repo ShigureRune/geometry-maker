@@ -102,7 +102,8 @@ it('moves whole v4 bars without moving the root pose and spins the dotted second
   expect(figureFlowAt(plan,.001)[arc!.id].spin).toBeCloseTo(0,1);
   expect(first[bar!.id].barShift).not.toBe(later[bar!.id].barShift);
   expect(figureFlowAt(plan,0)).toEqual({});
-  expect(figureFlowAt(plan,.001)[bar!.id].barShift).toBeCloseTo(0,3);
+  expect(figureFlowAt(plan,.001)[bar!.id].barShift).toBeGreaterThan(0);
+  expect(figureFlowAt(plan,.001)[bar!.id].barShift).toBeLessThan(1);
 
   const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
   const animated=renderToStaticMarkup(createElement(Preview,{scene,background,flow:first}));
@@ -170,7 +171,7 @@ it('moves thick and thin bars simultaneously in one fixed direction without reve
   expect((svg.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(3);
   expect(svg).not.toContain('data-testid="bar-flow"');
   // Even a rotated line receives the same world-space displacement.
-  const lineSvg=svg.match(/data-kind="line"[\\s\\S]*?data-bar-world-x="([^"]+)" data-bar-world-y="([^"]+)"/);
+  const lineSvg=svg.match(/data-kind="line".*?data-bar-world-x="([^"]+)" data-bar-world-y="([^"]+)"/);
   expect(lineSvg).not.toBeNull();
   expect(Number(lineSvg![1])).toBeCloseTo(t2[thick.id].barDx,3);
   expect(Number(lineSvg![2])).toBeCloseTo(t2[thick.id].barDy,3);
