@@ -8,7 +8,7 @@ import {
 import type {Background} from '../scene';
 
 const background:Background={mode:'solid',solid:'#050719',
-  colors:['#08051d','#091024'],angle:0,
+  colors:['#08051d','#091024','#031422'],angle:0,
   figureColors:{primary:'#b995ff',support:'#76cfe8',accent:'#beffd4'}};
 
 describe('particle mode on cosmic web',()=>{
