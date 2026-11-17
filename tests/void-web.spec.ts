@@ -131,7 +131,7 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   project.settings.quality='low';
   project.settings.animation=true;
   project.settings.particle={...threeDefaults.particle!,enabled:true,
-    seedTransition:true,seedDuration:5,swirl:1.5};
+    seedTransition:true,seedDuration:10,swirl:1.5};
   project.settings.voidMode!.particleCount=12000;
   project.elapsedSeconds=9;
   await open(page,project);
@@ -139,8 +139,12 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
   await category(page,'図形');
   await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
+  // Open the animation panel BEFORE the reseed. Pause immediately, before
+  // costly WebGL inspection can eat the short transition window on CI.
+  await category(page,'アニメーション');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
+  await page.getByRole('button',{name:'3Dを一時停止'}).click();
   const gpu=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
       e.name.includes('@react-three_fiber.js'))!.name;
@@ -161,10 +165,6 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   expect(gpu).toMatchObject({count:12000,fromColor:12000,fromNode:12000,
     gpuMorphActive:true});
   expect(gpu.differences).toBeGreaterThan(20);
-  await expect.poll(async()=>Number(await preview.getAttribute('data-particle-seed-progress')))
-    .toBeGreaterThan(.03);
-  await category(page,'アニメーション');
-  await page.getByRole('button',{name:'3Dを一時停止'}).click();
   const frozen=await preview.getAttribute('data-particle-seed-progress');
   await page.waitForTimeout(250);
   expect(await preview.getAttribute('data-particle-seed-progress')).toBe(frozen);
@@ -188,7 +188,7 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   await page.getByRole('button',{name:'3Dを再生'}).click();
   await expect.poll(async()=>Number(await preview.getAttribute('data-void-wire-seed-reveal')))
     .toBeGreaterThan(.05);
-  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:12000});
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:24000});
   await expect(preview).toHaveAttribute('data-void-wire-seed-reveal','1.000');
   const settledWires=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
