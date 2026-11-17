@@ -55,7 +55,7 @@ export function AnimationControls({settings,onChange,playback,version}:{
  playback:ReturnType<typeof usePlayback>;version?:AlgorithmVersion;
 }){
  const {position,setPosition,playing,setPlaying}=playback;
- const continuing=!!settings.continuousMotion;
+ const continuing=version!=='2d-magic-v1'&&!!settings.continuousMotion;
  return <section className="control-section animation-controls"><h3>成長アニメーション</h3>
  <label><input type="checkbox" checked={settings.animationEnabled} onChange={e=>{onChange({...settings,animationEnabled:e.target.checked});setPosition(0);setPlaying(false);}}/> アニメーションを有効化</label>
  <label htmlFor="growth-duration">成長時間（秒）</label><output>{settings.animationDuration}</output><input id="growth-duration" type="range" min="1" max="30" value={settings.animationDuration} onChange={e=>onChange({...settings,animationDuration:+e.target.value})}/>
