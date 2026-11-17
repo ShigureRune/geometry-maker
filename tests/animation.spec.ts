@@ -43,6 +43,15 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  const first=await flow.getAttribute('data-flow-offset');
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(first);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
+ // Full bars glow internally while the dashed secondary arc alone rotates.
+ const barSignal=page.getByTestId('bar-flow').first().locator('path').first();
+ await expect(barSignal).toHaveCount(1);
+ const oldBar=await barSignal.getAttribute('stroke-dashoffset');
+ await expect.poll(async()=>barSignal.getAttribute('stroke-dashoffset'),{timeout:5000}).not.toBe(oldBar);
+ const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
+ await expect(dottedArc).toHaveCount(1);
+ const oldAngle=await dottedArc.getAttribute('transform');
+ await expect.poll(async()=>dottedArc.getAttribute('transform'),{timeout:5000}).not.toBe(oldAngle);
  await page.getByRole('button',{name:'一時停止',exact:true}).click();
  await page.waitForTimeout(110);
  const frozen=await flow.getAttribute('data-flow-offset');
