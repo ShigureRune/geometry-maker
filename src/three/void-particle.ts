@@ -7,6 +7,8 @@ import type {NetworkEdge} from './network';
 export const VOID_PARTICLE_LOW_LIMIT=80000;
 export const VOID_PARTICLE_HIGH_LIMIT=500000;
 export const VOID_PARTICLE_DEFAULT=200000;
+/** Percentage of the point budget assigned to the actual 3D figures (not wires). */
+export const VOID_PARTICLE_NODE_SHARE_DEFAULT=90;
 
 /** The existing 3D quality setting alone determines the cosmic-web budget.
  * Auto quality already chooses Low on mobile/software renderers, while a
@@ -20,7 +22,7 @@ export function effectiveVoidParticleCount(requested:number,low:boolean):number{
 export type VoidParticleData={
   count:number;nodeParticles:number;filamentParticles:number;
   targets:Float32Array;colors:Float32Array;
-  scatter:Float32Array;phases:Float32Array;
+  scatter:Float32Array;phases:Float32Array;nodeFlags:Uint8Array;
 };
 
 /** Generate once per seed/configuration. O(particles + visible nodes + edges)
@@ -33,21 +35,26 @@ export type VoidParticleData={
 export function generateVoidParticles(
   objects:readonly ThreeObject[],edges:readonly NetworkEdge[],
   seed:string,background:Background,requested:number,low:boolean,
-  spread=1.4,height=1.2,
+  spread=1.4,height=1.2,nodeShare=VOID_PARTICLE_NODE_SHARE_DEFAULT,
 ):VoidParticleData{
   const count=objects.length?effectiveVoidParticleCount(requested,low):0;
   const targets=new Float32Array(count*3);
   const colors=new Float32Array(count*3);
   const scatter=new Float32Array(count*3);
   const phases=new Float32Array(count);
+  const nodeFlags=new Uint8Array(count);
   const empty={count,nodeParticles:0,filamentParticles:0,
-    targets,colors,scatter,phases};
+    targets,colors,scatter,phases,nodeFlags};
   if(!count)return empty;
 
   const byId=new Map(objects.map(o=>[o.id,o]));
   const visibleEdges=edges.filter(e=>byId.has(e.a)&&byId.has(e.b));
-  const nodeParticles=visibleEdges.length?Math.round(count*.32):count;
+  // Keep the node geometry visibly dense: wires have a small, adjustable
+  // share and no longer swallow most of the GPU particle budget.
+  const safeShare=Number.isFinite(nodeShare)?Math.max(50,Math.min(100,nodeShare)):VOID_PARTICLE_NODE_SHARE_DEFAULT;
+  const nodeParticles=visibleEdges.length?Math.round(count*safeShare/100):count;
   const filamentParticles=count-nodeParticles;
+  nodeFlags.fill(1,0,nodeParticles);
   const random=seededRandom('void-web-particle-v1:'+seed);
   const defaultColors={primary:'#b995ff',support:'#76cfe8',accent:'#beffd4'};
   const colorFor=(object:ThreeObject)=>{
@@ -93,5 +100,5 @@ export function generateVoidParticles(
     write(p,x,y,z,ca[0]*(1-t)+cb[0]*t,ca[1]*(1-t)+cb[1]*t,
       ca[2]*(1-t)+cb[2]*t);
   }
-  return {count,nodeParticles,filamentParticles,targets,colors,scatter,phases};
+  return {count,nodeParticles,filamentParticles,targets,colors,scatter,phases,nodeFlags};
 }

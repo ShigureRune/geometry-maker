@@ -66,6 +66,7 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
     .toBeGreaterThan(200);
   await page.locator('#particle-count').fill('500000');
   await expect(preview).toHaveAttribute('data-particle-count',String(budget));
+  const networkEdges=await preview.getAttribute('data-network-count');
   const state=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
       e.name.includes('@react-three_fiber.js'))!.name;
@@ -74,7 +75,10 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
       '[data-testid="three-preview"] canvas'));
     const scene=root.store.getState().scene;
     const cloud=scene.getObjectByName('void-web-particle-cloud') as any;
+    const flags=cloud?.geometry.getAttribute('aNode')?.array as Uint8Array|undefined;
+    const nodeParticles=flags?.reduce((sum,value)=>sum+value,0)??0;
     return {
+      nodeParticles,filamentParticles:(flags?.length??0)-nodeParticles,
       count:cloud?.geometry.getAttribute('position').count??0,
       targets:cloud?.geometry.getAttribute('aTarget').count??0,
       hasSolids:!!scene.getObjectByName('void-web-batches'),
@@ -83,8 +87,23 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
     };
   });
   expect(state).toEqual({
-    count:budget,targets:budget,hasSolids:false,isPoints:true,hasShader:true,
+    count:budget,targets:budget,nodeParticles:72000,filamentParticles:8000,
+    hasSolids:false,isPoints:true,hasShader:true,
   });
+  // Reallocate the same GPU vertices to figures without breaking original wires.
+  const share=page.locator('#void-particle-node-share');
+  await expect(share).toHaveValue('90');
+  await share.fill('100');
+  await expect(share).toHaveValue('100');
+  await expect(preview).toHaveAttribute('data-network-count',networkEdges!);
+  const figuresOnly=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector('[data-testid="three-preview"] canvas'));
+    const flags=root.store.getState().scene.getObjectByName('void-web-particle-cloud')?.geometry.getAttribute('aNode').array as Uint8Array;
+    return {count:flags.length,nodes:flags.reduce((sum,n)=>sum+n,0)};
+  });
+  expect(figuresOnly).toEqual({count:budget,nodes:budget});
   const after=await preview.locator('canvas').screenshot();
   expect(after.equals(before)).toBe(false);
   await category(page,'書き出し');
@@ -92,6 +111,7 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   expect(result.settings.voidMode?.enabled).toBe(true);
   expect(result.settings.particle).toMatchObject({enabled:true,count:4000});
   expect(result.settings.voidMode?.particleCount).toBe(500000);
+  expect(result.settings.voidMode?.nodeShare).toBe(100);
   await category(page,'図形');
   await toggle.uncheck();
   await expect(preview).toHaveAttribute('data-particle-mode','off');
