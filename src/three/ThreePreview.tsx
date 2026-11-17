@@ -745,7 +745,7 @@ export default function ThreePreview(input: Props) {
     [props.transition,previousObjects,network.enabled,particleEnabled,web,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
   // Filament particles also follow the original graph when the visual wire
   // overlay is disabled, so the cosmic-web silhouette remains recognizable.
-  const voidParticleEdges=useMemo(()=>web&&particleEnabled?
+  const voidParticleEdges=useMemo(()=>web&&particleEnabled&&isVoidComposition(props.composition)?
     voidEdges(props.composition,objects):[],[web,particleEnabled,props.composition,objects]);
   const routes=useMemo(()=>web?voidWireSteps(objects,edges):undefined,[web,objects,edges]);
   const oldRoutes=useMemo(()=>web?voidWireSteps(previousObjects,previousEdges):undefined,[web,previousObjects,previousEdges]);
