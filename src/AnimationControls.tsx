@@ -67,24 +67,24 @@ export function AnimationControls({settings,onChange,playback,version}:{
    onChange({...settings,continuousMotion:active});
    if(!active&&position===1)setPlaying(false);
    if(active&&settings.animationEnabled&&position===1)setPlaying(true);
- }}/> 完成後も図形を動かす</label>
+ }}/> 完成後も線に光を流す</label>
  {continuing&&<>
- <label htmlFor="figure-motion-strength">揺れ・回転の大きさ</label>
+ <label htmlFor="figure-motion-strength">光の流れの強さ</label>
  <output>{settings.motionStrength??MOTION_DEFAULTS.motionStrength}%</output>
- <input id="figure-motion-strength" aria-label="揺れ・回転の大きさ" type="range" min="0" max="200" step="10"
+ <input id="figure-motion-strength" aria-label="光の流れの強さ" type="range" min="0" max="200" step="10"
    value={settings.motionStrength??MOTION_DEFAULTS.motionStrength}
    onChange={e=>onChange({...settings,motionStrength:+e.target.value})}/>
- <label htmlFor="figure-motion-speed">完成後の動く速さ</label>
+ <label htmlFor="figure-motion-speed">光の流れる速さ</label>
  <select id="figure-motion-speed" value={settings.motionSpeed??MOTION_DEFAULTS.motionSpeed}
    onChange={e=>onChange({...settings,motionSpeed:+e.target.value})}>
    {[.25,.5,1,1.5,2,3].map(n=><option key={n} value={n}>{n}倍</option>)}
  </select>
- <label htmlFor="figure-motion-video-seconds">動画に含める完成後の動き（秒）</label>
+ <label htmlFor="figure-motion-video-seconds">動画に含める光の流れ（秒）</label>
  <output>{settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds}秒</output>
  <input id="figure-motion-video-seconds" type="range" min="2" max="30" step="1"
    value={settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds}
    onChange={e=>onChange({...settings,motionVideoSeconds:+e.target.value})}/>
- <HelpInfo>v4クラシック・v5の図形が完成した後もゆっくり動き続けます。描き終わった形のまま揺れたり回転します。停止・再開可能で、動画にも収録できます。</HelpInfo>
+ <HelpInfo>v4クラシック・v5の図形が完成した後も、線に沿って光が流れ続けます。図形の形・位置・角度は変わりません。一時停止・再開、動画保存に対応しています。</HelpInfo>
  </>}
  </>}
  <div className="play-buttons"><button disabled={!settings.animationEnabled} onClick={()=>{
@@ -97,6 +97,6 @@ export function AnimationControls({settings,onChange,playback,version}:{
    onChange={e=>{setPlaying(false);setPosition(+e.target.value/1000);}}/></label>
  <output data-testid="playback-position">{(position*settings.animationDuration).toFixed(2)} / {settings.animationDuration}秒（{Math.round(position*100)}%）</output>
  <output data-testid="post-growth-motion" aria-label="完成後の経過時間">{playback.motionSeconds.toFixed(2)}秒</output>
- <HelpInfo>シード確定・再生成で成長から再生します。「完成状態を表示」は図形を静止します。静止画保存は常に完成状態です。</HelpInfo>
+ <HelpInfo>シード確定・再生成で成長から再生します。「完成状態を表示」は光の流れを停止します。静止画保存は常に完成状態です。</HelpInfo>
  </section>;
 }
