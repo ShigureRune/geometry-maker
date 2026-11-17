@@ -68,6 +68,17 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect.poll(async()=>Number(await movingBar.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(nowBar);
  await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(nowLine);
  expect(await barRoot.getAttribute('transform')).toBe(originalBarPosition);
+ // Generated edge highlights share kind="line" with the thin rods, but
+ // role="accent" means an overlay: they must NEVER follow rod translations.
+ const highlight=page.locator('[data-role="accent"]').first();
+ await expect(highlight).toHaveCount(1);
+ const highlightPosition=await highlight.getAttribute('transform');
+ await expect(highlight.getByTestId('bar-body-motion')).toHaveCount(0);
+ await expect(highlight.getByTestId('figure-flow')).toHaveCount(0);
+ const previousRodShift=Number(await movingLine.getAttribute('data-bar-shift'));
+ await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),
+   {timeout:5000}).toBeGreaterThan(previousRodShift);
+ expect(await highlight.getAttribute('transform')).toBe(highlightPosition);
  const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
  await expect(dottedArc).toHaveCount(1);
  const oldAngle=await dottedArc.getAttribute('transform');
