@@ -5,7 +5,7 @@ import {figureScrollAngle,type AmbientInput} from './ambient';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Preview } from './Preview';
 import {progressAt,schedule,MOTION_DEFAULTS,type AnimationSettings} from './animation';
-import {createFigureMotionPlan,figureMotionAt} from './figure-motion';
+import {createFigureMotionPlan,figureFlowAt} from './figure-motion';
 import { serializeArtwork } from './export';
 import type { Background, Scene, Shape } from './scene';
 import type {TextOverlaySettings} from './text-overlay';
@@ -25,11 +25,13 @@ export function createVideoRenderer(input: VideoArtwork) {
     const after=seconds-growthEnd;
     const motion=magicSettings&&scene.version===MAGIC_ALGORITHM_VERSION
       ?magicCircleMotion(scene,magicSettings,seconds,growthEnd)
-      :animation.animationEnabled&&animation.continuousMotion&&after>0
-        ?figureMotionAt(postGrowthPlan,after,
+      :undefined;
+    const flow=scene.version!==MAGIC_ALGORITHM_VERSION&&
+      animation.animationEnabled&&animation.continuousMotion&&after>0
+        ?figureFlowAt(postGrowthPlan,after,
           animation.motionStrength??MOTION_DEFAULTS.motionStrength,
           animation.motionSpeed??MOTION_DEFAULTS.motionSpeed):undefined;
-    const markup = renderToStaticMarkup(ambient?.settings.enabled?<AmbientView input={ambient} seconds={seconds} world={world} figureCache={figureCache}/>:<Preview scene={scene} background={background} growth={growth} motion={motion} textOverlay={textOverlay} textSeconds={seconds} gridSeconds={seconds} gridFigureAngle={ambient?figureScrollAngle(ambient.settings,ambient.ratio):undefined} />);
+    const markup = renderToStaticMarkup(ambient?.settings.enabled?<AmbientView input={ambient} seconds={seconds} world={world} figureCache={figureCache}/>:<Preview scene={scene} background={background} growth={growth} motion={motion} flow={flow} textOverlay={textOverlay} textSeconds={seconds} gridSeconds={seconds} gridFigureAngle={ambient?figureScrollAngle(ambient.settings,ambient.ratio):undefined} />);
     const svg = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement as unknown as SVGSVGElement;
     return serializeArtwork(svg, width, height, background.mode === 'solid' ? background.solid : background.colors[0]);
   };
