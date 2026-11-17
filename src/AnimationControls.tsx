@@ -84,7 +84,7 @@ export function AnimationControls({settings,onChange,playback,version}:{
  <input id="figure-motion-video-seconds" type="range" min="2" max="30" step="1"
    value={settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds}
    onChange={e=>onChange({...settings,motionVideoSeconds:+e.target.value})}/>
- <HelpInfo>v4クラシック・v5の図形が完成した後も、線に沿って光が流れ続けます。図形の形・位置・角度は変わりません。一時停止・再開、動画保存に対応しています。</HelpInfo>
+ <HelpInfo>v4クラシック・v5の完成後、線に沿って光が流れ、棒状の図形は本体ごと滑らかに往復し、二重の弧では点線側だけが回転します。一時停止・再開、動画保存に対応しています。</HelpInfo>
  </>}
  </>}
  <div className="play-buttons"><button disabled={!settings.animationEnabled} onClick={()=>{
