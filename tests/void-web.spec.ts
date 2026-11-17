@@ -59,12 +59,14 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   await toggle.check();
   await expect(preview).toHaveAttribute('data-particle-mode','on');
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
-  await expect(preview).toHaveAttribute('data-particle-count','1200');
+  const {renderer}=await inspect(page);
+  const budget=/swiftshader|llvmpipe|software|basic render/i.test(renderer)?6000:30000;
+  await expect(preview).toHaveAttribute('data-particle-count',String(budget));
   await expect(preview).toHaveAttribute('data-object-count',nodeCount!);
   expect(Number(await preview.getAttribute('data-void-particle-filaments')))
     .toBeGreaterThan(200);
-  await page.locator('#particle-count').fill('12000');
-  await expect(preview).toHaveAttribute('data-particle-count','1200');
+  await page.locator('#particle-count').fill('120000');
+  await expect(preview).toHaveAttribute('data-particle-count',String(budget));
   const state=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
       e.name.includes('@react-three_fiber.js'))!.name;
@@ -82,14 +84,15 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
     };
   });
   expect(state).toEqual({
-    count:1200,targets:1200,hasSolids:false,isPoints:true,hasShader:true,
+    count:budget,targets:budget,hasSolids:false,isPoints:true,hasShader:true,
   });
   const after=await preview.locator('canvas').screenshot();
   expect(after.equals(before)).toBe(false);
   await category(page,'書き出し');
   const result=await saved(page);
   expect(result.settings.voidMode?.enabled).toBe(true);
-  expect(result.settings.particle).toMatchObject({enabled:true,count:12000});
+  expect(result.settings.particle).toMatchObject({enabled:true,count:4000});
+  expect(result.settings.voidMode?.particleCount).toBe(120000);
   await category(page,'図形');
   await toggle.uncheck();
   await expect(preview).toHaveAttribute('data-particle-mode','off');
