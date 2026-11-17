@@ -53,7 +53,7 @@ test('exported video duration includes slow text entrance even when figure growt
  await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
  // This case measures text entrance independently of the optional seconds
  // appended for completed-figure motion; the latter has separate coverage.
- await page.getByLabel('完成後も図形を動かす').uncheck();
+ await page.getByLabel('完成後も線に光を流す').uncheck();
  await page.getByLabel('成長時間（秒）').fill('1');
  await page.getByLabel('再生速度',{exact:true}).selectOption('4');
  await nav.getByRole('button',{name:'書き出し',exact:true}).click();
