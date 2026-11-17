@@ -4,20 +4,16 @@ import type {NetworkEdge} from './network';
 
 /** Bounded GPU particle budget: node + filament particles replace thousands of
  * individual surface samplers and instanced solids in the cosmic web. */
-export const VOID_PARTICLE_LOW_LIMIT=30000;
-export const VOID_PARTICLE_HIGH_LIMIT=120000;
-export const VOID_PARTICLE_MOBILE_LIMIT=16000;
-export const VOID_PARTICLE_SOFTWARE_LIMIT=6000;
-export const VOID_PARTICLE_DEFAULT=80000;
+export const VOID_PARTICLE_LOW_LIMIT=80000;
+export const VOID_PARTICLE_HIGH_LIMIT=500000;
+export const VOID_PARTICLE_DEFAULT=200000;
 
-/** The requested web density is independent of the ordinary solid particle mode.
- * Force a conservative budget even if High is selected on mobile/software. */
-export function effectiveVoidParticleCount(
-  requested:number,low:boolean,smallDevice=false,softwareDevice=false,
-):number{
-  const cap=softwareDevice?VOID_PARTICLE_SOFTWARE_LIMIT:
-    smallDevice?VOID_PARTICLE_MOBILE_LIMIT:
-    low?VOID_PARTICLE_LOW_LIMIT:VOID_PARTICLE_HIGH_LIMIT;
+/** The existing 3D quality setting alone determines the cosmic-web budget.
+ * Auto quality already chooses Low on mobile/software renderers, while a
+ * deliberate High override is honored on every device. Never silently apply
+ * a second device-type cap after the user's explicit quality choice. */
+export function effectiveVoidParticleCount(requested:number,low:boolean):number{
+  const cap=low?VOID_PARTICLE_LOW_LIMIT:VOID_PARTICLE_HIGH_LIMIT;
   return Number.isFinite(requested)?Math.min(Math.max(0,Math.floor(requested)),cap):0;
 }
 
