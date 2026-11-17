@@ -163,10 +163,24 @@ export function VoidParticleCloud({objects,edges,count,seed,background,settings,
           progressHost.current.dataset.particleSeedProgress='0.000';
         }
       }else seedMorph.current=null;
-    }else if(previous&&(previous.data!==data||previous.restartKey!==restartKey)){
-      // Changes to density/quality or a replay of the same seed must not
-      // mistake a new particle buffer for another seed morph.
+    }else if(previous&&previous.restartKey!==restartKey){
+      // Replaying the same seed is a fresh assembly, not a seed morph.
       seedMorph.current=null;
+    }else if(previous&&previous.data!==data){
+      const morph=seedMorph.current;
+      if(morph&&morph.positions.length===data.targets.length){
+        // A pause or innocuous palette/settings rerender may recreate the
+        // particle buffer without changing the seed. Keep the ORIGINAL
+        // from-frame attributes on the new GPU geometry. Otherwise the
+        // shader silently snaps back to the target and the cables lead.
+        geometry.setAttribute('aFrom',new BufferAttribute(morph.positions,3));
+        geometry.setAttribute('aFromColor',new BufferAttribute(morph.colors,3));
+        geometry.setAttribute('aFromNode',new BufferAttribute(morph.nodes,1));
+      }else{
+        // A different particle budget is not a same-size reupload. A later
+        // seed change takes a fresh snapshot from the settled new geometry.
+        seedMorph.current=null;
+      }
     }
     lastScene.current={seed,data,restartKey};
     if(!changedSeed||!seedMorph.current)update();
