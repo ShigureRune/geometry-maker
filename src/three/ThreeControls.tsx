@@ -6,7 +6,7 @@ import {THREE_KINDS,THREE_CLASSIC_KINDS,THREE_NEW_KINDS,THREE_SPACING_DEFAULT,ty
 import {CELESTIAL_KINDS, CELESTIAL_LABELS, celestialDefaults} from './celestial';
 import {particleDefaults} from './particle';
 import {VOID_WEB_VERSION} from './void-settings';
-import {VOID_PARTICLE_DEFAULT,VOID_PARTICLE_HIGH_LIMIT,VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_MOBILE_LIMIT,VOID_PARTICLE_SOFTWARE_LIMIT} from './void-particle';
+import {VOID_PARTICLE_DEFAULT,VOID_PARTICLE_HIGH_LIMIT,VOID_PARTICLE_LOW_LIMIT} from './void-particle';
 import {GALAXY_PALETTES,GALAXY_TYPES,GALAXY_TYPE_LABELS,galaxyDefaults,type GalaxyPalette,type GalaxyType} from './galaxy';
 import {GALAXY_PRESETS,galaxyWithPreset,type GalaxyPreset} from './galaxy-presets';
 
@@ -94,14 +94,14 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         {cosmicWeb?'コズミックウェブを粒子で描く':'立体を粒子で描く'}
       </label>
       {legacyVoid&&<p className="help">旧VOIDプロトタイプは従来の立体描画専用です。大規模コズミックウェブに切り替えるとPARTICLE MODEを使えます。</p>}
-      {cosmicWeb&&<p className="help">コズミックウェブとPARTICLE MODEを同時に使用できます。結節点とフィラメントを一括GPU描画し、元の配線の表示も維持します。GPUで密集したウェブを描画します。高品質は最大120,000粒子、軽量30,000、モバイル16,000、ソフトウェア描画6,000に自動制限します。通常3Dの粒子数とは別設定です。</p>}
+      {cosmicWeb&&<p className="help">コズミックウェブとPARTICLE MODEを同時に使用できます。結節点とフィラメントを一括GPU描画し、元の配線の表示も維持します。GPUで密集したウェブを描画します。粒子数の上限は「3D描画品質」で決まります。高品質は最大500,000粒子、軽量は最大80,000粒子。自動では端末に応じて軽量／高品質を選択し、スマホでも高品質を手動選択すると高密度表示を試せます（動作が重い場合は軽量へ戻してください）。通常3Dの粒子数とは別設定です。</p>}
       {particle.enabled&&<>
         {cosmicWeb?<ThreeRange id="particle-count" label="コズミックウェブ粒子数" value={settings.voidMode?.particleCount??VOID_PARTICLE_DEFAULT}
           min={1000} max={VOID_PARTICLE_HIGH_LIMIT} step={1000} unit="個"
           onChange={particleCount=>onChange({...settings,voidMode:{...settings.voidMode!,particleCount}})}/>:
           <ThreeRange id="particle-count" label="粒子数" value={particle.count} min={500} max={12000} step={500} unit="個"
             onChange={count=>onChange({...settings,particle:{...particle,count}})}/>}
-        {cosmicWeb&&<p className="help">初期値{VOID_PARTICLE_DEFAULT.toLocaleString('ja-JP')}粒子。低品質{VOID_PARTICLE_LOW_LIMIT.toLocaleString('ja-JP')}、モバイル{VOID_PARTICLE_MOBILE_LIMIT.toLocaleString('ja-JP')}、ソフトウェア描画{VOID_PARTICLE_SOFTWARE_LIMIT.toLocaleString('ja-JP')}粒子が上限です。設定値は保存され、性能の高い端末ではより多く表示します。</p>}
+        {cosmicWeb&&<p className="help">初期値{VOID_PARTICLE_DEFAULT.toLocaleString('ja-JP')}粒子。軽量品質は最大{VOID_PARTICLE_LOW_LIMIT.toLocaleString('ja-JP')}、高品質は最大{VOID_PARTICLE_HIGH_LIMIT.toLocaleString('ja-JP')}粒子です。「自動」は端末に応じて品質を決定します。設定した粒子数は保存されます。</p>}
         <ThreeRange id="particle-duration" label="集合にかかる時間" value={particle.duration} min={.5} max={15} step={.1} unit="秒"
           onChange={duration=>onChange({...settings,particle:{...particle,duration}})}/>
         <ThreeRange id="particle-swirl" label="渦の強さ" value={particle.swirl} min={0} max={3} step={.1}
@@ -116,7 +116,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={seedDuration=>onChange({...settings,particle:{...particle,seedDuration}})}/>}
         <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
           onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
-        <HelpInfo>{cosmicWeb?'コズミックウェブでは結節点と実際のフィラメントに粒子を配置し、GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大12万個で、端末性能に合わせて自動制限します。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
+        <HelpInfo>{cosmicWeb?'コズミックウェブでは結節点と実際のフィラメントに粒子を配置し、GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大50万個・軽量最大8万個。粒子数は既存の3D描画品質の選択に従います。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
       </>}
     </fieldset>
     <fieldset className="three-kind-fieldset" data-testid="galaxy-mode-controls">
