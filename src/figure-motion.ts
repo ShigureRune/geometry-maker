@@ -7,9 +7,11 @@ import {seededRandom,type Scene} from './scene';
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
   intensity:number;
+  spinSpeed:number; // degrees per second; rotating dashed arc stays inside its own figure
 };
 export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
+  spin:number; // starts at zero so dashed arcs never jump after growth
 };
 const rounded=(n:number)=>Number(n.toFixed(5));
 export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan[]{
@@ -28,6 +30,7 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       tailLength:(classic?.18:.14)+random()*.085,
       headLength:.035+random()*.025,
       intensity:role,
+      spinSpeed:(classic?17:12)*(0.75+random()*.5)*(random()>.5?1:-1),
     }];
   });
 }
@@ -54,6 +57,7 @@ export function figureFlowAt(
       tailLength:rounded(item.tailLength),
       headLength:rounded(item.headLength),
       opacity:rounded(Math.min(1,intensity*fade*item.intensity)),
+      spin:rounded((elapsed*item.spinSpeed)%360),
     }];
   }));
 }

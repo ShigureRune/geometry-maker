@@ -24,6 +24,11 @@ test('growth start, seek, completion, playback and complete exports',async({page
 test('v4 classic contour light flows after 100%, pauses, resumes and leaves shapes fixed',async({page})=>{
  await page.goto('./');
  await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
+ // This known seed contains both v4 bands and a two-layer arc. Include all
+ // density candidates so the secondary dotted arc is actually rendered.
+ await page.getByLabel('シード値',{exact:true}).fill('postgrowth-bar-and-arc');
+ await page.getByLabel('シード値',{exact:true}).press('Enter');
+ await page.getByLabel('図形密度').fill('100');
  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v4');
  await expect(page.getByLabel('完成後も線に光を流す')).toBeChecked();
  await page.getByLabel('成長時間（秒）').fill('1');
@@ -43,6 +48,15 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  const first=await flow.getAttribute('data-flow-offset');
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(first);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
+ // Full bars glow internally while the dashed secondary arc alone rotates.
+ const barSignal=page.getByTestId('bar-flow').first().locator('path').first();
+ await expect(barSignal).toHaveCount(1);
+ const oldBar=await barSignal.getAttribute('stroke-dashoffset');
+ await expect.poll(async()=>barSignal.getAttribute('stroke-dashoffset'),{timeout:5000}).not.toBe(oldBar);
+ const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
+ await expect(dottedArc).toHaveCount(1);
+ const oldAngle=await dottedArc.getAttribute('transform');
+ await expect.poll(async()=>dottedArc.getAttribute('transform'),{timeout:5000}).not.toBe(oldAngle);
  await page.getByRole('button',{name:'一時停止',exact:true}).click();
  await page.waitForTimeout(110);
  const frozen=await flow.getAttribute('data-flow-offset');
