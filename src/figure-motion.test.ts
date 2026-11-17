@@ -2,8 +2,9 @@ import {expect,it} from 'vitest';
 import {createElement} from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {generateScene,type Background} from './scene';
+import {shapeBounds} from './geometry';
 import {Preview} from './Preview';
-import {createFigureMotionPlan,figureFlowAt} from './figure-motion';
+import {createFigureMotionPlan,figureFlowAt,isMovingBar} from './figure-motion';
 import {animationSettings,animationVideoDuration,MOTION_DEFAULTS} from './animation';
 
 const background:Background={
@@ -85,7 +86,7 @@ it('keeps legacy settings intact and bounds post-growth video duration',()=>{
   ])expect(()=>animationSettings(invalid)).toThrow();
 });
 
-it('moves entire v4 bars along their long axis and spins only the dotted secondary arc',()=>{
+it('moves whole v4 bars without moving the root pose and spins the dotted secondary arc',()=>{
   const seed='postgrowth-bar-and-arc';
   const scene=generateScene(seed,'16:9','2d-v4');
   const bar=scene.shapes.find(s=>s.kind==='band'&&s.filled);
@@ -135,4 +136,69 @@ it('keeps v5 filled rectangles rigid, and stops bar motion when disabled',()=>{
   expect(animated).not.toContain('data-testid="bar-flow"');
   const noMotion=renderToStaticMarkup(createElement(Preview,{scene:target,background,flow:figureFlowAt(plan,2,0)}));
   expect(noMotion).not.toContain('data-testid="bar-body-motion"');
+});
+
+it('moves thick and thin bars simultaneously in one fixed direction without reversal',()=>{
+  const seed='synchronous-bars';
+  const original=generateScene(seed,'16:9','2d-v4');
+  const thick={...original.shapes[0],id:'thick-band',kind:'band' as const,
+    role:'support' as const,filled:true,size:125,x:370,y:340,rotation:0,thickness:28};
+  const thin={...thick,id:'thin-line',kind:'line' as const,
+    role:'decoration' as const,filled:false,size:90,x:400,y:450,rotation:95};
+  const skinnyRectangle={...thick,id:'tiny-strip',kind:'rectangle' as const,
+    role:'decoration' as const,size:25,thickness:6,x:490,y:390};
+  const scene={...original,shapes:[thick,thin,skinnyRectangle]};
+  expect(isMovingBar(thick)).toBe(true);
+  expect(isMovingBar(thin)).toBe(true);
+  expect(isMovingBar(skinnyRectangle)).toBe(true);
+  const plan=createFigureMotionPlan(scene,seed);
+  expect(plan.map(p=>p.id)).toEqual(['thick-band','thin-line','tiny-strip']);
+  expect(new Set(plan.map(p=>[p.barDirectionX,p.barDirectionY].join(','))).size).toBe(1);
+  const t1=figureFlowAt(plan,1),t2=figureFlowAt(plan,2),t3=figureFlowAt(plan,3);
+  for(const item of plan){
+    const a=t1[item.id],b=t2[item.id],c=t3[item.id];
+    expect(a.barShift).toBeGreaterThan(0);
+    expect(b.barShift).toBeGreaterThan(a.barShift);
+    expect(c.barShift).toBeGreaterThan(b.barShift);
+    expect(b.barDx-a.barDx).toBeCloseTo(item.barSpeed*item.barDirectionX,3);
+    expect(b.barDy-a.barDy).toBeCloseTo(item.barSpeed*item.barDirectionY,3);
+  }
+  expect(t1[thick.id].barDx).toBe(t1[thin.id].barDx);
+  expect(t1[thick.id].barDy).toBe(t1[thin.id].barDy);
+  expect(t1[thin.id].barDx).toBe(t1[skinnyRectangle.id].barDx);
+  const svg=renderToStaticMarkup(createElement(Preview,{scene,background,flow:t2}));
+  expect((svg.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(3);
+  expect(svg).not.toContain('data-testid="bar-flow"');
+  // Even a rotated line receives the same world-space displacement.
+  const lineSvg=svg.match(/data-kind="line"[\\s\\S]*?data-bar-world-x="([^"]+)" data-bar-world-y="([^"]+)"/);
+  expect(lineSvg).not.toBeNull();
+  expect(Number(lineSvg![1])).toBeCloseTo(t2[thick.id].barDx,3);
+  expect(Number(lineSvg![2])).toBeCloseTo(t2[thick.id].barDy,3);
+});
+
+it('wraps bars only when FULLY outside the viewport and never reverses visibly',()=>{
+  const seed='invisible-offscreen-wrap',scene0=generateScene(seed,'16:9','2d-v4');
+  const shape={...scene0.shapes[0],id:'edge-band',kind:'band' as const,
+    role:'support' as const,filled:true,x:700,y:420,size:170,rotation:13,thickness:38};
+  const scene={...scene0,shapes:[shape]};
+  const plan=createFigureMotionPlan(scene,seed);
+  expect(plan).toHaveLength(1);
+  const item=plan[0],bounds=shapeBounds(shape);
+  const outside=(s:number)=> {
+    const x=s*item.barDirectionX,y=s*item.barDirectionY;
+    return bounds.x+x>scene.width||bounds.x+bounds.width+x<0||
+      bounds.y+y>scene.height||bounds.y+bounds.height+y<0;
+  };
+  // Entry and exit positions overlap in time only while both are invisible.
+  expect(outside(item.barExit-.001)).toBe(true);
+  expect(outside(-item.barEntry+.001)).toBe(true);
+  const before=figureFlowAt(plan,(item.barExit-.001)/item.barSpeed)[shape.id];
+  const after=figureFlowAt(plan,(item.barExit+.001)/item.barSpeed)[shape.id];
+  expect(before.barShift).toBeCloseTo(item.barExit-.001,3);
+  expect(after.barShift).toBeCloseTo(-item.barEntry+.001,3);
+  expect(outside(before.barShift)).toBe(true);
+  expect(outside(after.barShift)).toBe(true);
+  // A single duration-scaled clock controls video and live preview identically.
+  expect(figureFlowAt(plan,2,100,2)).toEqual(figureFlowAt(plan,4,100,1));
+  expect(figureFlowAt(plan,3,0)).toEqual({});
 });
