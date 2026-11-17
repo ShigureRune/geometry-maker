@@ -123,7 +123,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={seedDuration=>onChange({...settings,particle:{...particle,seedDuration}})}/>}
         <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
           onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
-        <HelpInfo>{cosmicWeb?'コズミックウェブでは結節点を優先して粒子を配置し、フィラメントとの配分も調整できます。GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大50万個・軽量最大8万個。粒子数は既存の3D描画品質の選択に従います。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
+        <HelpInfo>{cosmicWeb?'コズミックウェブでは13種類の実際の3D図形（立方体・トーラスなど）の輪郭線へ粒子を配置します。球体に統一しません。大きな図形へ多めに粒子を配分し、フィラメントとの比率も調整できます。GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大50万個・軽量最大8万個。粒子数は既存の3D描画品質の選択に従います。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
       </>}
     </fieldset>
     <fieldset className="three-kind-fieldset" data-testid="galaxy-mode-controls">
