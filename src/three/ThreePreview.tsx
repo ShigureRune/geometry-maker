@@ -36,6 +36,8 @@ import {isVoidWeb,visibleVoidObjects,voidWireSteps,matchVoidObjects} from './voi
 import {VoidDepth} from './VoidDepth';
 import {Hybrid2DPlane,type Hybrid2DArtwork} from './Hybrid2DPlane';
 import {ParticleCloud} from './ParticleCloud';
+import {VoidParticleCloud} from './VoidParticleCloud';
+import {VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_HIGH_LIMIT} from './void-particle';
 import {GalaxyCloud} from './GalaxyCloud';
 import {galaxyDefaults,GALAXY_LOW_STAR_LIMIT} from './galaxy';
 import {hybrid2DDefaults,hybrid2DInstances} from './hybrid-2d';
@@ -669,8 +671,11 @@ export default function ThreePreview(input: Props) {
     ...props.transition,
     fromBackground:{...props.transition.fromBackground,mode:'solid' as const,solid:'#050917'},
   }:props.transition,[galaxyDarkBackground,props.transition]);
-  const particleEnabled=!voidMode&&!galaxyEnabled&&!!props.settings.particle?.enabled;
   const web=isVoidWeb(props.composition);
+  // The legacy VOID prototype remains solid-only. The new large cosmic web
+  // can replace its solid nodes with a single bounded GPU particle layer.
+  const particleEnabled=!galaxyEnabled&&!!props.settings.particle?.enabled&&
+    (!voidMode||web);
   const [supported] = useState(webGLAvailable), [lost, setLost] = useState(false);
   const [softwareDevice,setSoftwareDevice]=useState(false);
   const [smallDevice, setSmallDevice] = useState(() => matchMedia('(max-width: 720px), (pointer: coarse)').matches);
@@ -732,12 +737,16 @@ export default function ThreePreview(input: Props) {
     [props.skySeed,hybridOptions,low]);
   // Preserve network topology as the entire figure constellation spreads.
   const spacingFactor=threeSpacingFactor(props.settings.spacingPercent??100);
-  const edges=useMemo(()=>network.enabled&&!particleEnabled&&!galaxyEnabled?
+  const edges=useMemo(()=>network.enabled&&(!particleEnabled||web)&&!galaxyEnabled?
     isVoidComposition(props.composition)?voidEdges(props.composition,objects):networkConnections(objects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [objects,props.composition,network.enabled,particleEnabled,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
-  const previousEdges=useMemo(()=>props.transition&&network.enabled&&!particleEnabled&&!galaxyEnabled?
+    [objects,props.composition,network.enabled,particleEnabled,web,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+  const previousEdges=useMemo(()=>props.transition&&network.enabled&&(!particleEnabled||web)&&!galaxyEnabled?
     isVoidComposition(props.transition.fromComposition)?voidEdges(props.transition.fromComposition,previousObjects):networkConnections(previousObjects,network.distance*spacingFactor,network.maxConnections,network.mode):[],
-    [props.transition,previousObjects,network.enabled,particleEnabled,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+    [props.transition,previousObjects,network.enabled,particleEnabled,web,galaxyEnabled,network.distance,network.maxConnections,network.mode,spacingFactor]);
+  // Filament particles also follow the original graph when the visual wire
+  // overlay is disabled, so the cosmic-web silhouette remains recognizable.
+  const voidParticleEdges=useMemo(()=>web&&particleEnabled&&isVoidComposition(props.composition)?
+    voidEdges(props.composition,objects):[],[web,particleEnabled,props.composition,objects]);
   const routes=useMemo(()=>web?voidWireSteps(objects,edges):undefined,[web,objects,edges]);
   const oldRoutes=useMemo(()=>web?voidWireSteps(previousObjects,previousEdges):undefined,[web,previousObjects,previousEdges]);
   const widths=useMemo(()=>web?edges.map(e=>((e as {width?:number}).width??1)*(low?1:2.7)):undefined,[web,edges,low]);
@@ -754,12 +763,16 @@ export default function ThreePreview(input: Props) {
     [props.transition,voidMode,galaxyEnabled,celestial,props.density,props.settings.spacingPercent]);
   const outlines=useOutlineGeometry(neon.enabled&&!voidMode&&!particleEnabled&&!galaxyEnabled,low);
   const onLost = useMemo(() => () => {props.onReady(false); setLost(true);}, [props.onReady]);
+  const particleCount=particleEnabled?Math.min(props.settings.particle?.count??0,
+    web?(low?VOID_PARTICLE_LOW_LIMIT:VOID_PARTICLE_HIGH_LIMIT):low?1600:12000):0;
   if (!supported || lost) return <div className="three-fallback" role="alert"><h3>{lost ? '3D描画が中断されました' : 'この環境では3Dを表示できません'}</h3><p>WebGL 2対応ブラウザとハードウェアアクセラレーションが必要です。2Dモードは引き続き利用できます。中断した場合は軽量設定で3Dモードを開き直してください。</p></div>;
   return <div ref={progressHost} className="three-preview" data-testid="three-preview" data-quality={low ? 'low' : 'high'} data-object-count={objects.length}
     data-void-mode={web?'web':voidMode?'prototype':'off'} data-void-filaments={isVoidComposition(props.composition)?props.composition.voidGraph.filaments.length:0}
     data-void-knots={web?objects.filter(o=>o.role==='primary').length:undefined} data-void-candidates={web?props.composition.objects.length:undefined}
     data-network-count={edges.length} data-network-mode={network.mode}
-    data-particle-mode={particleEnabled?'on':'off'} data-particle-count={particleEnabled?Math.min(props.settings.particle?.count??0,low?1600:12000):0}
+    data-particle-mode={particleEnabled?'on':'off'} data-particle-count={objects.length?particleCount:0}
+    data-particle-type={particleEnabled?(web?'cosmic-web':'solids'):'off'}
+    data-void-particle-filaments={web&&particleEnabled?voidParticleEdges.length:0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
     data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-camera-near={galaxyEnabled?'0.025':'0.1'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
@@ -811,8 +824,13 @@ export default function ThreePreview(input: Props) {
           seconds={seconds} low={low}/>)}
       {galaxyEnabled?<GalaxyCloud seed={props.skySeed} settings={props.settings} seconds={seconds} low={low}
          restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
-       particleEnabled?<ParticleCloud objects={objects} seed={props.skySeed} background={props.background} settings={props.settings} seconds={seconds} low={low}
-         restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
+       particleEnabled?(web?<VoidParticleCloud objects={objects} edges={voidParticleEdges}
+         seed={props.skySeed} background={props.background} settings={props.settings}
+         seconds={seconds} low={low} progressHost={progressHost}/>:
+         <ParticleCloud objects={objects} seed={props.skySeed} background={props.background}
+           settings={props.settings} seconds={seconds} low={low}
+           restartKey={props.restartKey} transitionDuration={props.transition?.duration}
+           progressHost={progressHost}/>):
       voidMode?<VoidObjects web={web} objects={objects} previous={previousObjects} matches={matches} settings={props.settings} background={props.background}
         visualTheme={props.visualTheme} low={low} seconds={seconds} seed={props.skySeed} skipEntrance={props.skipEntrance} transition={props.transition}/>:
       props.transition ? props.transition.mode==='morph'?
