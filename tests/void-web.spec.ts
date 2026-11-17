@@ -139,11 +139,11 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
   await category(page,'図形');
   await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
-  // Open the animation panel BEFORE the reseed. Pause immediately, before
-  // costly WebGL inspection can eat the short transition window on CI.
-  await category(page,'アニメーション');
+  // The random seed button belongs to the figure category. Switch tabs
+  // only AFTER clicking it, then pause before costly WebGL inspection.
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
+  await category(page,'アニメーション');
   await page.getByRole('button',{name:'3Dを一時停止'}).click();
   const gpu=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
