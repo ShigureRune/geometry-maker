@@ -6,7 +6,7 @@ import { GridBackground } from './GridBackground';
 import { TextOverlay } from './TextOverlay';
 import type {TextOverlaySettings} from './text-overlay';
 import {MAGIC_ALGORITHM_VERSION} from './magic-circle';
-import type {FigureFlowState} from './figure-motion';
+import {isMovingBar,type FigureFlowState} from './figure-motion';
 
 // All strokes and glow radii use scene units. Pixel-fixed strokes become thinner
 // when a high-resolution export is displayed at the preview size.
@@ -137,10 +137,13 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
         const solidFill = ['dot', 'dots', 'accent'].includes(shape.kind);
         const finalFillOpacity=solidFill || ['circuit','branch-circuit'].includes(shape.kind)?1:shape.fillOpacity;
         const ink = background.mode === 'gradient' && !(isMagic||(transparent&&roleColor(shape))) ? `url(#${gradientId}-ink-${shape.id})` : paint.color;
-        // Filled bars are the moving objects: shift the whole band/plate,
-        // including its fill, outline and glow. Other figures remain fixed.
-        const barMotion=(shape.kind==='band'||shape.kind==='rectangle')&&shape.filled
-          ?flow?.[shape.id]:undefined;
+        // Move thick bands and thin lines together in one GLOBAL direction.
+        // Translate their whole geometry (including strokes and glow) in local
+        // coordinates, leaving the parent shape transform/seed untouched.
+        const barMotion=isMovingBar(shape)?flow?.[shape.id]:undefined;
+        const angle=radians(shape.rotation);
+        const localBarX=barMotion?barMotion.barDx*Math.cos(angle)+barMotion.barDy*Math.sin(angle):0;
+        const localBarY=barMotion?-barMotion.barDx*Math.sin(angle)+barMotion.barDy*Math.cos(angle):0;
         const artwork=<>
           {paint.glow && <g filter={`url(#${gradientId}-glow-${shape.id})`} opacity={paint.glowOpacity} fill={background.glowIntensity===undefined?undefined:solidFill||['circuit','branch-circuit'].includes(shape.kind)?ink:"none"}><Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} /></g>}
           <Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} />
@@ -155,7 +158,8 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
           fillOpacity={finalFillOpacity}>
           {barMotion
             ?<g data-testid="bar-body-motion" data-bar-shift={barMotion.barShift}
-                transform={`translate(${Number((barMotion.barShift*shape.size).toFixed(5))} 0)`}>
+                data-bar-world-x={barMotion.barDx} data-bar-world-y={barMotion.barDy}
+                transform={`translate(${Number(localBarX.toFixed(5))} ${Number(localBarY.toFixed(5))})`}>
                 {artwork}
               </g>
             :artwork}
