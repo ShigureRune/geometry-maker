@@ -13,7 +13,7 @@ import { darkTheme,VISUAL_THEMES,THEME_PRESETS,applyThemePalette,themeScene,type
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnimationControls,usePlayback } from './AnimationControls';
 import { defaults,MOTION_DEFAULTS,schedule,progressAt,type AnimationSettings } from './animation';
-import {createFigureMotionPlan,figureMotionAt} from './figure-motion';
+import {createFigureMotionPlan,figureFlowAt} from './figure-motion';
 import { densityCandidates, visibleScene } from './density';
 import { ColorEditor } from './ColorEditor';
 import {GridBackgroundControls} from './GridBackgroundControls';
@@ -449,11 +449,11 @@ export default function App() {
    replayOnRegenerate();
   }
   const growth=animation.animationEnabled?Object.fromEntries(scene.shapes.map(s=>[s.id,progressAt(cues[s.id],playback.position,animation.easingType)])):undefined;
-  // Growth stops at 100%, but the independent (pauseable) completed-figure
-  // clock keeps the same v4/v5 geometry moving without re-generating the seed.
-  const completedMotion=useMemo(()=>animation.animationEnabled&&animation.continuousMotion&&
+  // Growth stops at 100%; the independent pauseable clock drives bright
+  // streaks along the existing v4/v5 contours, never changing their layout.
+  const completedFlow=useMemo(()=>animation.animationEnabled&&animation.continuousMotion&&
     version!==MAGIC_ALGORITHM_VERSION&&playback.motionSeconds>0
-      ?figureMotionAt(figureMotionPlan,playback.motionSeconds,
+      ?figureFlowAt(figureMotionPlan,playback.motionSeconds,
         animation.motionStrength??MOTION_DEFAULTS.motionStrength,
         animation.motionSpeed??MOTION_DEFAULTS.motionSpeed):undefined,
     [figureMotionPlan,animation.animationEnabled,animation.continuousMotion,
@@ -740,7 +740,7 @@ export default function App() {
         <div className="canvas-stage">
           {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>setCategory('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
-              {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} motion={completedMotion} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
+              {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} flow={completedFlow} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
             </div>
           </PreviewTextEditor>:<div className="canvas-frame three-frame" style={{aspectRatio:`${scene.width} / ${scene.height}`,width:`min(100%, calc(var(--preview-height, 70vh) * ${scene.width/scene.height}))`}}>
             <ThreeBoundary onReturn={()=>switchRenderMode('2d')} onRetryLowQuality={()=>{
