@@ -54,7 +54,7 @@ test('v4 classic figures keep floating after 100 percent, pause and resume, and 
  await page.getByRole('button',{name:'再生',exact:true}).click();
  await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(complete);
  await page.getByLabel('完成後も図形を動かす').uncheck();
- await expect(hero).toHaveAttribute('transform',complete);
+ await expect(hero).toHaveAttribute('transform',complete??'');
  await page.getByLabel('完成後も図形を動かす').check();
  await expect.poll(async()=>hero.getAttribute('transform'),{timeout:3500}).not.toBe(complete);
  // v5 uses the same completed-motion feature; its generator remains untouched.
