@@ -126,6 +126,67 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   await expect(preview).toHaveAttribute('data-particle-mode','off');
   expect(errors).toEqual([]);
 });
+test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async({page})=>{
+  const errors=errorsOn(page),project=fixture('web-seed-morph-start');
+  project.settings.quality='low';
+  project.settings.animation=true;
+  project.settings.particle={...threeDefaults.particle!,enabled:true,
+    seedTransition:true,seedDuration:3,swirl:1.5};
+  project.settings.voidMode!.particleCount=12000;
+  project.elapsedSeconds=9;
+  await open(page,project);
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
+  await category(page,'図形');
+  await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
+  await page.getByRole('button',{name:'ランダムシードを生成'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
+  const gpu=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>
+      e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector(
+      '[data-testid="three-preview"] canvas'));
+    const cloud=root.store.getState().scene.getObjectByName('void-web-particle-cloud') as any;
+    const from=cloud.geometry.getAttribute('aFrom').array as Float32Array;
+    const targets=cloud.geometry.getAttribute('aTarget').array as Float32Array;
+    let differences=0;
+    for(let i=0;i<Math.min(120,from.length);i+=3)
+      if(Math.hypot(from[i]-targets[i],from[i+1]-targets[i+1],
+        from[i+2]-targets[i+2])>.01)differences++;
+    return {count:from.length/3,fromColor:cloud.geometry.getAttribute('aFromColor').count,
+      fromNode:cloud.geometry.getAttribute('aFromNode').count,
+      gpuMorphActive:cloud.material.uniforms.uSeedProgress.value>=0,differences};
+  });
+  expect(gpu).toMatchObject({count:12000,fromColor:12000,fromNode:12000,
+    gpuMorphActive:true});
+  expect(gpu.differences).toBeGreaterThan(20);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-particle-seed-progress')))
+    .toBeGreaterThan(.03);
+  await category(page,'アニメーション');
+  await page.getByRole('button',{name:'3Dを一時停止'}).click();
+  const frozen=await preview.getAttribute('data-particle-seed-progress');
+  await page.waitForTimeout(250);
+  expect(await preview.getAttribute('data-particle-seed-progress')).toBe(frozen);
+  await page.getByRole('button',{name:'3Dを再生'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:12000});
+  await category(page,'図形');
+  await page.getByLabel('シード変更時に粒子を再集合').uncheck();
+  await page.getByRole('button',{name:'ランダムシードを生成'}).click();
+  await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
+  const active=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>
+      e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector(
+      '[data-testid="three-preview"] canvas'));
+    const cloud=root.store.getState().scene.getObjectByName('void-web-particle-cloud') as any;
+    return cloud.material.uniforms.uSeedProgress.value;
+  });
+  expect(active).toBe(-1);
+  expect(errors).toEqual([]);
+});
+
 test('3D quality, not mobile device type, determines cosmic-web particle budget',async({browser})=>{
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
   const page=await context.newPage();
