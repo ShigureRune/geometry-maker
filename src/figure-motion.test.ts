@@ -84,3 +84,32 @@ it('keeps legacy settings intact and bounds post-growth video duration',()=>{
     {motionVideoSeconds:-1},
   ])expect(()=>animationSettings(invalid)).toThrow();
 });
+
+it('animates filled v4 bars internally and spins just the dotted secondary arc',()=>{
+  const seed='postgrowth-bar-and-arc';
+  const scene=generateScene(seed,'16:9','2d-v4');
+  const bar=scene.shapes.find(s=>s.kind==='band'&&s.filled);
+  const arc=scene.shapes.find(s=>s.kind==='arc'&&(s.rings??2)>1);
+  expect(bar).toBeDefined();
+  expect(arc).toBeDefined();
+  const plan=createFigureMotionPlan(scene,seed);
+  const first=figureFlowAt(plan,2);
+  const later=figureFlowAt(plan,4);
+  expect(first[bar!.id]).toBeDefined();
+  expect(first[arc!.id]).toBeDefined();
+  expect(first[arc!.id].spin).not.toBe(later[arc!.id].spin);
+  expect(figureFlowAt(plan,.001)[arc!.id].spin).toBeCloseTo(0,1);
+  expect(first[bar!.id].offset).not.toBe(later[bar!.id].offset);
+
+  const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
+  const animated=renderToStaticMarkup(createElement(Preview,{scene,background,flow:first}));
+  const laterMarkup=renderToStaticMarkup(createElement(Preview,{scene,background,flow:later}));
+  expect(base).not.toContain('data-testid="bar-flow"');
+  expect(animated).toContain('data-testid="bar-flow"');
+  expect(animated).toContain(`transform="rotate(${first[arc!.id].spin})"`);
+  expect(laterMarkup).toContain(`transform="rotate(${later[arc!.id].spin})"`);
+  const transforms=(svg:string)=>[...svg.matchAll(/data-shape-id="([^"]+)"[^>]+transform="([^"]+)"/g)]
+    .map(m=>[m[1],m[2]]);
+  expect(transforms(animated)).toEqual(transforms(base));
+  expect(transforms(laterMarkup)).toEqual(transforms(base));
+});
