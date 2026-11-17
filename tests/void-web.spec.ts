@@ -59,13 +59,12 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   await toggle.check();
   await expect(preview).toHaveAttribute('data-particle-mode','on');
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
-  const {renderer}=await inspect(page);
-  const budget=/swiftshader|llvmpipe|software|basic render/i.test(renderer)?6000:30000;
+  const budget=80000;
   await expect(preview).toHaveAttribute('data-particle-count',String(budget));
   await expect(preview).toHaveAttribute('data-object-count',nodeCount!);
   expect(Number(await preview.getAttribute('data-void-particle-filaments')))
     .toBeGreaterThan(200);
-  await page.locator('#particle-count').fill('120000');
+  await page.locator('#particle-count').fill('500000');
   await expect(preview).toHaveAttribute('data-particle-count',String(budget));
   const state=await page.evaluate(async()=>{
     const url=performance.getEntriesByType('resource').find(e=>
@@ -92,7 +91,7 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   const result=await saved(page);
   expect(result.settings.voidMode?.enabled).toBe(true);
   expect(result.settings.particle).toMatchObject({enabled:true,count:4000});
-  expect(result.settings.voidMode?.particleCount).toBe(120000);
+  expect(result.settings.voidMode?.particleCount).toBe(500000);
   await category(page,'図形');
   await toggle.uncheck();
   await expect(preview).toHaveAttribute('data-particle-mode','off');
@@ -107,6 +106,34 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   await expect(preview).toHaveAttribute('data-particle-mode','off');
   expect(errors).toEqual([]);
 });
+test('3D quality, not mobile device type, determines cosmic-web particle budget',async({browser})=>{
+  const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+  const page=await context.newPage();
+  const errors=errorsOn(page);
+  try{
+    const project=fixture('mobile-high-density');
+    project.settings.particle={...threeDefaults.particle!,enabled:true};
+    project.settings.voidMode!.particleCount=120000;
+    project.settings.quality='auto';
+    await open(page,project);
+    const preview=page.getByTestId('three-preview');
+    await expect(preview).toHaveAttribute('data-quality','low');
+    await expect(preview).toHaveAttribute('data-particle-count','80000');
+    project.settings.quality='high';
+    await restore(page,project);
+    await expect(preview).toHaveAttribute('data-quality','high');
+    await expect(preview).toHaveAttribute('data-particle-count','120000');
+    const count=await page.evaluate(async()=>{
+      const url=performance.getEntriesByType('resource').find(e=>e.name.includes('@react-three_fiber.js'))!.name;
+      const {_roots}=await import(/* @vite-ignore */url);
+      const root=(_roots as any).get(document.querySelector('[data-testid="three-preview"] canvas'));
+      return root?.store.getState().scene.getObjectByName('void-web-particle-cloud')?.geometry.getAttribute('position').count??0;
+    });
+    expect(count).toBe(120000);
+    expect(errors).toEqual([]);
+  }finally{await context.close();}
+});
+
 test('a new VOID session defaults to a large web and explicitly retains the old version',async({page})=>{
   const errors=errorsOn(page),normal=fixture();delete normal.settings.voidMode;await open(page,normal);
   const original=hash(await png(page));await category(page,'背景');await page.getByLabel('VOID MODEを有効化').check();
