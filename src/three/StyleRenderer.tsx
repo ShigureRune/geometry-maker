@@ -17,6 +17,7 @@ import {threeVisibility,visibilityDefaults} from './visibility';
 import {entranceDefaults,threeEntrancePose,threeEntranceProgress,neuralWireEndpoints,neuralWireWindowProgress,NEURAL_WIRE_START_FRACTION} from './entrance';
 import {splitExitEnter,standbyDefaults,standbyMorphWireProgress,standbyReconnectionGlowAt,standbyCompletionFlash,type MorphMatch,type ThreeStandbyTransition} from './standby';
 import {standbyWirePose} from './standby-wire';
+import {voidSeedWireRevealFromHost} from './void-seed-morph';
 import {neuralStartupFlash,neuralPacketTrailAt,neuralArrivalFlashAt,neuralSignalPlan} from './neural-signals';
 
 
@@ -80,7 +81,8 @@ export function NeonOutline({geometry,object,settings,background,low,seconds,mor
   return <primitive object={line} dispose={null}/>;
 }
 
-export function NetworkLines({objects,edges,settings,background,low,seconds,seed,standby,skipEntrance=false,routes,widths,startAtZero=false,completionFlashAt}:{objects:ThreeObject[];edges:ReturnType<typeof networkConnections>;settings:ThreeSettings;background:Background;low:boolean;seconds:RefObject<number>;seed:string;standby?:{transition:ThreeStandbyTransition;layer:'old'|'new';matches?:readonly MorphMatch[]};skipEntrance?:boolean;routes?:RootedWireStep[];widths?:number[];startAtZero?:boolean;completionFlashAt?:RefObject<number|null>}){
+export function NetworkLines({objects,edges,settings,background,low,seconds,seed,standby,skipEntrance=false,routes,widths,startAtZero=false,completionFlashAt,seedParticleProgressHost}:{objects:ThreeObject[];edges:ReturnType<typeof networkConnections>;settings:ThreeSettings;background:Background;low:boolean;seconds:RefObject<number>;seed:string;standby?:{transition:ThreeStandbyTransition;layer:'old'|'new';matches?:readonly MorphMatch[]};skipEntrance?:boolean;routes?:RootedWireStep[];widths?:number[];startAtZero?:boolean;completionFlashAt?:RefObject<number|null>;
+  seedParticleProgressHost?:RefObject<HTMLDivElement|null>}){
   const network=settings.network??networkDefaults, {invalidate,size}=useThree();
   const topology=useMemo(()=>{
     const byId=new Map(objects.map(object=>[object.id,object]));
@@ -108,7 +110,8 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
     const phases=splitExitEnter(seconds.current,transition.duration);
     return layer==='old'?1-phases.exit:phases.enter;
   };
-  const currentOpacity=()=>network.opacity*transitionEnvelope();
+  const currentSeedWireReveal=()=>voidSeedWireRevealFromHost(seedParticleProgressHost?.current);
+  const currentOpacity=()=>network.opacity*transitionEnvelope()*Math.min(1,currentSeedWireReveal()*3);
   const material=useMemo(()=>{
     const m=new LineMaterial({worldUnits:true,vertexColors:true,transparent:true,depthTest:true,depthWrite:false,toneMapped:true,opacity:currentOpacity()});
     // Optional VOID widths only. The normal 3D shader and all effects stay intact.
@@ -121,8 +124,10 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
     return m;
   },[!!widths]);
   useLayoutEffect(()=>{material.opacity=currentOpacity();},
-    [material,network.opacity,standby?.transition.id,standby?.transition.mode,standby?.transition.duration,standby?.layer]);
-  const line=useMemo(()=>{const value=new LineSegments2(geometry,material);value.frustumCulled=false;return value;},[geometry,material]);
+    [material,network.opacity,standby?.transition.id,standby?.transition.mode,standby?.transition.duration,standby?.layer,seedParticleProgressHost]);
+  const line=useMemo(()=>{const value=new LineSegments2(geometry,material);
+    value.name=seedParticleProgressHost?'void-web-network-lines':'network-lines';
+    value.frustumCulled=false;return value;},[geometry,material,seedParticleProgressHost]);
   const colors=useMemo(()=>topology.map(({a,b})=>[a,b].map(object=>
     networkEndpointColor(object.role,network,background,low))),
     [topology,network.colorMode,network.customColor,network.contrast,network.glow,background,low]);
@@ -142,7 +147,15 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
     invalidate();
   },[line,network.width,network.opacity,material,low,size.height,invalidate]);
   const updateWire=()=>{
+    const seedReveal=currentSeedWireReveal();
     material.opacity=currentOpacity();
+    if(seedParticleProgressHost?.current){
+      seedParticleProgressHost.current.dataset.voidWireSeedReveal=seedReveal.toFixed(3);
+    }
+    // No new-seed endpoint, origin dot or glow may appear until the
+    // particle field has nearly reassembled. In particular, remove the
+    // previous render's geometry instances immediately at the seed commit.
+    if(seedReveal<=.001){geometry.instanceCount=0;line.userData.reconnectFlash=0;return;}
     const clock=standby?.layer==='old'?standby.transition.fromTime+seconds.current:seconds.current;
     const start=geometry.getAttribute('instanceStart') as InterleavedBufferAttribute;
     const end=geometry.getAttribute('instanceEnd') as InterleavedBufferAttribute;
@@ -209,13 +222,16 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
       const route=wireRoutes[i];
       let reverse=false;
       let startMix=0,endMix=1;
-      if(growWires||replayMorphWires){
+      if(growWires||replayMorphWires||seedReveal<.999){
         const wirePhase=(growthTime/entrance.duration-NEURAL_WIRE_START_FRACTION)/
           (1-NEURAL_WIRE_START_FRACTION);
-        const progress=replayMorphWires?
+        const normalProgress=replayMorphWires?
           standbyMorphWireProgress(seconds.current,standby!.transition.duration,
             standby!.layer,0,1,route):
-          neuralWireWindowProgress(wirePhase,route.start,route.end);
+          growWires?neuralWireWindowProgress(wirePhase,route.start,route.end):1;
+        // Preserve rooted wiring routes, but let the new figure particles
+        // settle BEFORE the cables extend from their parent nodes.
+        const progress=Math.min(normalProgress,seedReveal);
         // No ghost points at the source/target when a cable is absent.
         if(progress<=.001)continue;
         // Both directions keep the cable anchored at its parent node.
@@ -268,7 +284,7 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
   // On seed commits, buffers initially contain zeroed origin vertices.
   // Fill them before the first render, not one frame after React remounts.
   useLayoutEffect(updateWire,[geometry,topology,colors,settings,background,standby,
-    seconds,seed,skipEntrance,network.opacity,network.animation]);
+    seconds,seed,skipEntrance,network.opacity,network.animation,seedParticleProgressHost]);
   useFrame(updateWire);
   return <primitive object={line} dispose={null}/>;
 }
@@ -280,12 +296,13 @@ export function NetworkLines({objects,edges,settings,background,low,seconds,seed
  * Incoming wiring can begin carrying packets as soon as each section grows:
  * no particle ever runs ahead of its visible cable during a morph.
  */
-export function NeuralSignals({objects,edges,settings,background,low,seconds,skipEntrance=false,standby,completionOverride,routes}:{
+export function NeuralSignals({objects,edges,settings,background,low,seconds,skipEntrance=false,standby,completionOverride,routes,seedParticleProgressHost}:{
   objects:ThreeObject[];edges:ReturnType<typeof networkConnections>;settings:ThreeSettings;
   background:Background;low:boolean;seconds:RefObject<number>;skipEntrance?:boolean;
   standby?:{transition:ThreeStandbyTransition;matches?:readonly MorphMatch[]};
   /** Absolute clock position to synchronize a fresh wave after a seed switch. */
   completionOverride?:number;routes?:RootedWireStep[];
+  seedParticleProgressHost?:RefObject<HTMLDivElement|null>;
 }){
   const network=settings.network??networkDefaults;
   const entrance=settings.entrance??entranceDefaults;
@@ -322,6 +339,11 @@ export function NeuralSignals({objects,edges,settings,background,low,seconds,ski
   const update=()=>{
     const instance=mesh.current;
     if(!instance)return;
+    // Signals are not allowed to race ahead of cables while the new seed
+    // takes shape. Resume the original signal logic once the wire is grown.
+    if(voidSeedWireRevealFromHost(seedParticleProgressHost?.current)<.999){
+      instance.count=0;return;
+    }
     const clock=seconds.current;
     const completion=completionOverride??(entrance.enabled&&!skipEntrance?entrance.duration:0);
     const visibility=settings.visibilityAnimation??visibilityDefaults;
@@ -407,7 +429,7 @@ export function NeuralSignals({objects,edges,settings,background,low,seconds,ski
     if(mesh.current&&!mesh.current.instanceColor)mesh.current.setColorAt(0,new Color('#ffffff'));
     update();
   },[topology,network.width,settings,entrance,seconds,skipEntrance,standby,
-    completionOverride,lanes,tailCount]);
+    completionOverride,lanes,tailCount,seedParticleProgressHost]);
   useFrame(update);
   return <instancedMesh ref={mesh} name="neural-signal-packets"
     args={[undefined,undefined,topology.length*lanes*(tailCount+2)]}
