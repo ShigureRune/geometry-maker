@@ -881,7 +881,8 @@ export default function ThreePreview(input: Props) {
         routes={routes} widths={widths} startAtZero={web}
         settings={props.settings} background={props.background} low={low} seconds={seconds}
         seed={props.skySeed} standby={props.transition?{transition:props.transition,layer:'new',matches}:undefined}
-        completionFlashAt={completionFlashAt} skipEntrance={props.skipEntrance}/>}
+        completionFlashAt={completionFlashAt} skipEntrance={props.skipEntrance}
+        seedParticleProgressHost={web&&particleEnabled?progressHost:undefined}/>}
       {props.transition&&edges.length>0&&network.enabled&&
         (props.settings.standby??standbyDefaults).reconnectGlow&&
         <StandbyReconnectionSparks objects={objects} edges={edges} routes={routes}
@@ -892,7 +893,8 @@ export default function ThreePreview(input: Props) {
           routes={routes}
           background={props.background} low={low} seconds={seconds} skipEntrance={props.skipEntrance}
           standby={props.transition?{transition:props.transition,matches}:undefined}
-          completionOverride={signalCompletionOverride}/>}
+          completionOverride={signalCompletionOverride}
+          seedParticleProgressHost={web&&particleEnabled?progressHost:undefined}/>}
       <SceneRuntime {...props} background={galaxyBackground}
         transition={galaxyTransition}
         progressHost={progressHost} low={low} seconds={seconds} floorSeconds={floorSeconds}
