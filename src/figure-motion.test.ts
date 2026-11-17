@@ -235,8 +235,9 @@ it('keeps overlay highlight lines and arcs static while ordinary thin bars move'
       expect(flow1[h.id]).toBeUndefined();
       expect(transformOf(animated,h.id)).toBe(transformOf(base,h.id));
       expect(transformOf(later,h.id)).toBe(transformOf(base,h.id));
-      const fragment=animated.slice(animated.indexOf('data-shape-id="'+h.id+'"'),
-        animated.indexOf('</g>',animated.indexOf('data-shape-id="'+h.id+'"]'))+4);
+      const start=animated.indexOf('data-shape-id="'+h.id+'"');
+      expect(start).toBeGreaterThan(-1);
+      const fragment=animated.slice(start,animated.indexOf('</g>',start)+4);
       expect(fragment).not.toContain('data-testid="bar-body-motion"');
       expect(fragment).not.toContain('data-testid="figure-flow"');
     }
