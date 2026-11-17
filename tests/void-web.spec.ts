@@ -42,6 +42,68 @@ async function inspect(page:Page){return page.evaluate(async()=>{
   return {bodies,outlines,bodyBatches,outlineBatches,individual,matrices,fog:!!scene.fog,sphereVertices,renderer};
 });}
 
+test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call',async({page})=>{
+  const project=fixture('void-web-particle-integration');
+  project.settings.quality='low';
+  project.settings.voidMode!.objectLimit=2800;
+  const errors=errorsOn(page);
+  await open(page,project);
+  const preview=page.getByTestId('three-preview');
+  await expect(preview).toHaveAttribute('data-void-mode','web');
+  await expect(preview).toHaveAttribute('data-object-count','640');
+  const before=await preview.locator('canvas').screenshot();
+  const nodeCount=await preview.getAttribute('data-object-count');
+  await category(page,'図形');
+  const toggle=page.getByLabel('PARTICLE MODEを有効化');
+  await expect(toggle).toBeEnabled();
+  await toggle.check();
+  await expect(preview).toHaveAttribute('data-particle-mode','on');
+  await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
+  await expect(preview).toHaveAttribute('data-particle-count','1200');
+  await expect(preview).toHaveAttribute('data-object-count',nodeCount!);
+  expect(Number(await preview.getAttribute('data-void-particle-filaments')))
+    .toBeGreaterThan(200);
+  await page.locator('#particle-count').fill('12000');
+  await expect(preview).toHaveAttribute('data-particle-count','1200');
+  const state=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>
+      e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector(
+      '[data-testid="three-preview"] canvas'));
+    const scene=root.store.getState().scene;
+    const cloud=scene.getObjectByName('void-web-particle-cloud') as any;
+    return {
+      count:cloud?.geometry.getAttribute('position').count??0,
+      targets:cloud?.geometry.getAttribute('aTarget').count??0,
+      hasSolids:!!scene.getObjectByName('void-web-batches'),
+      isPoints:!!cloud?.isPoints,
+      hasShader:!!cloud?.material?.isShaderMaterial,
+    };
+  });
+  expect(state).toEqual({
+    count:1200,targets:1200,hasSolids:false,isPoints:true,hasShader:true,
+  });
+  const after=await preview.locator('canvas').screenshot();
+  expect(after.equals(before)).toBe(false);
+  await category(page,'書き出し');
+  const result=await saved(page);
+  expect(result.settings.voidMode?.enabled).toBe(true);
+  expect(result.settings.particle).toMatchObject({enabled:true,count:12000});
+  await category(page,'図形');
+  await toggle.uncheck();
+  await expect(preview).toHaveAttribute('data-particle-mode','off');
+  expect((await inspect(page)).bodies).toBeGreaterThan(0);
+  // Switching to the legacy VOID version never activates its old geometry
+  // sampler; the toggle is disabled until the full cosmic web is selected.
+  await category(page,'背景');
+  await page.locator('#void-version').selectOption('void-filaments-v1');
+  await expect(preview).toHaveAttribute('data-void-mode','prototype');
+  await category(page,'図形');
+  await expect(toggle).toBeDisabled();
+  await expect(preview).toHaveAttribute('data-particle-mode','off');
+  expect(errors).toEqual([]);
+});
 test('a new VOID session defaults to a large web and explicitly retains the old version',async({page})=>{
   const errors=errorsOn(page),normal=fixture();delete normal.settings.voidMode;await open(page,normal);
   const original=hash(await png(page));await category(page,'背景');await page.getByLabel('VOID MODEを有効化').check();
