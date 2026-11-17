@@ -6,6 +6,7 @@ import { GridBackground } from './GridBackground';
 import { TextOverlay } from './TextOverlay';
 import type {TextOverlaySettings} from './text-overlay';
 import {MAGIC_ALGORITHM_VERSION} from './magic-circle';
+import type {FigureFlowState} from './figure-motion';
 
 // All strokes and glow radii use scene units. Pixel-fixed strokes become thinner
 // when a high-resolution export is displayed at the preview size.
@@ -35,12 +36,47 @@ function GeometryImpl({ shape, finalFillOpacity, progress=1, magic=false }: { sh
   })}</>;
 }
 const Geometry=memo(GeometryImpl);
+
+/** Moving highlights follow the ORIGINAL path contours; base fills, position,
+ * rotation and stroke geometry never change. Works equally in browser SVG
+ * and deterministic, time-seeked video frames. */
+const FlowGeometry=memo(function FlowGeometry({shape,flow,ink,lineWidth}:{
+  shape:Shape;flow:FigureFlowState;ink:string;lineWidth:number;
+}){
+  const contours=useMemo(()=>contoursOf(shape),[shape]);
+  const tailDash=`${flow.tailLength} ${1-flow.tailLength}`;
+  const headDash=`${flow.headLength} ${1-flow.headLength}`;
+  return <g data-testid="figure-flow" data-flow-offset={flow.offset}
+    data-flow-opacity={flow.opacity} fill="none" pointerEvents="none"
+    strokeLinecap="round" opacity={flow.opacity}>
+    {contours.map((c,i)=>{
+      const offset=Number((flow.offset-i*.17).toFixed(5));
+      // Multiple concentric paths acquire staggered signal phases.
+      if(c.circle)return <g key={i}>
+        <circle cx={c.circle.x} cy={c.circle.y} r={c.circle.radius}
+          pathLength={1} stroke={ink} strokeWidth={lineWidth*2}
+          opacity={.55*(c.opacity??1)} strokeDasharray={tailDash} strokeDashoffset={offset}/>
+        <circle cx={c.circle.x} cy={c.circle.y} r={c.circle.radius}
+          pathLength={1} stroke="#f4fbff" strokeWidth={lineWidth*1.2}
+          opacity={c.opacity??1} strokeDasharray={headDash} strokeDashoffset={offset}/>
+      </g>;
+      return <g key={i}>
+        <path d={pathData(c)} pathLength={1} stroke={ink}
+          strokeWidth={lineWidth*2} opacity={.55*(c.opacity??1)}
+          strokeDasharray={tailDash} strokeDashoffset={offset}/>
+        <path d={pathData(c)} pathLength={1} stroke="#f4fbff"
+          strokeWidth={lineWidth*1.2} opacity={c.opacity??1}
+          strokeDasharray={headDash} strokeDashoffset={offset}/>
+      </g>;
+    })}
+  </g>;
+});
 function localPoint(shape: Shape, p: Point): Point {
   const dx = p.x - shape.x, dy = p.y - shape.y, angle = radians(-shape.rotation);
   return { x: dx * Math.cos(angle) - dy * Math.sin(angle), y: dx * Math.sin(angle) + dy * Math.cos(angle) };
 }
 
-export function Preview({ scene, background, growth, motion, transparent=false, shapeColors, backgroundBlend, textOverlay, textSeconds, gridSeconds, gridFigureAngle }: { scene: Scene; background: Background; growth?:Record<string,number>; motion?:Record<string,string>; transparent?:boolean; shapeColors?:Record<string,string>; backgroundBlend?:{next:Background;opacity:number}; textOverlay?:TextOverlaySettings; textSeconds?:number; gridSeconds?:number; gridFigureAngle?:number }) {
+export function Preview({ scene, background, growth, motion, flow, transparent=false, shapeColors, backgroundBlend, textOverlay, textSeconds, gridSeconds, gridFigureAngle }: { scene: Scene; background: Background; growth?:Record<string,number>; motion?:Record<string,string>; flow?:Record<string,FigureFlowState>; transparent?:boolean; shapeColors?:Record<string,string>; backgroundBlend?:{next:Background;opacity:number}; textOverlay?:TextOverlaySettings; textSeconds?:number; gridSeconds?:number; gridFigureAngle?:number }) {
   const gradientId = `background-${useId().replace(/:/g, '')}`;
   const { width, height } = scene;
   const unit = Math.min(width, height);
@@ -107,6 +143,8 @@ export function Preview({ scene, background, growth, motion, transparent=false, 
           fillOpacity={finalFillOpacity}>
           {paint.glow && <g filter={`url(#${gradientId}-glow-${shape.id})`} opacity={paint.glowOpacity} fill={background.glowIntensity===undefined?undefined:solidFill||['circuit','branch-circuit'].includes(shape.kind)?ink:"none"}><Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} /></g>}
           <Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} />
+          {flow?.[shape.id]&&<FlowGeometry shape={shape} flow={flow[shape.id]}
+            ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
         </g>;
       })}
     </g>
