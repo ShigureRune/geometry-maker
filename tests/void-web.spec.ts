@@ -131,7 +131,7 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   project.settings.quality='low';
   project.settings.animation=true;
   project.settings.particle={...threeDefaults.particle!,enabled:true,
-    seedTransition:true,seedDuration:3,swirl:1.5};
+    seedTransition:true,seedDuration:5,swirl:1.5};
   project.settings.voidMode!.particleCount=12000;
   project.elapsedSeconds=9;
   await open(page,project);
@@ -168,8 +168,38 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   const frozen=await preview.getAttribute('data-particle-seed-progress');
   await page.waitForTimeout(250);
   expect(await preview.getAttribute('data-particle-seed-progress')).toBe(frozen);
+  // The new seed's network must not leap into place while the particles
+  // are still moving from the previous shape. Signals wait for wires too.
+  expect(Number(frozen)).toBeLessThan(.72);
+  await expect(preview).toHaveAttribute('data-void-wire-seed-reveal','0.000');
+  const pausedWires=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>
+      e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector(
+      '[data-testid="three-preview"] canvas'));
+    const scene=root.store.getState().scene;
+    const wires=scene.getObjectByName('void-web-network-lines') as any;
+    const signals=scene.getObjectByName('neural-signal-packets') as any;
+    return {wires:wires?.geometry.instanceCount??-1,signalCount:signals?.count??0};
+  });
+  expect(pausedWires.wires).toBe(0);
+  expect(pausedWires.signalCount).toBe(0);
   await page.getByRole('button',{name:'3Dを再生'}).click();
+  await expect.poll(async()=>Number(await preview.getAttribute('data-void-wire-seed-reveal')))
+    .toBeGreaterThan(.05);
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:12000});
+  await expect(preview).toHaveAttribute('data-void-wire-seed-reveal','1.000');
+  const settledWires=await page.evaluate(async()=>{
+    const url=performance.getEntriesByType('resource').find(e=>
+      e.name.includes('@react-three_fiber.js'))!.name;
+    const {_roots}=await import(/* @vite-ignore */url);
+    const root=(_roots as any).get(document.querySelector(
+      '[data-testid="three-preview"] canvas'));
+    return (root.store.getState().scene.getObjectByName(
+      'void-web-network-lines') as any)?.geometry.instanceCount??0;
+  });
+  expect(settledWires).toBeGreaterThan(100);
   await category(page,'図形');
   await page.getByLabel('シード変更時に粒子を再集合').uncheck();
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
