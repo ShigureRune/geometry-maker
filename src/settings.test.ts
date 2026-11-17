@@ -30,6 +30,17 @@ describe('portable, versioned settings', () => {
   expect(()=>parseSettings(JSON.stringify({...valid,visualTheme:123}))).toThrow();
  });
  it('round trips animation settings with legacy compatibility',()=>{const a={...valid,animationEnabled:true,animationDuration:12,playbackSpeed:2,easingType:'ease-out-in' as const};expect(parseSettings(settingsText(a))).toEqual(a);expect(parseSettings(settingsText(valid)).animationEnabled).toBeUndefined();expect(()=>parseSettings(JSON.stringify({...a,animationDuration:31}))).toThrow();});
+ it('saves v4/v5 post-growth motion and rejects malformed control settings',()=>{
+   const controls={...valid,algorithmVersion:'2d-v4',animationEnabled:true,
+     animationDuration:6,playbackSpeed:1,easingType:'ease-in-out' as const,
+     continuousMotion:true,motionStrength:140,motionSpeed:1.5,motionVideoSeconds:12};
+   expect(parseSettings(settingsText(controls))).toEqual(controls);
+   expect(parseSettings(settingsText(valid)).continuousMotion).toBeUndefined();
+   for(const value of ['no',1,null])
+     expect(()=>parseSettings(JSON.stringify({...controls,continuousMotion:value}))).toThrow();
+   for(const value of [-1,201,'100',Infinity])
+     expect(()=>parseSettings(JSON.stringify({...controls,motionStrength:value}))).toThrow();
+ });
  it('round-trips animated grid settings and rejects malformed motion',()=>{
   const gridBackground={
    enabled:true,type:'line' as const,colorMode:'custom' as const,color:'#aabbcc',opacity:65,

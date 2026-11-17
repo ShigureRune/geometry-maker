@@ -9,6 +9,9 @@ test('deterministic WebM frames, FPS, ratios, glow, playback and JSON', async ({
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await expect(page.getByTestId('current-seed')).toHaveText('video-stage4');
   await page.getByLabel('アニメーションを有効化').check();
+  // This legacy baseline verifies a growth-only .25-second file. Post-growth
+  // motion has a separate test and may be explicitly disabled.
+  await page.getByLabel('完成後も図形を動かす').uncheck();
   await page.getByLabel('成長時間（秒）').fill('1');
   await page.getByLabel('再生速度',{exact:true}).selectOption('4');
   await page.locator('summary').filter({hasText:'動画書き出し'}).click();
