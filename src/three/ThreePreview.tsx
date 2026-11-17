@@ -829,7 +829,8 @@ export default function ThreePreview(input: Props) {
          restartKey={props.restartKey} transitionDuration={props.transition?.duration} progressHost={progressHost}/>:
        particleEnabled?(web?<VoidParticleCloud objects={objects} edges={voidParticleEdges} count={webParticleCount}
          seed={props.skySeed} background={props.background} settings={props.settings}
-         seconds={seconds} low={low} progressHost={progressHost}/>:
+         seconds={seconds} low={low} progressHost={progressHost}
+         restartKey={props.restartKey} transitionDuration={props.transition?.duration}/>:
          <ParticleCloud objects={objects} seed={props.skySeed} background={props.background}
            settings={props.settings} seconds={seconds} low={low}
            restartKey={props.restartKey} transitionDuration={props.transition?.duration}
