@@ -12,7 +12,8 @@ import {figureScrollAngle} from './ambient';
 import { darkTheme,VISUAL_THEMES,THEME_PRESETS,applyThemePalette,themeScene,type VisualTheme } from './themes';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnimationControls,usePlayback } from './AnimationControls';
-import { defaults,schedule,progressAt,type AnimationSettings } from './animation';
+import { defaults,MOTION_DEFAULTS,schedule,progressAt,type AnimationSettings } from './animation';
+import {createFigureMotionPlan,figureMotionAt} from './figure-motion';
 import { densityCandidates, visibleScene } from './density';
 import { ColorEditor } from './ColorEditor';
 import {GridBackgroundControls} from './GridBackgroundControls';
@@ -211,6 +212,10 @@ export default function App() {
     animationDuration:lastProject?.animationDuration??defaults.animationDuration,
     playbackSpeed:lastProject?.playbackSpeed??defaults.playbackSpeed,
     easingType:lastProject?.easingType??defaults.easingType,
+    continuousMotion:lastProject?.continuousMotion??MOTION_DEFAULTS.continuousMotion,
+    motionStrength:lastProject?.motionStrength??MOTION_DEFAULTS.motionStrength,
+    motionSpeed:lastProject?.motionSpeed??MOTION_DEFAULTS.motionSpeed,
+    motionVideoSeconds:lastProject?.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds,
   }));
   const playback=usePlayback(animation);
   useEffect(()=>{
@@ -270,6 +275,7 @@ export default function App() {
   useEffect(()=>{if(ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION)playback.setPlaying(false);},[ambient.enabled,version]);
   useEffect(()=>{playback.restart(true);},[]);
   const cues=useMemo(()=>schedule(candidates,seed,version),[candidates,seed,version]);
+  const figureMotionPlan=useMemo(()=>createFigureMotionPlan(scene,seed),[scene,seed]);
   function replayOnRegenerate(){if(renderMode==='2d'&&animation.animationEnabled)playback.restart(true);}
   function confirmReset(message:string):boolean{
     return !threeExportBusy&&!standbyTransition&&window.confirm(message);
@@ -294,7 +300,7 @@ export default function App() {
     setEnabledShapeKinds([...ALL_SHAPE_KINDS]);
     setMagicSettings({...magicDefaults});
     setAmbient({...ambientDefaults});
-    setAnimation({...defaults,animationEnabled:true});
+    setAnimation({...defaults,...MOTION_DEFAULTS,animationEnabled:true});
     setTextOverlay({...textOverlayDefaults});
     setVisualTheme('standard');
     setColorSettings(colors);
@@ -436,6 +442,15 @@ export default function App() {
    replayOnRegenerate();
   }
   const growth=animation.animationEnabled?Object.fromEntries(scene.shapes.map(s=>[s.id,progressAt(cues[s.id],playback.position,animation.easingType)])):undefined;
+  // Growth stops at 100%, but the independent (pauseable) completed-figure
+  // clock keeps the same v4/v5 geometry moving without re-generating the seed.
+  const completedMotion=useMemo(()=>animation.animationEnabled&&animation.continuousMotion&&
+    version!==MAGIC_ALGORITHM_VERSION&&playback.motionSeconds>0
+      ?figureMotionAt(figureMotionPlan,playback.motionSeconds,
+        animation.motionStrength??MOTION_DEFAULTS.motionStrength,
+        animation.motionSpeed??MOTION_DEFAULTS.motionSpeed):undefined,
+    [figureMotionPlan,animation.animationEnabled,animation.continuousMotion,
+      animation.motionStrength,animation.motionSpeed,version,playback.motionSeconds]);
   function completedArtwork(transparentOnly=false){return new DOMParser().parseFromString(renderToStaticMarkup(<Preview scene={scene} background={twoDBackground} transparent={version===MAGIC_ALGORITHM_VERSION&&transparentOnly} textOverlay={version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>),'image/svg+xml').documentElement as unknown as SVGSVGElement;}
   const studioCommands:StudioCommand[]=[
     ...categories.filter(item=>item.id!=='text'||
@@ -653,7 +668,7 @@ export default function App() {
           <h2 className="category-title">アニメーション</h2>
         <div hidden={renderMode==='3d'}>
         {version!==MAGIC_ALGORITHM_VERSION&&<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}
-        <AnimationControls settings={animation} onChange={setAnimation} playback={playback}/>
+        <AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>
         </div>
         {renderMode==='3d'&&<><ThreeAnimationControls settings={threeSettings} onChange={setThreeSettings} seed={seed} onReplay={()=>{setStandbyFinishedSeed(null);setThreeSettings(current=>({...current,animation:true}));setRegenerations(n=>n+1);}}/>
           <ThreeStandbyControls settings={threeSettings} onChange={setThreeSettings} onNext={beginStandbyTransition}
@@ -667,7 +682,7 @@ export default function App() {
             ambientClock.stop();setAmbient({...ambientDefaults,...settings.ambient,enabled:false});
             setDensity(settings.density ?? 50);setVisualTheme(settings.visualTheme??'standard');setTextOverlay(settings.textOverlay??{...textOverlayDefaults});
             setEnabledShapeKinds(settings.enabledShapeKinds??[...ALL_SHAPE_KINDS]);
-            setAnimation({animationEnabled:settings.animationEnabled??false,animationDuration:settings.animationDuration??8,playbackSpeed:settings.playbackSpeed??1,easingType:settings.easingType??'ease-in-out'});playback.setPlaying(false);playback.setPosition(settings.algorithmVersion===MAGIC_ALGORITHM_VERSION?1:0);
+            setAnimation({animationEnabled:settings.animationEnabled??false,animationDuration:settings.animationDuration??8,playbackSpeed:settings.playbackSpeed??1,easingType:settings.easingType??'ease-in-out',continuousMotion:settings.continuousMotion??MOTION_DEFAULTS.continuousMotion,motionStrength:settings.motionStrength??MOTION_DEFAULTS.motionStrength,motionSpeed:settings.motionSpeed??MOTION_DEFAULTS.motionSpeed,motionVideoSeconds:settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds});playback.setPlaying(false);playback.setPosition(settings.algorithmVersion===MAGIC_ALGORITHM_VERSION?1:0);
             setMagicSettings(settings.magicCircle??{...magicDefaults});
              setVersion(settings.algorithmVersion as AlgorithmVersion);committedSeed.current=settings.seed;
             setSeed(settings.seed); setRatio(settings.aspectRatio);
@@ -718,7 +733,7 @@ export default function App() {
         <div className="canvas-stage">
           {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>setCategory('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
-              {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
+              {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} motion={completedMotion} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
             </div>
           </PreviewTextEditor>:<div className="canvas-frame three-frame" style={{aspectRatio:`${scene.width} / ${scene.height}`,width:`min(100%, calc(var(--preview-height, 70vh) * ${scene.width/scene.height}))`}}>
             <ThreeBoundary onReturn={()=>switchRenderMode('2d')} onRetryLowQuality={()=>{
