@@ -37,6 +37,13 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByTestId('playback-position')).toContainText('100%',{timeout:6000});
  await expect.poll(async()=>Number.parseFloat(await page.getByTestId('post-growth-motion').textContent()??'0'),
    {timeout:6000}).toBeGreaterThan(.3);
+ const mainGlow=page.locator('[data-role="hero"] [data-testid="main-figure-halo"]').first();
+ await expect(mainGlow).toHaveCount(1);
+ const oldHeroGlow=await mainGlow.getAttribute('stroke-dashoffset');
+ await expect.poll(async()=>mainGlow.getAttribute('stroke-dashoffset'),
+   {timeout:5000}).not.toBe(oldHeroGlow);
+ await expect(page.getByTestId('bar-soft-sheen')).toHaveCount(0);
+ await expect(page.getByTestId('bar-soft-feather')).toHaveCount(0);
  const flow=page.getByTestId('figure-flow').first();
  await expect(flow).toHaveCount(1);
  await expect.poll(async()=>Number(await flow.getAttribute('data-flow-opacity'))).toBeGreaterThan(.05);
@@ -57,13 +64,6 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(movingBar).toHaveCount(1);
  await expect(movingLine).toHaveCount(1);
  await expect(movingStrip).toHaveCount(1);
- // Soft LCD sheen belongs to rods alone; its specular gradient also advances.
- await expect(movingBar.getByTestId('bar-soft-sheen')).toHaveCount(1);
- await expect(movingLine.getByTestId('bar-soft-sheen')).toHaveCount(1);
- await expect(movingStrip.getByTestId('bar-soft-sheen')).toHaveCount(1);
- const gradientStart=await movingBar.locator('linearGradient[id*="-sheen"]').getAttribute('x1');
- await expect.poll(async()=>movingBar.locator('linearGradient[id*="-sheen"]').getAttribute('x1'),
-   {timeout:5000}).not.toBe(gradientStart);
  const barRoot=movingBar.locator('..');
  const originalBarPosition=await barRoot.getAttribute('transform');
  const oldBar=Number(await movingBar.getAttribute('data-bar-shift'));
@@ -81,7 +81,6 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(highlight).toHaveCount(1);
  const highlightPosition=await highlight.getAttribute('transform');
  await expect(highlight.getByTestId('bar-body-motion')).toHaveCount(0);
- await expect(highlight.getByTestId('bar-soft-sheen')).toHaveCount(0);
  await expect(highlight.getByTestId('figure-flow')).toHaveCount(0);
  const previousRodShift=Number(await movingLine.getAttribute('data-bar-shift'));
  await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),
@@ -105,7 +104,7 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
- await expect(page.getByTestId('bar-soft-sheen')).toHaveCount(0);
+ await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  const download=page.waitForEvent('download');
  await page.getByRole('button',{name:'SVGを書き出す',exact:true}).click();
@@ -116,7 +115,7 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.getByLabel('完成後も線に光を流す').uncheck();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
- await expect(page.getByTestId('bar-soft-sheen')).toHaveCount(0);
+ await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  await page.getByLabel('完成後も線に光を流す').check();
  await expect(flow).toHaveCount(1);
