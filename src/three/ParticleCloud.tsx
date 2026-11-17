@@ -1,16 +1,15 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
 import {
-  AdditiveBlending, BoxGeometry, BufferAttribute, BufferGeometry, CapsuleGeometry,
-  Color, ConeGeometry, CylinderGeometry, DodecahedronGeometry, DynamicDrawUsage,
-  Euler, IcosahedronGeometry, Mesh, OctahedronGeometry, SphereGeometry,
-  TetrahedronGeometry, TorusGeometry, TorusKnotGeometry, Vector3,
+  AdditiveBlending,BufferAttribute,BufferGeometry,Color,DynamicDrawUsage,
+  Euler,Mesh,Vector3,
 } from 'three';
 import {MeshSurfaceSampler} from 'three/addons/math/MeshSurfaceSampler.js';
 import {seededRandom,type Background} from '../scene';
-import {threePose,type ThreeKind,type ThreeObject} from './model';
+import {threePose,type ThreeObject} from './model';
 import {particleEase,particleSeedEnvelope,particleSwirlDirection,type ParticleSettings} from './particle';
 import type {ThreeSettings} from './settings';
+import {surfaceGeometry} from './shape-surface';
 
 type ParticleData={
   geometry:BufferGeometry;
@@ -20,25 +19,6 @@ type ParticleData={
   owners:Uint16Array;
   count:number;
 };
-
-function surfaceGeometry(kind:ThreeKind,low:boolean):BufferGeometry {
-  const n=low?12:32;
-  switch(kind){
-    case 'sphere':return new SphereGeometry(1,n,n/2);
-    case 'cube':return new BoxGeometry(2/Math.sqrt(3),2/Math.sqrt(3),2/Math.sqrt(3));
-    case 'torus':return new TorusGeometry(.72,.23,low?8:16,low?24:64);
-    case 'icosahedron':return new IcosahedronGeometry(1,0);
-    case 'dodecahedron':return new DodecahedronGeometry(1,0);
-    case 'octahedron':return new OctahedronGeometry(1,0);
-    case 'tetrahedron':return new TetrahedronGeometry(1,0);
-    case 'cylinder':return new CylinderGeometry(.62,.62,1.45,n);
-    case 'cone':return new ConeGeometry(.72,1.35,n);
-    case 'capsule':return new CapsuleGeometry(.42,.68,low?4:8,low?10:24);
-    case 'prism':return new CylinderGeometry(.69,.69,1.32,3);
-    case 'pyramid':return new CylinderGeometry(0,.70,1.30,4);
-    case 'torus-knot':return new TorusKnotGeometry(.50,.15,low?48:112,low?6:12,2,3);
-  }
-}
 
 function createParticleData(
   objects:readonly ThreeObject[],seed:string,background:Background,count:number,low:boolean,
