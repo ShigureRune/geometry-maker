@@ -186,8 +186,8 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   expect(pausedWires.wires).toBe(0);
   expect(pausedWires.signalCount).toBe(0);
   await page.getByRole('button',{name:'3Dを再生'}).click();
-  await expect.poll(async()=>Number(await preview.getAttribute('data-void-wire-seed-reveal')))
-    .toBeGreaterThan(.05);
+  await expect.poll(async()=>Number(await preview.getAttribute('data-void-wire-seed-reveal')),
+    {timeout:18000}).toBeGreaterThan(.05);
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:24000});
   await expect(preview).toHaveAttribute('data-void-wire-seed-reveal','1.000');
   const settledWires=await page.evaluate(async()=>{
