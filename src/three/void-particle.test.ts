@@ -143,7 +143,8 @@ describe('particle mode on cosmic web',()=>{
       expect(major).toBeGreaterThan(.48);
       expect(major).toBeLessThan(.96);
       // TorusGeometry has major radius .72 and tube radius .23.
-      expect(Math.abs((major-.72)**2+z*z-.23**2)).toBeLessThan(.00015);
+      // Outlines are straight segments approximating the torus circles.
+      expect(Math.abs((major-.72)**2+z*z-.23**2)).toBeLessThan(.006);
     }
   });
 
