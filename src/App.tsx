@@ -217,7 +217,10 @@ export default function App() {
     motionSpeed:lastProject?.motionSpeed??MOTION_DEFAULTS.motionSpeed,
     motionVideoSeconds:lastProject?.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds,
   }));
-  const playback=usePlayback(animation);
+  // Magic Circle already owns a separate continuous rotation clock.
+  // Never run a redundant 2D figure-motion clock in that mode.
+  const playback=usePlayback(version===MAGIC_ALGORITHM_VERSION
+    ?{...animation,continuousMotion:false}:animation);
   useEffect(()=>{
     const store=()=>{
       if(resetting.current)return;
