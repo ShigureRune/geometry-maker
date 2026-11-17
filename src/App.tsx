@@ -275,8 +275,12 @@ export default function App() {
     version,seed,ratio,density,visualTheme,enabledShapeKinds,background,
     activeColors,textOverlay,magicSettings,ambient,animation,threeSettings,
     threeRestore.time,threeRestore.floorTime,standbyFinishedSeed]);
-  useEffect(()=>{if(ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION)playback.setPlaying(false);},[ambient.enabled,version]);
   useEffect(()=>{playback.restart(true);},[]);
+  // The continuous 2D clock must not consume CPU while a restored project is
+  // already in 3D mode or while the independent ambient renderer is active.
+  // Run after the initial restart effect so it also covers startup.
+  useEffect(()=>{if(renderMode==='3d'||(ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION))
+    playback.setPlaying(false);},[renderMode,ambient.enabled,version]);
   const cues=useMemo(()=>schedule(candidates,seed,version),[candidates,seed,version]);
   const figureMotionPlan=useMemo(()=>createFigureMotionPlan(scene,seed),[scene,seed]);
   function replayOnRegenerate(){if(renderMode==='2d'&&animation.animationEnabled)playback.restart(true);}
