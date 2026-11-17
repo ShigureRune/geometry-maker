@@ -103,52 +103,90 @@ describe('particle mode on cosmic web',()=>{
     expect(emptyEdges.filamentParticles).toBe(0);
   });
 
-  it('samples true polygon outlines, respecting rotation rather than spheres',()=>{
-    const base:ThreeObject={...lowObjects[0],position:[0,0,0],
+  it('fills all six cube faces uniformly, not just its twelve edges',()=>{
+    const base:ThreeObject={...lowObjects[0],kind:'cube',position:[0,0,0],
       rotation:[0,0,0],radius:1};
-    const cube={...base,kind:'cube' as const};
-    const points=generateVoidParticles([cube],[],'cube-edge-shape',
-      background,4000,true,1.4,1.2,100);
-    const edge=1/Math.sqrt(3);
-    let notOnSphere=0;
-    for(let i=0;i<points.count;i++){
-      const x=points.targets[i*3],y=points.targets[i*3+1],z=points.targets[i*3+2];
-      const fixed=[x,y,z].filter(n=>Math.abs(Math.abs(n)-edge)<.0001);
-      expect(fixed.length).toBeGreaterThanOrEqual(2);
-      if(Math.hypot(x,y,z)<.9)notOnSphere++;
+    const data=generateVoidParticles([base],[],'cube-uniform-faces',
+      background,12000,true,1.4,1.2,100);
+    const half=1/Math.sqrt(3),faceCounts=[0,0,0,0,0,0];
+    let faceInteriors=0;
+    for(let i=0;i<data.count;i++){
+      const xyz=[data.targets[i*3],data.targets[i*3+1],data.targets[i*3+2]];
+      expect(xyz.every(x=>Math.abs(x)<=half+.0001)).toBe(true);
+      const face=xyz.findIndex(x=>Math.abs(Math.abs(x)-half)<.0001);
+      expect(face).toBeGreaterThanOrEqual(0);
+      faceCounts[face*2+(xyz[face]>0?0:1)]++;
+      if(xyz.filter(x=>Math.abs(Math.abs(x)-half)<.0001).length===1)faceInteriors++;
     }
-    expect(notOnSphere).toBeGreaterThan(500);
-
-    // Actual outline vertices are rotated with each object's rotation.
-    const angle=Math.PI/5,rotated={...cube,rotation:[0,0,angle] as [number,number,number]};
-    const rotatedPoints=generateVoidParticles([rotated],[],'cube-rotation',
-      background,500,true);
-    for(let i=0;i<rotatedPoints.count;i++){
-      const x=rotatedPoints.targets[i*3],y=rotatedPoints.targets[i*3+1],z=rotatedPoints.targets[i*3+2];
-      const localX=Math.cos(angle)*x+Math.sin(angle)*y;
-      const localY=-Math.sin(angle)*x+Math.cos(angle)*y;
-      expect([localX,localY,z].filter(n=>
-        Math.abs(Math.abs(n)-edge)<.0001).length).toBeGreaterThanOrEqual(2);
+    expect(faceInteriors).toBeGreaterThan(11900);
+    for(const face of faceCounts){
+      // With equal surface areas, each face gets roughly one sixth.
+      expect(face).toBeGreaterThan(1650);
+      expect(face).toBeLessThan(2350);
     }
   });
 
-  it('preserves the hole and tube of a torus instead of painting a sphere',()=>{
+  it('keeps polygon surface coordinates in the saved object rotation',()=>{
+    const angle=Math.PI/5;
+    const cube:ThreeObject={...lowObjects[0],kind:'cube',position:[0,0,0],
+      rotation:[0,0,angle],radius:1};
+    const data=generateVoidParticles([cube],[],'cube-rotated-faces',
+      background,1500,true,1.4,1.2,100);
+    const half=1/Math.sqrt(3);
+    let interiors=0;
+    for(let i=0;i<data.count;i++){
+      const x=data.targets[i*3],y=data.targets[i*3+1],z=data.targets[i*3+2];
+      const local=[Math.cos(angle)*x+Math.sin(angle)*y,
+        -Math.sin(angle)*x+Math.cos(angle)*y,z];
+      expect(local.every(v=>Math.abs(v)<=half+.0001)).toBe(true);
+      const nearFace=local.filter(v=>Math.abs(Math.abs(v)-half)<.0001).length;
+      expect(nearFace).toBeGreaterThanOrEqual(1);
+      if(nearFace===1)interiors++;
+    }
+    expect(interiors).toBeGreaterThan(1450);
+  });
+
+  it('distributes particles across the torus tube while keeping its hole',()=>{
     const torus:ThreeObject={...lowObjects[0],kind:'torus',position:[2,-1,3],
       rotation:[0,0,0],radius:1};
-    const points=generateVoidParticles([torus],[],'torus-outline',
-      background,1800,true);
-    for(let i=0;i<points.count;i++){
-      const x=points.targets[i*3]-2,y=points.targets[i*3+1]+1,z=points.targets[i*3+2]-3;
+    const data=generateVoidParticles([torus],[],'torus-full-surface',
+      background,7000,true,1.4,1.2,100);
+    const quadrants=[0,0,0,0];
+    let top=0,bottom=0;
+    for(let i=0;i<data.count;i++){
+      const x=data.targets[i*3]-2,y=data.targets[i*3+1]+1,z=data.targets[i*3+2]-3;
       const major=Math.hypot(x,y);
-      expect(major).toBeGreaterThan(.48);
-      expect(major).toBeLessThan(.96);
-      // TorusGeometry has major radius .72 and tube radius .23.
-      // Outlines are straight segments approximating the torus circles.
-      expect(Math.abs((major-.72)**2+z*z-.23**2)).toBeLessThan(.006);
+      expect(major).toBeGreaterThan(.47);
+      expect(major).toBeLessThan(.97);
+      // Low-poly mesh approximates the analytic torus with triangles.
+      expect(Math.abs((major-.72)**2+z*z-.23**2)).toBeLessThan(.009);
+      quadrants[(x>=0?0:1)+(y>=0?0:2)]++;
+      if(z>.08)top++;
+      if(z<-.08)bottom++;
     }
+    for(const n of quadrants){expect(n).toBeGreaterThan(1350);expect(n).toBeLessThan(2150);}
+    expect(top).toBeGreaterThan(1300);
+    expect(bottom).toBeGreaterThan(1300);
   });
 
-  it('allocates more contour samples to large figures than tiny leaves',()=>{
+  it('does not overpopulate finely tessellated triangles on a box face',()=>{
+    // Two equal physical areas with different subdivisions should have equal
+    // probability; no edge or triangle-count weighting is allowed.
+    const cube:ThreeObject={...lowObjects[0],kind:'cube',position:[0,0,0],
+      rotation:[0,0,0],radius:1};
+    const data=generateVoidParticles([cube],[],'cube-surface-coverage',
+      background,10000,true);
+    let inside=0;
+    for(let i=0;i<data.count;i++){
+      const x=data.targets[i*3],y=data.targets[i*3+1],z=data.targets[i*3+2];
+      // Face interior means 2 coordinates lie strictly inside the face.
+      const half=1/Math.sqrt(3);
+      if([x,y,z].filter(v=>Math.abs(v)<half-.05).length>=2)inside++;
+    }
+    expect(inside).toBeGreaterThan(7500);
+  });
+
+  it('allocates more surface samples to large figures than tiny leaves',()=>{
     const large:ThreeObject={...lowObjects[0],id:'large',kind:'cube',
       role:'primary',position:[0,0,0],rotation:[0,0,0],radius:1};
     const leaf:ThreeObject={...large,id:'tiny',role:'accent',
