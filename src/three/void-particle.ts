@@ -1,5 +1,7 @@
 import {seededRandom,type Background} from '../scene';
-import type {ThreeObject} from './model';
+import {Euler,Matrix4} from 'three';
+import {outlineSegments} from './outline-geometry';
+import type {ThreeKind,ThreeObject} from './model';
 import type {NetworkEdge} from './network';
 
 /** Bounded GPU particle budget: node + filament particles replace thousands of
@@ -19,6 +21,31 @@ export function effectiveVoidParticleCount(requested:number,low:boolean):number{
   return Number.isFinite(requested)?Math.min(Math.max(0,Math.floor(requested)),cap):0;
 }
 
+type ShapeOutline={
+  segments:Float32Array; cumulative:Float64Array; length:number;
+};
+const outlineCache=new Map<string,ShapeOutline>();
+
+/** Reuse the exact contours drawn by the existing 3D outline renderer.
+ * A template is made once per kind/quality, never once per web node.
+ * Cumulative segment lengths allow unbiased O(log segments) point lookup. */
+function shapeOutline(kind:ThreeKind,low:boolean):ShapeOutline{
+  const key=(low?'low:':'high:')+kind;
+  const cached=outlineCache.get(key);
+  if(cached)return cached;
+  const segments=outlineSegments(kind,low),cumulative=new Float64Array(segments.length/6);
+  let length=0;
+  for(let i=0;i<cumulative.length;i++){
+    const p=i*6;
+    length+=Math.hypot(segments[p+3]-segments[p],segments[p+4]-segments[p+1],
+      segments[p+5]-segments[p+2]);
+    cumulative[i]=length;
+  }
+  const result={segments,cumulative,length};
+  outlineCache.set(key,result);
+  return result;
+}
+
 export type VoidParticleData={
   count:number;nodeParticles:number;filamentParticles:number;
   targets:Float32Array;colors:Float32Array;
@@ -28,9 +55,12 @@ export type VoidParticleData={
 /** Generate once per seed/configuration. O(particles + visible nodes + edges)
  * in memory and time, never O(nodes * mesh tessellation).
  *
- * Node points outline each knot's small sphere. Filament points populate the
- * actual graph segments, rather than a fabricated random cloud. The saved
- * ordinary PARTICLE MODE's geometry sampler is intentionally unchanged.
+ * Figure points follow each node's real 3D outline (cube edges, torus rings,
+ * cone silhouette, etc.) with its radius and rotation. A radius-squared budget
+ * makes large figures legible instead of spending an equal count on tiny leaves.
+ * Filament dust still populates the real graph edges. This shares the existing
+ * outline templates without any per-node meshes or per-frame CPU point updates.
+ * The ordinary PARTICLE MODE's geometry sampler is unchanged.
  */
 export function generateVoidParticles(
   objects:readonly ThreeObject[],edges:readonly NetworkEdge[],
@@ -73,18 +103,48 @@ export function generateVoidParticles(
     scatter[p+2]=(.55+random()*.80)*spread;
     phases[i]=random()*Math.PI*2;
   }
-  // Stable stratification covers the entire visible web even with a tiny
-  // mobile budget; the generator never creates a MeshSurfaceSampler.
+  // Allocate by visible figure area rather than evenly across all nodes:
+  // a tiny accent leaf must not consume the same particle budget as a large
+  // primary knot. Stable stratification still reaches all parts of the web.
+  const weights=objects.map(o=>Math.max(1e-6,o.radius*o.radius));
+  const weightTotal=weights.reduce((total,w)=>total+w,0);
+  let objectIndex=0,weightEdge=weights[0],lastObjectIndex=-1;
+  const rotation=new Matrix4(),euler=new Euler();
   for(let i=0;i<nodeParticles;i++){
-    const index=Math.min(objects.length-1,
-      Math.floor((i+random()*.45)*objects.length/nodeParticles));
-    const node=objects[index],u=random()*2-1,phi=random()*Math.PI*2;
-    const h=Math.sqrt(1-u*u);
-    const r=node.radius*(.70+random()*.30);
-    const rgb=palette.get(node.id)!;
-    write(i,node.position[0]+Math.cos(phi)*h*r,
-      node.position[1]+Math.sin(phi)*h*r,
-      node.position[2]+u*r,rgb[0],rgb[1],rgb[2]);
+    const rank=(i+random()*.45)*weightTotal/nodeParticles;
+    while(objectIndex<objects.length-1&&rank>=weightEdge){
+      objectIndex++;
+      weightEdge+=weights[objectIndex];
+    }
+    const node=objects[objectIndex];
+    // The same 13 outline templates are used for solids and particles.
+    // A single rotation matrix is reused while sampling each object's points.
+    if(lastObjectIndex!==objectIndex){
+      rotation.makeRotationFromEuler(euler.set(...node.rotation));
+      lastObjectIndex=objectIndex;
+    }
+    const template=shapeOutline(node.kind,low);
+    const distance=random()*template.length;
+    let first=0,last=template.cumulative.length-1;
+    while(first<last){
+      const middle=(first+last)>>>1;
+      if(distance>template.cumulative[middle])first=middle+1;
+      else last=middle;
+    }
+    const segment=first*6,previous=first?template.cumulative[first-1]:0;
+    const fraction=(distance-previous)/
+      Math.max(1e-10,template.cumulative[first]-previous);
+    const x=template.segments[segment]+
+      (template.segments[segment+3]-template.segments[segment])*fraction;
+    const y=template.segments[segment+1]+
+      (template.segments[segment+4]-template.segments[segment+1])*fraction;
+    const z=template.segments[segment+2]+
+      (template.segments[segment+5]-template.segments[segment+2])*fraction;
+    const m=rotation.elements,r=node.radius,rgb=palette.get(node.id)!;
+    write(i,node.position[0]+r*(m[0]*x+m[4]*y+m[8]*z),
+      node.position[1]+r*(m[1]*x+m[5]*y+m[9]*z),
+      node.position[2]+r*(m[2]*x+m[6]*y+m[10]*z),
+      rgb[0],rgb[1],rgb[2]);
   }
   for(let i=0;i<filamentParticles;i++){
     const index=Math.min(visibleEdges.length-1,
