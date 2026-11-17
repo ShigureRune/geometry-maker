@@ -1,4 +1,4 @@
-import { memo, useId, useMemo, type ReactNode } from 'react';
+import { memo, useId, useMemo } from 'react';
 import { contoursOf, pathData, radians, shapeBounds, worldPoint, trimContour } from './geometry';
 import { gradientEndpoints, type Background, type Point, type Scene, type Shape, NEW_SHAPE_KINDS } from './scene';
 import { backgroundVector, inkAt, paintFor } from './paint';
@@ -38,113 +38,64 @@ function GeometryImpl({ shape, finalFillOpacity, progress=1, magic=false, spin=0
 }
 const Geometry=memo(GeometryImpl);
 
-/** Moving highlights follow the ORIGINAL path contours; base fills, position,
- * rotation and stroke geometry never change. Works equally in browser SVG
- * and deterministic, time-seeked video frames. */
+/** Luminous streaks travel along ORIGINAL contours without changing shape positions.
+ * The main figure gets a softly feathered LCD-like glow; supporting contours
+ * retain their existing, lighter tracing. Both SVG and video use this renderer.
+ */
 const FlowGeometry=memo(function FlowGeometry({shape,flow,ink,lineWidth}:{
   shape:Shape;flow:FigureFlowState;ink:string;lineWidth:number;
 }){
   const contours=useMemo(()=>contoursOf(shape),[shape]);
+  const haloId='figure-halo-'+useId().replace(/:/g,'');
+  const isMain=shape.role==='hero';
+  const bounds=useMemo(()=>shapeBounds({...shape,x:0,y:0,rotation:0}),[shape]);
+  const outerBlur=Math.max(2.5,lineWidth*2.8);
+  const innerBlur=Math.max(1.1,lineWidth*.9);
+  const pad=Math.max(outerBlur*5,lineWidth*12);
   const tailDash=`${flow.tailLength} ${1-flow.tailLength}`;
   const headDash=`${flow.headLength} ${1-flow.headLength}`;
   return <g data-testid="figure-flow" data-flow-offset={flow.offset}
     data-flow-opacity={flow.opacity} fill="none" pointerEvents="none"
     strokeLinecap="round" opacity={flow.opacity}>
-    {contours.map((c,i)=>{
-      const offset=Number((flow.offset-i*.17).toFixed(5));
-      // Multiple concentric paths acquire staggered signal phases.
-      if(c.circle)return <g key={i}>
-        <circle cx={c.circle.x} cy={c.circle.y} r={c.circle.radius}
-          pathLength={1} stroke={ink} strokeWidth={lineWidth*2}
-          opacity={.55*(c.opacity??1)} strokeDasharray={tailDash} strokeDashoffset={offset}/>
-        <circle cx={c.circle.x} cy={c.circle.y} r={c.circle.radius}
-          pathLength={1} stroke="#f4fbff" strokeWidth={lineWidth*1.2}
-          opacity={c.opacity??1} strokeDasharray={headDash} strokeDashoffset={offset}/>
-      </g>;
-      return <g key={i} transform={shape.kind==='arc'&&c.dashed?`rotate(${flow.spin})`:undefined}>
-        <path d={pathData(c)} pathLength={1} stroke={ink}
-          strokeWidth={lineWidth*2} opacity={.55*(c.opacity??1)}
-          strokeDasharray={tailDash} strokeDashoffset={offset}/>
-        <path d={pathData(c)} pathLength={1} stroke="#f4fbff"
-          strokeWidth={lineWidth*1.2} opacity={c.opacity??1}
-          strokeDasharray={headDash} strokeDashoffset={offset}/>
-      </g>;
-    })}
-
-  </g>;
-});
-/** Soft LCD-style specular sweep on the MOVING bar. Never edits the authored
- * scene or the separately rendered (stationary) accent-role highlights.
- * Both the feathered ends and moving white sheen live inside the bar's own
- * translated group, so the original one-way travel remains unchanged. */
-const LuminousBar=memo(function LuminousBar({shape,flow,unit,bounds,artwork,lineWidth}:{
-  shape:Shape;flow:FigureFlowState;unit:number;
-  bounds:{x:number;y:number;width:number;height:number};
-  artwork:ReactNode;lineWidth:number;
-}){
-  const id='moving-bar-light-'+useId().replace(/:/g,'');
-  const contour=useMemo(()=>contoursOf(shape)[0],[shape]);
-  const d=useMemo(()=>pathData(contour),[contour]);
-  const start=shape.kind==='line'&&contour.points.length>1?contour.points[0]:{x:-shape.size,y:0};
-  const end=shape.kind==='line'&&contour.points.length>1?contour.points.at(-1)!:{x:shape.size,y:0};
-  const sample=(t:number)=>({x:start.x+(end.x-start.x)*t,y:start.y+(end.y-start.y)*t});
-  // The spot begins and ends OUTSIDE the bar: the reset cannot create a
-  // hard bright seam. The fade mask also softens both ends of the bar body.
-  const phase=(((-flow.offset)%1)+1)%1;
-  const center=-.26+1.52*phase, radius=.22;
-  const from=sample(center-radius),to=sample(center+radius);
-  const filled=shape.filled&&contour.closed;
-  const strokeWidth=shape.strokeWidth*lineWidth/100;
-  const width=filled?0:Math.max(strokeWidth*1.55,unit*.0026);
-  const glowWidth=filled?0:Math.max(width*3,unit*.009);
-  const blur=Math.max(unit*.002,Math.min(unit*.009,(shape.thickness??unit*.016)*.26));
-  const pad=Math.max(unit*.06,blur*6,glowWidth*2);
-  return <>
-    <defs>
-      <linearGradient id={id+'-feather'} gradientUnits="userSpaceOnUse"
-        x1={start.x} y1={start.y} x2={end.x} y2={end.y}>
-        <stop offset="0%" stopColor="black"/>
-        <stop offset="11%" stopColor="white" stopOpacity=".85"/>
-        <stop offset="20%" stopColor="white"/>
-        <stop offset="80%" stopColor="white"/>
-        <stop offset="89%" stopColor="white" stopOpacity=".85"/>
-        <stop offset="100%" stopColor="black"/>
-      </linearGradient>
-      <mask id={id+'-mask'} maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse"
-        x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2} height={bounds.height+pad*2}>
-        <rect x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2}
-          height={bounds.height+pad*2} fill={`url(#${id}-feather)`}/>
-      </mask>
-      <linearGradient id={id+'-sheen'} gradientUnits="userSpaceOnUse"
-        x1={from.x} y1={from.y} x2={to.x} y2={to.y}>
-        <stop offset="0%" stopColor="#f5fbff" stopOpacity="0"/>
-        <stop offset="17%" stopColor="#f5fbff" stopOpacity=".08"/>
-        <stop offset="36%" stopColor="#ffffff" stopOpacity=".34"/>
-        <stop offset="50%" stopColor="#ffffff" stopOpacity=".85"/>
-        <stop offset="64%" stopColor="#ffffff" stopOpacity=".34"/>
-        <stop offset="83%" stopColor="#f5fbff" stopOpacity=".08"/>
-        <stop offset="100%" stopColor="#f5fbff" stopOpacity="0"/>
-      </linearGradient>
-      <filter id={id+'-bloom'} filterUnits="userSpaceOnUse"
+    {isMain&&<defs>
+      {/* Large and small halos soften the end caps of each moving dash. */}
+      <filter id={haloId+'-outer'} filterUnits="userSpaceOnUse"
         x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2} height={bounds.height+pad*2}
         colorInterpolationFilters="sRGB">
-        <feGaussianBlur stdDeviation={blur}/>
+        <feGaussianBlur stdDeviation={outerBlur}/>
       </filter>
-    </defs>
-    <g data-testid="bar-soft-feather" mask={`url(#${id}-mask)`}>
-      {artwork}
-      <g data-testid="bar-soft-sheen" fill="none" pointerEvents="none"
-        strokeLinecap="round" opacity={Math.min(1,flow.opacity*1.15)}>
-        {/* Blurred halo plus a subdued sharp white specular core. */}
-        <path d={d} fill={filled?`url(#${id}-sheen)`:'none'}
-          stroke={filled?'none':`url(#${id}-sheen)`} strokeWidth={glowWidth}
-          filter={`url(#${id}-bloom)`} opacity=".78"/>
-        <path d={d} fill={filled?`url(#${id}-sheen)`:'none'}
-          stroke={filled?'none':`url(#${id}-sheen)`} strokeWidth={width}
-          opacity=".82"/>
-      </g>
-    </g>
-  </>;
+      <filter id={haloId+'-inner'} filterUnits="userSpaceOnUse"
+        x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2} height={bounds.height+pad*2}
+        colorInterpolationFilters="sRGB">
+        <feGaussianBlur stdDeviation={innerBlur}/>
+      </filter>
+    </defs>}
+    {contours.map((c,i)=>{
+      const offset=Number((flow.offset-i*.17).toFixed(5));
+      // Circles and curves follow the same luminance pattern and clock.
+      const draw=(stroke:string,width:number,dash:string,opacity:number,filter?:string,testId?:string)=>
+        c.circle?<circle cx={c.circle.x} cy={c.circle.y} r={c.circle.radius}
+          pathLength={1} stroke={stroke} strokeWidth={width}
+          opacity={opacity*(c.opacity??1)} strokeDasharray={dash}
+          strokeDashoffset={offset} filter={filter} data-testid={testId}/>:
+        <path d={pathData(c)} pathLength={1} stroke={stroke} strokeWidth={width}
+          opacity={opacity*(c.opacity??1)} strokeDasharray={dash}
+          strokeDashoffset={offset} filter={filter} data-testid={testId}/>;
+      return <g key={i} transform={shape.kind==='arc'&&c.dashed?`rotate(${flow.spin})`:undefined}>
+        {isMain?<>
+          {/* Broad tinted trail, diffused white bloom, then a subdued crisp glint.
+              No rectangular white segment or abruptly terminated bright trail. */}
+          {draw(ink,lineWidth*6.4,tailDash,.62,`url(#${haloId}-outer)`,'main-figure-trail')}
+          {draw('#f7fcff',lineWidth*5.4,headDash,.86,`url(#${haloId}-outer)`,'main-figure-halo')}
+          {draw('#ffffff',lineWidth*2.1,headDash,.83,`url(#${haloId}-inner)`,'main-figure-soft-core')}
+          {draw('#ffffff',lineWidth*.68,headDash,.34,undefined,'main-figure-glint')}
+        </>:<>
+          {draw(ink,lineWidth*2,tailDash,.55)}
+          {draw('#f4fbff',lineWidth*1.2,headDash,1)}
+        </>}
+      </g>;
+    })}
+  </g>;
 });
 function localPoint(shape: Shape, p: Point): Point {
   const dx = p.x - shape.x, dy = p.y - shape.y, angle = radians(-shape.rotation);
@@ -233,9 +184,7 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
             ?<g data-testid="bar-body-motion" data-bar-shift={barMotion.barShift}
                 data-bar-world-x={barMotion.barDx} data-bar-world-y={barMotion.barDy}
                 transform={`translate(${Number(localBarX.toFixed(5))} ${Number(localBarY.toFixed(5))})`}>
-                <LuminousBar shape={shape} flow={barMotion} unit={unit}
-                  bounds={localBounds.get(shape.id)!} artwork={artwork}
-                  lineWidth={background.lineWidth??100}/>
+                {artwork}
               </g>
             :artwork}
         </g>;
