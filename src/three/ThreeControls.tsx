@@ -6,7 +6,7 @@ import {THREE_KINDS,THREE_CLASSIC_KINDS,THREE_NEW_KINDS,THREE_SPACING_DEFAULT,ty
 import {CELESTIAL_KINDS, CELESTIAL_LABELS, celestialDefaults} from './celestial';
 import {particleDefaults} from './particle';
 import {VOID_WEB_VERSION} from './void-settings';
-import {VOID_PARTICLE_DEFAULT,VOID_PARTICLE_HIGH_LIMIT,VOID_PARTICLE_LOW_LIMIT} from './void-particle';
+import {VOID_PARTICLE_DEFAULT,VOID_PARTICLE_HIGH_LIMIT,VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_NODE_SHARE_DEFAULT} from './void-particle';
 import {GALAXY_PALETTES,GALAXY_TYPES,GALAXY_TYPE_LABELS,galaxyDefaults,type GalaxyPalette,type GalaxyType} from './galaxy';
 import {GALAXY_PRESETS,galaxyWithPreset,type GalaxyPreset} from './galaxy-presets';
 
@@ -101,7 +101,14 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={particleCount=>onChange({...settings,voidMode:{...settings.voidMode!,particleCount}})}/>:
           <ThreeRange id="particle-count" label="粒子数" value={particle.count} min={500} max={12000} step={500} unit="個"
             onChange={count=>onChange({...settings,particle:{...particle,count}})}/>}
-        {cosmicWeb&&<p className="help">初期値{VOID_PARTICLE_DEFAULT.toLocaleString('ja-JP')}粒子。軽量品質は最大{VOID_PARTICLE_LOW_LIMIT.toLocaleString('ja-JP')}、高品質は最大{VOID_PARTICLE_HIGH_LIMIT.toLocaleString('ja-JP')}粒子です。「自動」は端末に応じて品質を決定します。設定した粒子数は保存されます。</p>}
+        {cosmicWeb&&<>
+          <ThreeRange id="void-particle-node-share" label="図形への粒子配分"
+            value={settings.voidMode?.nodeShare??VOID_PARTICLE_NODE_SHARE_DEFAULT}
+            min={50} max={100} step={5} unit="%"
+            onChange={nodeShare=>onChange({...settings,voidMode:{...settings.voidMode!,nodeShare}})}/>
+          <p className="help">初期設定は図形{VOID_PARTICLE_NODE_SHARE_DEFAULT}%・フィラメント{100-VOID_PARTICLE_NODE_SHARE_DEFAULT}%。100%なら図形に全粒子を割り当て、フィラメント用の粒子は0個になります。ネットワークのワイヤー表示はそのまま維持します。</p>
+          <p className="help">初期値{VOID_PARTICLE_DEFAULT.toLocaleString('ja-JP')}粒子。軽量品質は最大{VOID_PARTICLE_LOW_LIMIT.toLocaleString('ja-JP')}、高品質は最大{VOID_PARTICLE_HIGH_LIMIT.toLocaleString('ja-JP')}粒子です。「自動」は端末に応じて品質を決定します。設定値と配分は保存されます。</p>
+        </>}
         <ThreeRange id="particle-duration" label="集合にかかる時間" value={particle.duration} min={.5} max={15} step={.1} unit="秒"
           onChange={duration=>onChange({...settings,particle:{...particle,duration}})}/>
         <ThreeRange id="particle-swirl" label="渦の強さ" value={particle.swirl} min={0} max={3} step={.1}
@@ -116,7 +123,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           onChange={seedDuration=>onChange({...settings,particle:{...particle,seedDuration}})}/>}
         <label className="three-checkbox"><input type="checkbox" aria-label="粒子の揺らぎ" checked={particle.jitter}
           onChange={event=>onChange({...settings,particle:{...particle,jitter:event.target.checked}})}/> 粒子を小さく揺らす</label>
-        <HelpInfo>{cosmicWeb?'コズミックウェブでは結節点と実際のフィラメントに粒子を配置し、GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大50万個・軽量最大8万個。粒子数は既存の3D描画品質の選択に従います。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
+        <HelpInfo>{cosmicWeb?'コズミックウェブでは結節点を優先して粒子を配置し、フィラメントとの配分も調整できます。GPUで渦巻き集合を再生します。元の多数の立体メッシュの代わりに粒子を1回の描画命令で描画するため軽量です。粒子は高品質最大50万個・軽量最大8万個。粒子数は既存の3D描画品質の選択に従います。シード変更で新しいウェブへ再集合します。通常のPARTICLE MODEの表面サンプリングとシード変形は変更しません。':'図形の表面に渦を描きながら粒子が集合します。方向はシードで決まり、完成後は立体に沿って浮遊・回転します。軽量描画では粒子を最大1600個に抑えます。ランダム・手入力・自動待機のシード変更時は、今見えている粒子から新しい図形へ渦巻いて移動します。再生と動画・PNG・JSON保存には既存の3D機能を使います。'}</HelpInfo>
       </>}
     </fieldset>
     <fieldset className="three-kind-fieldset" data-testid="galaxy-mode-controls">
