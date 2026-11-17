@@ -1,12 +1,31 @@
 import { seededRandom, type Shape, type AlgorithmVersion } from './scene';
 export const EASINGS = ['linear','ease-in','ease-out','ease-in-out','ease-out-in'] as const;
 export type Easing = typeof EASINGS[number];
-export type AnimationSettings = { animationEnabled:boolean; animationDuration:number; playbackSpeed:number; easingType:Easing };
+export type AnimationSettings = {
+  animationEnabled:boolean;animationDuration:number;playbackSpeed:number;easingType:Easing;
+  /** Remain in motion after the growth timeline is 100%. Legacy files omit these. */
+  continuousMotion?:boolean;motionStrength?:number;motionSpeed?:number;motionVideoSeconds?:number;
+};
 export const defaults:AnimationSettings={animationEnabled:false,animationDuration:6,playbackSpeed:1,easingType:'ease-in-out'};
+export const MOTION_DEFAULTS={continuousMotion:true,motionStrength:100,motionSpeed:1,motionVideoSeconds:8} as const;
+/** Keep the final frame and add an explicitly bounded period of continuing
+ * motion when recording a finite video. Still images remain motion-free. */
+export function animationVideoDuration(settings:AnimationSettings,version:AlgorithmVersion):number{
+ const growth=settings.animationDuration/settings.playbackSpeed;
+ return growth+(settings.animationEnabled&&settings.continuousMotion&&version!=='2d-magic-v1'
+   ?settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds:0);
+}
 export function animationSettings(d:Record<string,unknown>):AnimationSettings {
  const a={...defaults,...Object.fromEntries(Object.keys(defaults).filter(k=>d[k]!==undefined).map(k=>[k,d[k]]))};
  if(typeof a.animationEnabled!=='boolean'||!Number.isFinite(a.animationDuration)||a.animationDuration<1||a.animationDuration>30||!Number.isFinite(a.playbackSpeed)||a.playbackSpeed<.25||a.playbackSpeed>4||!EASINGS.includes(a.easingType))throw new Error('アニメーション設定が不正です。');
- return a;
+ const optional=['continuousMotion','motionStrength','motionSpeed','motionVideoSeconds'] as const;
+ const extra=Object.fromEntries(optional.filter(k=>d[k]!==undefined).map(k=>[k,d[k]]));
+ if(extra.continuousMotion!==undefined&&typeof extra.continuousMotion!=='boolean')throw new Error('完成後の図形アニメーション設定が不正です。');
+ for(const [key,min,max] of [['motionStrength',0,200],['motionSpeed',.25,3],['motionVideoSeconds',2,30]] as const){
+   if(extra[key]!==undefined&&(typeof extra[key]!=='number'||!Number.isFinite(extra[key])||extra[key]<min||extra[key]>max))throw new Error('完成後の図形アニメーション設定が不正です。');
+ }
+ // Do not inject newly added options into old saved projects.
+ return {...a,...extra};
 }
 export function ease(t:number,type:Easing):number {
  t=Math.max(0,Math.min(1,t));
