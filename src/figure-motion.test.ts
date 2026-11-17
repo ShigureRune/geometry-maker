@@ -85,7 +85,7 @@ it('keeps legacy settings intact and bounds post-growth video duration',()=>{
   ])expect(()=>animationSettings(invalid)).toThrow();
 });
 
-it('animates filled v4 bars internally and spins just the dotted secondary arc',()=>{
+it('moves entire v4 bars along their long axis and spins only the dotted secondary arc',()=>{
   const seed='postgrowth-bar-and-arc';
   const scene=generateScene(seed,'16:9','2d-v4');
   const bar=scene.shapes.find(s=>s.kind==='band'&&s.filled);
@@ -99,17 +99,40 @@ it('animates filled v4 bars internally and spins just the dotted secondary arc',
   expect(first[arc!.id]).toBeDefined();
   expect(first[arc!.id].spin).not.toBe(later[arc!.id].spin);
   expect(figureFlowAt(plan,.001)[arc!.id].spin).toBeCloseTo(0,1);
-  expect(first[bar!.id].offset).not.toBe(later[bar!.id].offset);
+  expect(first[bar!.id].barShift).not.toBe(later[bar!.id].barShift);
+  expect(figureFlowAt(plan,0)).toEqual({});
+  expect(figureFlowAt(plan,.001)[bar!.id].barShift).toBeCloseTo(0,3);
 
   const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
   const animated=renderToStaticMarkup(createElement(Preview,{scene,background,flow:first}));
   const laterMarkup=renderToStaticMarkup(createElement(Preview,{scene,background,flow:later}));
-  expect(base).not.toContain('data-testid="bar-flow"');
-  expect(animated).toContain('data-testid="bar-flow"');
+  expect(base).not.toContain('data-testid="bar-body-motion"');
+  expect(animated).toContain('data-testid="bar-body-motion"');
+  expect(animated).not.toContain('data-testid="bar-flow"');
+  expect(animated).toContain(`data-bar-shift="${first[bar!.id].barShift}"`);
+  expect(laterMarkup).toContain(`data-bar-shift="${later[bar!.id].barShift}"`);
   expect(animated).toContain(`transform="rotate(${first[arc!.id].spin})"`);
   expect(laterMarkup).toContain(`transform="rotate(${later[arc!.id].spin})"`);
   const transforms=(svg:string)=>[...svg.matchAll(/data-shape-id="([^"]+)"[^>]+transform="([^"]+)"/g)]
     .map(m=>[m[1],m[2]]);
   expect(transforms(animated)).toEqual(transforms(base));
   expect(transforms(laterMarkup)).toEqual(transforms(base));
+});
+
+it('keeps v5 filled rectangles rigid, and stops bar motion when disabled',()=>{
+  const scene=generateScene('v5-bar-moving','16:9','2d-v5');
+  // Minimal explicit rectangle guarantees the behavior regardless of seed layouts.
+  const rectangle={...scene.shapes[0],id:'test-moving-rectangle',kind:'rectangle' as const,
+    role:'support' as const,filled:true,thickness:40,size:160};
+  const target={...scene,shapes:[rectangle]};
+  const plan=createFigureMotionPlan(target,'v5-bar-moving');
+  const first=figureFlowAt(plan,1.3);
+  const second=figureFlowAt(plan,3.6);
+  expect(plan).toHaveLength(1);
+  expect(first[rectangle.id].barShift).not.toBe(second[rectangle.id].barShift);
+  const animated=renderToStaticMarkup(createElement(Preview,{scene:target,background,flow:first}));
+  expect(animated).toContain('data-testid="bar-body-motion"');
+  expect(animated).not.toContain('data-testid="bar-flow"');
+  const noMotion=renderToStaticMarkup(createElement(Preview,{scene:target,background,flow:figureFlowAt(plan,2,0)}));
+  expect(noMotion).not.toContain('data-testid="bar-body-motion"');
 });
