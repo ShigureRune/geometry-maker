@@ -4,7 +4,7 @@ import {voidEdges} from './void-graph';
 import {visibleVoidObjects} from './void-web-runtime';
 import {
   VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_HIGH_LIMIT,
-  VOID_PARTICLE_MOBILE_LIMIT,VOID_PARTICLE_SOFTWARE_LIMIT,VOID_PARTICLE_DEFAULT,
+  VOID_PARTICLE_DEFAULT,
   effectiveVoidParticleCount,generateVoidParticles,
 } from './void-particle';
 import type {Background} from '../scene';
@@ -60,9 +60,9 @@ describe('particle mode on cosmic web',()=>{
   it('caps full-web particles separately from its 2800 existing nodes',()=>{
     const edges=voidEdges(scene,fullObjects);
     const high=generateVoidParticles(fullObjects,edges,'max-web',
-      background,120000,false);
+      background,500000,false);
     const low=generateVoidParticles(lowObjects,voidEdges(scene,lowObjects),
-      'max-web',background,120000,true);
+      'max-web',background,500000,true);
     expect(fullObjects.length).toBeGreaterThan(2000);
     expect(high.count).toBe(VOID_PARTICLE_HIGH_LIMIT);
     expect(low.count).toBe(VOID_PARTICLE_LOW_LIMIT);
@@ -73,11 +73,12 @@ describe('particle mode on cosmic web',()=>{
   });
 
   it('budgets huge density independently for mobile, software, low and high',()=>{
-    expect(VOID_PARTICLE_DEFAULT).toBe(80000);
-    expect(effectiveVoidParticleCount(120000,false)).toBe(VOID_PARTICLE_HIGH_LIMIT);
+    expect(VOID_PARTICLE_DEFAULT).toBe(200000);
+    expect(effectiveVoidParticleCount(500000,false)).toBe(VOID_PARTICLE_HIGH_LIMIT);
     expect(effectiveVoidParticleCount(120000,true)).toBe(VOID_PARTICLE_LOW_LIMIT);
-    expect(effectiveVoidParticleCount(120000,false,true)).toBe(VOID_PARTICLE_MOBILE_LIMIT);
-    expect(effectiveVoidParticleCount(120000,false,false,true)).toBe(VOID_PARTICLE_SOFTWARE_LIMIT);
+    // No hidden mobile/software cap: the existing 3D quality choice wins.
+    expect(effectiveVoidParticleCount(120000,false)).toBe(120000);
+    expect(effectiveVoidParticleCount(120000,true)).toBe(VOID_PARTICLE_LOW_LIMIT);
     expect(effectiveVoidParticleCount(Infinity,false)).toBe(0);
     expect(effectiveVoidParticleCount(-1,false)).toBe(0);
     expect(effectiveVoidParticleCount(2500.8,false)).toBe(2500);
