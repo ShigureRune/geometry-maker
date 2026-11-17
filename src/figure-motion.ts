@@ -1,11 +1,12 @@
 import {shapeBounds} from './geometry';
 import {seededRandom,type Scene,type Shape} from './scene';
 
-/** Thick bands, thin line strokes and narrow rectangular strips all move as
- * whole shapes in ONE common direction after the growth animation completes.
- * Other contours keep their existing flowing light and rotating dashed arcs. */
+/** Thick bands, ordinary thin line strokes and narrow rectangular strips move
+ * as whole shapes in ONE common direction after growth. Accent-role figures
+ * are static highlights painted ON TOP of other geometry: never move them. */
 export const isMovingBar=(shape:Shape):boolean=>
-  shape.kind==='band'||shape.kind==='line'||shape.kind==='rectangle';
+  shape.role!=='accent' &&
+  (shape.kind==='band'||shape.kind==='line'||shape.kind==='rectangle');
 
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
@@ -43,8 +44,11 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
   const barSpeed=Math.min(scene.width,scene.height)*(scene.version==='2d-v4'?.11:.09);
   const padding=Math.min(scene.width,scene.height)*.09;
   return scene.shapes.flatMap(shape=>{
+    // Highlight lines/arcs are separate overlay shapes with role=accent.
+    // They must keep their original world position as the rods pass beneath.
+    if(shape.role==='accent')return [];
     const bar=isMovingBar(shape);
-    // Even decoration-classified thin strips must move, but skip other tiny
+    // Even decoration-classified thin strips move, but skip other tiny
     // decorations to avoid hundreds of useless glowing tracer elements.
     if(!bar&&(shape.role==='decoration'||['dot','dots','accent'].includes(shape.kind)))
       return [];
