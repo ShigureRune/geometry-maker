@@ -261,44 +261,67 @@ it('does not move actual generated v4/v5 accent highlights regardless of the see
   }
 });
 
-it('adds softly feathered LCD-like white sheen only to moving bars, preserving motion and palette',()=>{
+it('gives the main figure a soft white glowing tracer, without changing the moving bars',()=>{
   for(const version of ['2d-v4','2d-v5'] as const){
-    const seed='soft-white-sheen-'+version;
+    const seed='hero-soft-glow-'+version;
     const original=generateScene(seed,'16:9',version);
-    const thick={...original.shapes[0],id:'thick-soft',kind:'band' as const,
-      role:'support' as const,filled:true,size:160,x:400,y:340,rotation:25,thickness:36};
-    const thin={...thick,id:'thin-soft',kind:'line' as const,
-      role:'support' as const,filled:false,size:110,x:480,y:460,rotation:75};
-    const overlay={...thin,id:'fixed-edge-highlight',role:'accent' as const,
-      layer:'foreground' as const,glow:true};
-    const scene={...original,shapes:[thick,thin,overlay]};
+    const main={...original.shapes[0],id:'hero-light',kind:'diamond' as const,
+      role:'hero' as const,filled:false,glow:false,size:170,x:400,y:400,
+      rotation:0};
+    const supporting={...main,id:'support-light',role:'support' as const,
+      x:800,y:400,size:100};
+    const bar={...main,id:'thick-moving',kind:'band' as const,
+      role:'support' as const,filled:true,thickness:34,size:120,x:550,y:650};
+    const thin={...bar,id:'thin-moving',kind:'line' as const,
+      filled:false,size:90,x:730,y:690};
+    const accent={...main,id:'static-highlight',role:'accent' as const,
+      kind:'line' as const,filled:false,glow:true};
+    const scene={...original,shapes:[main,supporting,bar,thin,accent]};
     const plan=createFigureMotionPlan(scene,seed);
-    const t1=figureFlowAt(plan,1.5),t2=figureFlowAt(plan,3);
-    const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
-    const glow1=renderToStaticMarkup(createElement(Preview,{scene,background,flow:t1}));
-    const glow2=renderToStaticMarkup(createElement(Preview,{scene,background,flow:t2}));
-    expect(base).not.toContain('data-testid="bar-soft-sheen"');
-    for(const svg of [glow1,glow2]){
-      expect((svg.match(/data-testid="bar-soft-sheen"/g)??[]).length).toBe(2);
-      expect((svg.match(/data-testid="bar-soft-feather"/g)??[]).length).toBe(2);
-      expect((svg.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(2);
-      expect(svg).toContain('feGaussianBlur');
-      expect(svg).toContain('stop-color="#ffffff"');
-      expect(svg).toContain('stop-opacity="0"');
-      expect(svg).toContain('stop-color="black"');
-      expect(svg).toContain('data-bar-world-x="');
-      const overlayIndex=svg.indexOf('data-shape-id="fixed-edge-highlight"');
-      expect(overlayIndex).toBeGreaterThan(0);
-      const overlaySection=svg.slice(overlayIndex,svg.indexOf('</g>',overlayIndex)+4);
-      expect(overlaySection).not.toContain('bar-soft-sheen');
-      expect(overlaySection).not.toContain('bar-body-motion');
-    }
-    expect(t2[thick.id].barShift).toBeGreaterThan(t1[thick.id].barShift);
-    expect(t2[thin.id].barShift).toBeGreaterThan(t1[thin.id].barShift);
-    // The moving white gradient progresses independently of the whole-bar translation.
-    expect(glow1).not.toBe(glow2);
-    const noFlow=renderToStaticMarkup(createElement(Preview,{scene,background,
-      flow:figureFlowAt(plan,3,0)}));
-    expect(noFlow).not.toContain('data-testid="bar-soft-sheen"');
+    const motion1=figureFlowAt(plan,2),motion2=figureFlowAt(plan,4);
+    const originalSVG=renderToStaticMarkup(createElement(Preview,{scene,background}));
+    const glowingSVG=renderToStaticMarkup(createElement(Preview,{scene,background,flow:motion1}));
+    const laterSVG=renderToStaticMarkup(createElement(Preview,{scene,background,flow:motion2}));
+    expect(originalSVG).not.toContain('data-testid="main-figure-halo"');
+    expect(glowingSVG).toContain('data-testid="main-figure-halo"');
+    expect(glowingSVG).toContain('data-testid="main-figure-soft-core"');
+    expect(glowingSVG).toContain('data-testid="main-figure-glint"');
+    expect(glowingSVG).toContain('data-testid="main-figure-trail"');
+    expect(glowingSVG).toContain('feGaussianBlur');
+    expect(glowingSVG).toContain('stroke="#ffffff"');
+    expect(glowingSVG).not.toContain('data-testid="bar-soft-sheen"');
+    expect(glowingSVG).not.toContain('data-testid="bar-soft-feather"');
+    expect((glowingSVG.match(/data-testid="main-figure-halo"/g)??[]).length).toBe(1);
+    expect((glowingSVG.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(2);
+    expect(motion2[bar.id].barShift).toBeGreaterThan(motion1[bar.id].barShift);
+    expect(motion2[thin.id].barShift).toBeGreaterThan(motion1[thin.id].barShift);
+    expect(motion1[accent.id]).toBeUndefined();
+    const heroSvg=(svg:string)=>svg.slice(svg.indexOf('data-shape-id="hero-light"'),
+      svg.indexOf('data-shape-id="support-light"'));
+    expect(heroSvg(glowingSVG)).toContain('main-figure-halo');
+    expect(heroSvg(laterSVG)).toContain('main-figure-halo');
+    expect(heroSvg(glowingSVG)).not.toBe(heroSvg(laterSVG));
+    const supportingSvg=glowingSVG.slice(glowingSVG.indexOf('data-shape-id="support-light"'),
+      glowingSVG.indexOf('data-shape-id="thick-moving"'));
+    expect(supportingSvg).not.toContain('main-figure-halo');
+    const accentSvg=glowingSVG.slice(glowingSVG.indexOf('data-shape-id="static-highlight"'));
+    expect(accentSvg).not.toContain('main-figure-halo');
+    expect(accentSvg).not.toContain('bar-body-motion');
+    expect(renderToStaticMarkup(createElement(Preview,{scene,background,flow:figureFlowAt(plan,2,0)})))
+      .not.toContain('main-figure-halo');
   }
+});
+
+it('softened hero tracer follows curved circle and arc contours too',()=>{
+  const seed='curved-hero-tracer';
+  const scene0=generateScene(seed,'16:9','2d-v4');
+  const hero={...scene0.shapes[0],id:'curved-hero',kind:'arc' as const,
+    role:'hero' as const,filled:false,size:145,x:600,y:410,rings:2};
+  const circle={...hero,id:'ring-hero',kind:'circle' as const,rings:1,x:950,y:500};
+  const scene={...scene0,shapes:[hero,circle]};
+  const flow=figureFlowAt(createFigureMotionPlan(scene,seed),2.5);
+  const svg=renderToStaticMarkup(createElement(Preview,{scene,background,flow}));
+  expect((svg.match(/data-testid="main-figure-halo"/g)??[]).length).toBe(3);
+  expect(svg).toContain('stroke-dasharray=');
+  expect(svg).toContain(`transform="rotate(${flow[hero.id].spin})"`);
 });
