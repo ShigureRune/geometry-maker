@@ -203,3 +203,59 @@ it('wraps bars only when FULLY outside the viewport and never reverses visibly',
   expect(figureFlowAt(plan,2,100,2)).toEqual(figureFlowAt(plan,4,100,1));
   expect(figureFlowAt(plan,3,0)).toEqual({});
 });
+
+it('keeps overlay highlight lines and arcs static while ordinary thin bars move',()=>{
+  for(const version of ['2d-v4','2d-v5'] as const){
+    const seed='stationary-highlight-'+version;
+    const original=generateScene(seed,'16:9',version);
+    const bar={...original.shapes[0],id:'moving-thick',kind:'band' as const,
+      role:'support' as const,filled:true,x:400,y:380,size:140,rotation:20,thickness:38};
+    const fine={...bar,id:'moving-thin',kind:'line' as const,
+      role:'support' as const,filled:false,size:100,rotation:70};
+    const highlight={...bar,id:'overlay-highlight-line',kind:'line' as const,
+      role:'accent' as const,layer:'foreground' as const,glow:true,
+      filled:false,size:110,points:[{x:0,y:0},{x:100,y:0}]};
+    const highlightArc={...highlight,id:'overlay-highlight-arc',kind:'arc' as const,
+      points:undefined,arcStart:-120,arcSweep:80,rings:1};
+    const scene={...original,shapes:[bar,fine,highlight,highlightArc]};
+    expect(isMovingBar(bar)).toBe(true);
+    expect(isMovingBar(fine)).toBe(true);
+    expect(isMovingBar(highlight)).toBe(false);
+    expect(isMovingBar(highlightArc)).toBe(false);
+    const plan=createFigureMotionPlan(scene,seed);
+    expect(plan.map(p=>p.id)).toEqual(['moving-thick','moving-thin']);
+    const flow1=figureFlowAt(plan,1.5),flow2=figureFlowAt(plan,3);
+    const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
+    const animated=renderToStaticMarkup(createElement(Preview,{scene,background,flow:flow1}));
+    const later=renderToStaticMarkup(createElement(Preview,{scene,background,flow:flow2}));
+    expect((animated.match(/data-testid="bar-body-motion"/g)??[]).length).toBe(2);
+    const transformOf=(markup:string,id:string)=>markup.match(new RegExp(
+      'data-shape-id="'+id+'"[^>]*transform="([^"]+)"'))?.[1];
+    for(const h of [highlight,highlightArc]){
+      expect(flow1[h.id]).toBeUndefined();
+      expect(transformOf(animated,h.id)).toBe(transformOf(base,h.id));
+      expect(transformOf(later,h.id)).toBe(transformOf(base,h.id));
+      const fragment=animated.slice(animated.indexOf('data-shape-id="'+h.id+'"'),
+        animated.indexOf('</g>',animated.indexOf('data-shape-id="'+h.id+'"]'))+4);
+      expect(fragment).not.toContain('data-testid="bar-body-motion"');
+      expect(fragment).not.toContain('data-testid="figure-flow"');
+    }
+    expect(flow2[bar.id].barShift).toBeGreaterThan(flow1[bar.id].barShift);
+    expect(flow2[fine.id].barShift).toBeGreaterThan(flow1[fine.id].barShift);
+  }
+});
+
+it('does not move actual generated v4/v5 accent highlights regardless of the seed',()=>{
+  for(const version of ['2d-v4','2d-v5'] as const){
+    const seed='postgrowth-bar-and-arc';
+    const scene=generateScene(seed,'16:9',version);
+    const highlights=scene.shapes.filter(s=>s.role==='accent');
+    expect(highlights.length).toBeGreaterThan(0);
+    const plan=createFigureMotionPlan(scene,seed);
+    const ids=new Set(plan.map(p=>p.id));
+    for(const highlight of highlights){
+      expect(isMovingBar(highlight)).toBe(false);
+      expect(ids.has(highlight.id)).toBe(false);
+    }
+  }
+});
