@@ -48,14 +48,25 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  const first=await flow.getAttribute('data-flow-offset');
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(first);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
- // The filled bar BODY moves. No internal highlight path is allowed.
+ // Thick bands, decorative narrow rectangles AND thin lines all move as
+ // complete shapes. Compare world-space motion (not internal light streaks).
  await expect(page.getByTestId('bar-flow')).toHaveCount(0);
- const movingBar=page.getByTestId('bar-body-motion').first();
+ const movingBar=page.locator('[data-kind="band"] [data-testid="bar-body-motion"]').first();
+ const movingLine=page.locator('[data-kind="line"] [data-testid="bar-body-motion"]').first();
+ const movingStrip=page.locator('[data-kind="rectangle"] [data-testid="bar-body-motion"]').first();
  await expect(movingBar).toHaveCount(1);
+ await expect(movingLine).toHaveCount(1);
+ await expect(movingStrip).toHaveCount(1);
  const barRoot=movingBar.locator('..');
  const originalBarPosition=await barRoot.getAttribute('transform');
- const oldBar=await movingBar.getAttribute('data-bar-shift');
- await expect.poll(async()=>movingBar.getAttribute('data-bar-shift'),{timeout:5000}).not.toBe(oldBar);
+ const oldBar=Number(await movingBar.getAttribute('data-bar-shift'));
+ const oldLine=Number(await movingLine.getAttribute('data-bar-shift'));
+ await expect.poll(async()=>Number(await movingBar.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(oldBar);
+ await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(oldLine);
+ const nowBar=Number(await movingBar.getAttribute('data-bar-shift'));
+ const nowLine=Number(await movingLine.getAttribute('data-bar-shift'));
+ await expect.poll(async()=>Number(await movingBar.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(nowBar);
+ await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),{timeout:5000}).toBeGreaterThan(nowLine);
  expect(await barRoot.getAttribute('transform')).toBe(originalBarPosition);
  const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
  await expect(dottedArc).toHaveCount(1);
