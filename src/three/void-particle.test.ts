@@ -8,6 +8,7 @@ import {
   effectiveVoidParticleCount,generateVoidParticles,
 } from './void-particle';
 import type {Background} from '../scene';
+import type {ThreeObject} from './model';
 
 const background:Background={mode:'solid',solid:'#050719',
   colors:['#08051d','#091024','#031422'],angle:0,
@@ -100,6 +101,64 @@ describe('particle mode on cosmic web',()=>{
       background,500,true,1.4,1.2,65);
     expect(emptyEdges.nodeParticles).toBe(500);
     expect(emptyEdges.filamentParticles).toBe(0);
+  });
+
+  it('samples true polygon outlines, respecting rotation rather than spheres',()=>{
+    const base:ThreeObject={...lowObjects[0],position:[0,0,0],
+      rotation:[0,0,0],radius:1};
+    const cube={...base,kind:'cube' as const};
+    const points=generateVoidParticles([cube],[],'cube-edge-shape',
+      background,4000,true,1.4,1.2,100);
+    const edge=1/Math.sqrt(3);
+    let notOnSphere=0;
+    for(let i=0;i<points.count;i++){
+      const x=points.targets[i*3],y=points.targets[i*3+1],z=points.targets[i*3+2];
+      const fixed=[x,y,z].filter(n=>Math.abs(Math.abs(n)-edge)<.0001);
+      expect(fixed.length).toBeGreaterThanOrEqual(2);
+      if(Math.hypot(x,y,z)<.9)notOnSphere++;
+    }
+    expect(notOnSphere).toBeGreaterThan(500);
+
+    // Actual outline vertices are rotated with each object's rotation.
+    const angle=Math.PI/5,rotated={...cube,rotation:[0,0,angle] as [number,number,number]};
+    const rotatedPoints=generateVoidParticles([rotated],[],'cube-rotation',
+      background,500,true);
+    for(let i=0;i<rotatedPoints.count;i++){
+      const x=rotatedPoints.targets[i*3],y=rotatedPoints.targets[i*3+1],z=rotatedPoints.targets[i*3+2];
+      const localX=Math.cos(angle)*x+Math.sin(angle)*y;
+      const localY=-Math.sin(angle)*x+Math.cos(angle)*y;
+      expect([localX,localY,z].filter(n=>
+        Math.abs(Math.abs(n)-edge)<.0001).length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it('preserves the hole and tube of a torus instead of painting a sphere',()=>{
+    const torus:ThreeObject={...lowObjects[0],kind:'torus',position:[2,-1,3],
+      rotation:[0,0,0],radius:1};
+    const points=generateVoidParticles([torus],[],'torus-outline',
+      background,1800,true);
+    for(let i=0;i<points.count;i++){
+      const x=points.targets[i*3]-2,y=points.targets[i*3+1]+1,z=points.targets[i*3+2]-3;
+      const major=Math.hypot(x,y);
+      expect(major).toBeGreaterThan(.48);
+      expect(major).toBeLessThan(.96);
+      // TorusGeometry has major radius .72 and tube radius .23.
+      expect(Math.abs((major-.72)**2+z*z-.23**2)).toBeLessThan(.00015);
+    }
+  });
+
+  it('allocates more contour samples to large figures than tiny leaves',()=>{
+    const large:ThreeObject={...lowObjects[0],id:'large',kind:'cube',
+      role:'primary',position:[0,0,0],rotation:[0,0,0],radius:1};
+    const leaf:ThreeObject={...large,id:'tiny',role:'accent',
+      position:[8,0,0],radius:.1};
+    const points=generateVoidParticles([large,leaf],[],'size-weighted',
+      background,10000,true,1.4,1.2,100);
+    let tinyCount=0;
+    for(let i=0;i<points.count;i++)if(points.targets[i*3]>4)tinyCount++;
+    expect(tinyCount).toBeGreaterThan(30);
+    expect(tinyCount).toBeLessThan(250); // ~1%, not 50%
+    expect(points.count).toBe(10000);
   });
 
   it('budgets huge density independently for mobile, software, low and high',()=>{
