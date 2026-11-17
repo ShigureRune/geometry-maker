@@ -2,7 +2,7 @@ import {describe,expect,it} from 'vitest';
 import type {Background} from '../scene';
 import type {ThreeObject} from './model';
 import {generateVoidParticles} from './void-particle';
-import {snapshotVoidSeedFrame,voidSeedBurst,voidSeedMix} from './void-seed-morph';
+import {snapshotVoidSeedFrame,voidSeedBurst,voidSeedMix,voidSeedWireProgress,voidSeedWireRevealFromHost} from './void-seed-morph';
 
 const background:Background={mode:'solid',solid:'#050719',
   colors:['#08051d','#091024','#031422'],angle:0,
@@ -66,4 +66,31 @@ describe('cosmic web GPU seed morph snapshots',()=>{
       expect(snap.positions.every(Number.isFinite)).toBe(true);
     }
   });
+  it('keeps new wires hidden until particles mostly assemble, then grows them smoothly',()=>{
+    for(const p of [0,.2,.5,.71,.72])
+      expect(voidSeedWireProgress(p)).toBe(0);
+    expect(voidSeedWireProgress(.85)).toBeCloseTo(.5,5);
+    expect(voidSeedWireProgress(.91)).toBeGreaterThan(.75);
+    expect(voidSeedWireProgress(.97)).toBeLessThan(1);
+    expect(voidSeedWireProgress(.98)).toBe(1);
+    expect(voidSeedWireProgress(1)).toBe(1);
+    let last=0;
+    for(let i=0;i<=1000;i++){
+      const current=voidSeedWireProgress(i/1000);
+      expect(current).toBeGreaterThanOrEqual(last);
+      expect(current).toBeLessThanOrEqual(1);
+      last=current;
+    }
+  });
+
+  it('never delays normal wires when a seed transition is disabled or settled',()=>{
+    expect(voidSeedWireRevealFromHost(null)).toBe(1);
+    expect(voidSeedWireRevealFromHost(undefined)).toBe(1);
+    expect(voidSeedWireRevealFromHost({dataset:{particleSeedPhase:'settled',particleSeedProgress:'0.4'}})).toBe(1);
+    expect(voidSeedWireRevealFromHost({dataset:{particleSeedPhase:'transition',particleSeedProgress:'0.500'}})).toBe(0);
+    expect(voidSeedWireRevealFromHost({dataset:{particleSeedPhase:'transition',particleSeedProgress:'0.850'}})).toBeCloseTo(.5,5);
+    expect(voidSeedWireRevealFromHost({dataset:{particleSeedPhase:'transition',particleSeedProgress:'0.980'}})).toBe(1);
+    expect(voidSeedWireRevealFromHost({dataset:{particleSeedPhase:'transition',particleSeedProgress:'invalid'}})).toBe(0);
+  });
+
 });
