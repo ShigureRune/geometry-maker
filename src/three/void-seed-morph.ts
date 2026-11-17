@@ -15,6 +15,29 @@ export const voidSeedMix=(progress:number)=>{
 };
 export const voidSeedBurst=(progress:number)=>Math.sin(Math.PI*clamp01(progress));
 
+/** Seed-morphed cosmic-web particles settle first; only afterward do
+ * connected cables grow outward from their originating nodes.
+ * Keep this pure so the browser and shader animation share one clock.
+ * Initial scenes and disabled seed transitions retain their normal wires.
+ */
+export function voidSeedWireProgress(progress:number):number{
+  const p=clamp01((progress-.72)/.26);
+  return p*p*(3-2*p);
+}
+
+/** The GPU cloud writes this phase to the shared preview host before
+ * NetworkLines and NeuralSignals update. A missing host/seed morph never
+ * hides ordinary 3D, saved static scenes or original network wires.
+ */
+export function voidSeedWireRevealFromHost(
+  host:Pick<HTMLElement,'dataset'>|null|undefined,
+):number{
+  if(host?.dataset.particleSeedPhase!=='transition')return 1;
+  const raw=Number(host.dataset.particleSeedProgress);
+  return Number.isFinite(raw)?voidSeedWireProgress(raw):0;
+}
+
+
 /** Snapshot the *last rendered frame*, not just old targets.
  * Computed only when the seed changes (never per animation frame).
  * This preserves continuity across rapid reseeds, partial entrance reveals,
