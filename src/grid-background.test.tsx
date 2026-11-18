@@ -1,13 +1,30 @@
 import {describe,expect,it} from 'vitest';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {GridBackground} from './GridBackground';
-import {gridAnimationDefaults,gridAnimationFrame,gridAnimationSeconds,gridBackgroundDefaults,validateGridBackground} from './grid-background';
+import {GRID_BACKGROUND_PRESETS,gridPresetSettings,gridAnimationDefaults,gridAnimationFrame,gridAnimationSeconds,gridBackgroundDefaults,validateGridBackground} from './grid-background';
 import {Preview} from './Preview';
 import {generateScene,type Background} from './scene';
 
 const base: Background={mode:'solid',solid:'#111526',colors:['#101b2d','#241938','#102a30'],angle:135};
 const make=(grid:Partial<typeof gridBackgroundDefaults>={})=>({...gridBackgroundDefaults,...grid,enabled:true});
 describe('2D SVG grid background',()=>{
+  it('offers four distinct exportable grid presets without random state',()=>{
+    expect(GRID_BACKGROUND_PRESETS).toHaveLength(4);
+    const settings=GRID_BACKGROUND_PRESETS.map(item=>gridPresetSettings(item.id));
+    for(const value of settings){
+      expect(value.enabled).toBe(true);
+      expect(validateGridBackground(value)).toEqual(value);
+      expect(gridPresetSettings(GRID_BACKGROUND_PRESETS[0].id)).toEqual(gridPresetSettings(GRID_BACKGROUND_PRESETS[0].id));
+    }
+    expect(new Set(settings.map(value=>JSON.stringify(value))).size).toBe(4);
+    expect(gridPresetSettings('classic')).toMatchObject({type:'line',spacing:48,glow:0});
+    expect(gridPresetSettings('stars')).toMatchObject({type:'dot',spacing:64});
+    expect(gridPresetSettings('neon')).toMatchObject({
+      type:'line',color:'#57e4ff',animation:{enabled:true,mode:'pulse'}});
+    expect(gridPresetSettings('flow')).toMatchObject({
+      type:'dot',color:'#d0aaff',animation:{enabled:true,mode:'scroll',speed:1.4}});
+  });
+
   it('is off by default, and absent from transparent geometry tiles',()=>{
     const scene=generateScene('grid-test','16:9');
     expect(renderToStaticMarkup(<Preview scene={scene} background={base}/>)).not.toContain('data-testid="grid-background"');
