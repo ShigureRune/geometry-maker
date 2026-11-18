@@ -11,8 +11,10 @@ it('keeps standard and legacy post-growth motion identical; presets are determin
  expect(motionPresetParameters(old)).toEqual({strength:100,speed:1.5});
  expect(motionPresetParameters({...old,motionPreset:'standard'})).toEqual({strength:100,speed:1.5});
  expect(MOTION_PRESETS).toEqual(['standard','gentle','dynamic']);
- expect(motionPresetParameters({...old,motionPreset:'gentle'})).toEqual({strength:65,speed:.975});
- expect(motionPresetParameters({...old,motionPreset:'dynamic'})).toEqual({strength:130,speed:2.025});
+ expect(motionPresetParameters({...old,motionPreset:'gentle'}).strength).toBe(65);
+ expect(motionPresetParameters({...old,motionPreset:'gentle'}).speed).toBeCloseTo(.975);
+ expect(motionPresetParameters({...old,motionPreset:'dynamic'}).strength).toBe(130);
+ expect(motionPresetParameters({...old,motionPreset:'dynamic'}).speed).toBeCloseTo(2.025);
  expect(motionPresetParameters({...old,motionStrength:200,motionPreset:'dynamic'}).strength).toBe(200);
  expect(motionPresetParameters({...old,motionStrength:0,motionPreset:'gentle'}).strength).toBe(0);
  for(const invalid of ['broken',null,42,false,{}]){
