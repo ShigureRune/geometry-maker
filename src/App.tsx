@@ -683,7 +683,7 @@ export default function App() {
             </div>
             <div id="panel-shapes" className="category-panel" data-category="shapes" role="region" aria-labelledby="category-shapes" hidden={activeCategory!=='shapes'}>
           <h2 className="category-title">図形</h2>
-        <section className="control-section" aria-labelledby="seed-heading">
+        <FineSections id="shapes" enabled={finePreview&&renderMode==='2d'} items={[{id:'seed',label:'シードと生成方式',detail:'シード値・アルゴリズム',content:<><section className="control-section" aria-labelledby="seed-heading">
           <div className="section-heading"><h3 id="seed-heading"><span>01</span> シード</h3><span className="tiny-label">SEED</span></div>
           <div className="studio-setting-label">
             <label htmlFor="seed">模様の合言葉</label>
@@ -700,17 +700,20 @@ export default function App() {
           </select>
           </div>
         </section>
-        <SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
+        </>},
+{id:'history',label:'シード履歴',detail:'保存・呼び出し・履歴移動',content:<><SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
           onChange={setSeedVault} onSelect={recallBookmarkedSeed}
           onNavigate={navigateVault} onHistoryIndex={useVaultHistory}/>
-        {renderMode==='2d'&&<section className="control-section seed-explorer-launch">
+        </>},
+{id:'explorer',label:'構図探索ボード',detail:'複数シードの比較',content:<>{renderMode==='2d'&&<section className="control-section seed-explorer-launch">
           <h3>構図探索ボード</h3>
           <p className="help">今の生成設定で複数案を同時に見比べ、好きなシードを採用できます。</p>
           <button type="button" onClick={()=>setExplorerOpen(true)} aria-label="構図探索ボードを開く">
             ◈ 4〜8案をまとめて比較
           </button>
         </section>}
-        {renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
+        </>},
+{id:'kinds',label:'図形の種類',detail:'2D図形・魔法陣の設定',content:<>{renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
         {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
           // Switching on the mode starts its one-shot assembly at t=0; ordinary
@@ -724,7 +727,8 @@ export default function App() {
           <Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
             sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/></>}
 
-        <section className="control-section ratio-section" aria-labelledby="ratio-heading">
+        </>},
+{id:'ratio',label:'縦横比',detail:'キャンバスの比率',content:<><section className="control-section ratio-section" aria-labelledby="ratio-heading">
           <div className="section-heading"><h3 id="ratio-heading"><span>03</span> 縦横比</h3><span className="tiny-label">ASPECT RATIO</span></div>
           <div className="studio-setting-label">
             <label htmlFor="ratio">キャンバスの比率</label>
@@ -735,14 +739,16 @@ export default function App() {
           </select> 
         </section>
 
-        <section className="control-section">
+        </>},
+{id:'density',label:'図形密度',detail:'密度の微調整',content:<><section className="control-section">
           <div className="studio-setting-label studio-setting-label-range">
             <label className="range-label" htmlFor="density">図形密度 <output htmlFor="density">{density}%</output></label>
             <HelpInfo>{renderMode==='3d'?'0%は背景のみ。主役の位置を保って3Dオブジェクトを段階的に追加します。':version===MAGIC_ALGORITHM_VERSION?'0%は背景のみ。主線は保持し、装飾は密度を上げるほど増えます。':'0%は背景のみ。50%が標準。主役の位置を保って図形量を調整します。'}</HelpInfo>
           </div>
           <input id="density" type="range" min="0" max="100" step="5" value={density} onChange={e=>setDensity(Number(e.target.value))}/> 
         </section>
-        <StudioResetControls mode={renderMode} disabled={threeExportBusy||!!standbyTransition}
+        </>},
+{id:'reset',label:'再生成とリセット',detail:'リセット・再生成・自動保存',content:<><StudioResetControls mode={renderMode} disabled={threeExportBusy||!!standbyTransition}
           onResetAll={resetAllSettings} onReset2D={resetTwoDSettings}
           onReset3D={resetThreeDSettings} onResetGalaxy={resetGalaxySettings}
           onResetParticle={resetParticleSettings} onResetVoid={resetVoidSettings}/>
@@ -753,6 +759,7 @@ export default function App() {
             autosaveStatus==='unavailable'?'自動保存を利用できません。設定ファイルで保存してください。':
               '自動保存を準備中…'}
         </p>
+        </>}]}/>
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
