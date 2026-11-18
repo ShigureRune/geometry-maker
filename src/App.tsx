@@ -1,8 +1,9 @@
 import {HelpInfo} from './HelpInfo';
 import { SettingsCategories, categories, type Category } from './SettingsCategories';
 import {StudioCommandPalette, type StudioCommand} from './StudioCommandPalette';
+import {SeedExplorerBoard} from './SeedExplorerBoard';
 import {SeedVaultControls} from './SeedVaultControls';
-import {loadSeedVault,saveSeedVault,recordSeed,moveSeedHistory,seedFromSearch, type SeedVault} from './seed-vault';
+import {loadSeedVault,saveSeedVault,saveBookmark,recordSeed,moveSeedHistory,seedFromSearch,SEED_VAULT_LIMIT, type SeedVault} from './seed-vault';
 import {ShapeKindControls} from './ShapeKindControls';
 import {MagicCircleControls,MagicColorControls} from './MagicCircleControls';
 import {MagicCirclePreview} from './MagicCirclePreview';
@@ -86,7 +87,9 @@ export default function App() {
   const [sidebarCollapsed,setSidebarCollapsed]=useState(saved?.collapsed??false);
   const [autosaveStatus,setAutosaveStatus]=useState<'pending'|'saved'|'unavailable'>('pending');
   const [commandOpen,setCommandOpen]=useState(false);
+  const [explorerOpen,setExplorerOpen]=useState(false);
   const closeCommands=useCallback(()=>setCommandOpen(false),[]);
+  const closeExplorer=useCallback(()=>setExplorerOpen(false),[]);
   const [sidebarWidth,setSidebarWidth]=useState(()=>{
     try{
       const stored=Number(localStorage.getItem('geometry-studio-sidebar-width'));
@@ -473,6 +476,17 @@ export default function App() {
       setSeedVault(next.vault);selectVaultSeed(next.seed);
     }
   }
+  function selectExplorerSeed(value:string){
+    if(threeExportBusy||standbyTransition)return;
+    recallBookmarkedSeed(value);
+    setExplorerOpen(false);
+  }
+  function saveExplorerFavorite(value:string,label:string):string{
+    if(seedVault.bookmarks.some(item=>item.seed===value))return 'このシードは保存済みです。';
+    if(seedVault.bookmarks.length>=SEED_VAULT_LIMIT)return 'シード保管庫が満杯です（24件まで）。';
+    setSeedVault(current=>saveBookmark(current,value,label));
+    return 'シード保管庫に保存しました。';
+  }
   function recallBookmarkedSeed(value:string){
     if(threeExportBusy||standbyTransition)return;
     setSeedVault(current=>recordSeed(current,value));
@@ -544,6 +558,9 @@ export default function App() {
     {id:'seed',title:'新しいシードを生成',description:'ランダムな構図をすぐ生成',keywords:'random 乱数',run:randomizeSeed},
     {id:'seed-copy',title:'シードをコピー',description:'構図の再現用に合言葉をコピー',keywords:'clipboard コピー',run:()=>{void copySeed();}},
     {id:'seed-paste',title:'シードを貼り付け',description:'コピーしたシードで構図を再生成',keywords:'clipboard ペースト',run:()=>{void pasteSeed();}},
+    ...(renderMode==='2d'?[{id:'seed-explorer',title:'構図探索ボードを開く',
+      description:'4〜8案のサムネイルを比較・保存',keywords:'compare gallery candidate 比較 候補',
+      run:()=>setExplorerOpen(true)}]:[]),
     {id:'focus',title:studioFocus?'集中表示を終了':'プレビューに集中',
       description:'作業パネルを隠してキャンバスを広げる',keywords:'full screen canvas',run:()=>setStudioFocus(v=>!v)},
     {id:'panel',title:'設定パネルの表示を切り替える',
@@ -622,6 +639,13 @@ export default function App() {
         <SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
           onChange={setSeedVault} onSelect={recallBookmarkedSeed}
           onNavigate={navigateVault} onHistoryIndex={useVaultHistory}/>
+        {renderMode==='2d'&&<section className="control-section seed-explorer-launch">
+          <h3>構図探索ボード</h3>
+          <p className="help">今の生成設定で複数案を同時に見比べ、好きなシードを採用できます。</p>
+          <button type="button" onClick={()=>setExplorerOpen(true)} aria-label="構図探索ボードを開く">
+            ◈ 4〜8案をまとめて比較
+          </button>
+        </section>}
         {renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
         {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
@@ -884,6 +908,13 @@ export default function App() {
         <span aria-hidden="true">⌕</span><small>探す</small></button>
     </nav>
     <StudioCommandPalette open={commandOpen} onClose={closeCommands} commands={studioCommands}/>
+    {explorerOpen&&renderMode==='2d'&&<SeedExplorerBoard
+      activeSeed={seed} ratio={ratio} version={version} shapeKinds={enabledShapeKinds}
+      magicSettings={magicSettings} density={density} visualTheme={visualTheme}
+      background={background} colors={activeColors}
+      favoriteSeeds={seedVault.bookmarks.map(item=>item.seed)}
+      onClose={closeExplorer} onSelect={selectExplorerSeed} onSave={saveExplorerFavorite}/>}
+
     <footer><span>GENERATIVE DESIGN, DETERMINISTIC BY NATURE.</span><span>2D / 3D 背景スタジオ</span></footer>
   </div>;
 }
