@@ -806,9 +806,12 @@ export default function App() {
         </div>
         <div id="panel-colors" className="category-panel" data-category="colors" role="region" aria-labelledby="category-colors" hidden={activeCategory!=='colors'}>
           <h2 className="category-title">カラー</h2>
-        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION?
-          <MagicColorControls value={magicSettings} onChange={setMagicSettings} seed={seed}/> : <>
-        <section className="control-section" aria-labelledby="theme-heading">
+        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION
+? <FineSections id="colors" enabled={finePreview} items={[
+    {id:'magic',label:'魔法陣の配色',detail:'背景色・魔法陣の自動配色',content:<MagicColorControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
+  ]}/>
+: <FineSections id="colors" enabled={finePreview} items={[
+    {id:'theme',label:'ビジュアルテーマ',detail:'配色テーマとプリセット',content:<section className="control-section" aria-labelledby="theme-heading">
           <h3 id="theme-heading">ビジュアルテーマ</h3>
           <label htmlFor="visual-theme">テーマを選ぶ</label>
           <select id="visual-theme" value={visualTheme} onChange={e=>chooseVisualTheme(e.target.value as VisualTheme)}>
@@ -820,9 +823,9 @@ export default function App() {
               ...THEME_PRESETS[visualTheme].colors].map((color,i)=><span key={i} style={{backgroundColor:color}} title={color} aria-label={color}/>)}
           </div>}
           <HelpInfo>テーマに応じて図形の強弱・線・発光・背景色を変更します。下のカラー・装飾設定からさらに調整できます。</HelpInfo>
-        </section>
-        <ImagePaletteControls onApply={(palette,scope)=>applyColors(applyImagePalette(activeColors,palette,scope))}/>
-        <section className="control-section">
+        </section>},
+    {id:'image',label:'画像から配色',detail:'画像を使ったカラー調整',content:<ImagePaletteControls onApply={(palette,scope)=>applyColors(applyImagePalette(activeColors,palette,scope))}/>},
+    {id:'palette',label:'背景と図形の配色',detail:'個別カラー・シード連動',content:<section className="control-section">
           <h3>背景と図形の配色</h3>
           {editor('solid','背景色')}
           {editor('gradient0','グラデーション色1')}{editor('gradient1','グラデーション色2')}{editor('gradient2','グラデーション色3')}
@@ -838,8 +841,9 @@ export default function App() {
           </select>
           {editor('primary','主役色')}{editor('support','補助色')}{editor('accent','アクセント色')}
           <HelpInfo>シード連動が初期状態です。固定中も手動編集・個別再抽選ができます。入力色をそのまま描画します。</HelpInfo>
-        </section>
-        </>}
+        </section>}
+  ]}/>}
+
         </div>
         <div id="panel-text" className="category-panel" data-category="text" role="region" aria-labelledby="category-text" hidden={renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION||activeCategory!=='text'}>
           <h2 className="category-title">文字</h2>
