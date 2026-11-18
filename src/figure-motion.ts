@@ -25,7 +25,7 @@ export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
   spin:number;
   barShift:number;barDx:number;barDy:number;
-  relayProgress?:number;relaySource?:number;relayArrival?:number;arrivalPulse?:number;
+  relayEnabled?:boolean;relayProgress?:number;relaySource?:number;relayArrival?:number;arrivalPulse?:number;
 };
 const rounded=(n:number)=>Number(n.toFixed(5));
 
@@ -146,7 +146,7 @@ export function figureFlowAt(
       barShift:rounded(shift),
       barDx:rounded(shift*item.barDirectionX),
       barDy:rounded(shift*item.barDirectionY),
-      ...(source===undefined?{}:{relaySource:rounded(source*intensity*fade)}),
+      ...(source===undefined?{}:{relayEnabled:true,relaySource:rounded(source*intensity*fade)}),
       ...(progressOnLink===undefined?{}:{relayProgress:rounded(progressOnLink)}),
       ...(terminal===undefined?{}:{relayArrival:rounded(terminal*intensity*fade)}),
       ...(arrival===undefined?{}:{arrivalPulse:rounded(arrival*intensity*fade)}),
