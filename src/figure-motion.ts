@@ -15,7 +15,7 @@ const ROTOR_KINDS:ReadonlySet<Shape['kind']>=new Set([
   'octagon','star','concentric','shield','compound','sector','crescent','linked',
 ]);
 export const isCoupledRotor=(shape:Shape):boolean=>
-  (shape.role==='hero'||shape.role==='support')&&ROTOR_KINDS.has(shape.kind);
+  (shape.role==='hero'||(shape.role==='support'&&shape.layer!=='background'))&&ROTOR_KINDS.has(shape.kind);
 
 /** A real parent/child connection: energy is emitted at the hero-side start,
  * travels down the authored circuit, then illuminates the terminal and its
