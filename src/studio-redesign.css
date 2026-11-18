@@ -967,7 +967,7 @@
   grid-template-columns:minmax(0,1fr); gap:9px;
   overflow:visible; margin:0 0 10px; padding:12px 0 16px;
   background:transparent; scroll-snap-type:none;
-  animation:studio-settings-return .27s ease-out both;
+  animation:studio-settings-return .27s ease-out;
 }
 .studio-app .settings-menu-heading {
   display:flex; flex-direction:column; gap:4px; margin:0 2px 4px;
@@ -1008,7 +1008,7 @@
   position:sticky; top:76px; z-index:6;
   display:grid; gap:10px; margin:0 0 14px; padding:12px 0;
   background:#151b29ef; backdrop-filter:blur(12px);
-  animation:studio-settings-open .27s ease-out both;
+  animation:studio-settings-open .27s ease-out;
 }
 .studio-app .settings-detail-back {
   display:flex; align-items:center; gap:9px; width:max-content;
@@ -1025,7 +1025,7 @@
 }
 .studio-app .settings-detail-current strong { font-size:15px; }
 .studio-app .category-panel:not([hidden]) {
-  animation:studio-settings-open .29s cubic-bezier(.2,.7,.1,1) both;
+  animation:studio-settings-open .29s cubic-bezier(.2,.7,.1,1);
 }
 .studio-app .studio-scroll-top {
   position:fixed; right:22px; bottom:23px; z-index:27;
