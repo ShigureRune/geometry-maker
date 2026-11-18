@@ -771,3 +771,80 @@
 @media(prefers-reduced-motion:reduce){
   .studio-info-popover{animation:none}
 }
+
+/* Seed Vault: responsive, storage-only seed collection under the shape editor. */
+.studio-app .seed-vault{min-width:0}
+.studio-app .seed-vault>h3{font-size:14px;margin:0 0 8px;letter-spacing:.02em}
+.studio-app .seed-vault .help{color:var(--st-muted);line-height:1.65}
+.seed-vault-navigation{
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  gap:6px;align-items:center;margin:15px 0 10px;
+}
+.seed-vault-navigation>span{
+  font-size:10px;color:var(--st-muted);text-align:center;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.studio-app .seed-vault button,.studio-app .seed-vault-transfer label{
+  border:1px solid #72678f;border-radius:8px;background:#2d2a45;
+  color:#ede6ff;font-size:11px;font-weight:600;padding:8px 9px;
+  min-height:38px;max-width:100%;cursor:pointer;
+}
+.studio-app .seed-vault button:hover:not(:disabled){border-color:#baa8ff;background:#41365d}
+.studio-app .seed-vault button:disabled{opacity:.4;cursor:not-allowed}
+.seed-vault-history{
+  border:1px solid var(--st-stroke);border-radius:9px;
+  background:#111a2b;padding:10px;margin-bottom:15px;max-width:100%;
+}
+.seed-vault-history>summary{cursor:pointer;font-size:11px;color:#d9cfff;line-height:1.5}
+.seed-vault-history>ol{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+.studio-app .seed-vault-history button{
+  width:100%;text-align:left;font-family:monospace;font-weight:400;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  background:#1d2639;
+}
+.studio-app .seed-vault-history button[aria-current=true]{
+  background:#554773;border-color:#bca6ff;
+}
+.seed-vault-save{display:grid;grid-template-columns:1fr;gap:7px;margin-bottom:16px}
+.seed-vault-save>label{font-size:11px;color:#cad2e0}
+.studio-app .seed-vault :is(input[type=text],input[type=search],input:not([type=file])){
+  width:100%;min-width:0;min-height:38px;border:1px solid #66627d;border-radius:8px;
+  padding:8px 10px;background:#111a2b;color:#f0ecff;font-size:12px;
+}
+.seed-vault-list-header{display:grid;grid-template-columns:1fr;gap:7px;margin:12px 0 8px}
+.seed-vault-list-header>strong{font-size:11px;color:#d5d8eb}
+.seed-vault-bookmarks{list-style:none;margin:0;padding:0;display:grid;gap:7px;min-width:0}
+.seed-vault-bookmarks>li{min-width:0}
+.seed-vault-entry{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;align-items:stretch}
+.studio-app .seed-vault-entry .seed-vault-select{
+  display:grid;gap:4px;text-align:left;min-width:0;background:#1c2638;padding:8px 9px;
+}
+.seed-vault-select>strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seed-vault-select>small{
+  font:10px/1.3 monospace;color:#bbc4d4;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.seed-vault-rename{display:flex;flex-wrap:wrap;gap:5px}
+.seed-vault-rename>input{flex:1 1 100px}
+.seed-vault-empty{font-size:11px;color:var(--st-muted);padding:8px 0}
+.seed-vault-transfer{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:14px}
+.studio-app .seed-vault-transfer button:first-child{grid-column:1/-1}
+.seed-vault-transfer>label{display:grid;place-items:center;text-align:center}
+.seed-vault-transfer input[type=file]{width:100%;grid-column:1/-1;font-size:11px;color:var(--st-muted);min-width:0}
+.seed-vault-message{font-size:11px;color:#b8f7d9;line-height:1.6;overflow-wrap:anywhere;margin:10px 0}
+[data-theme=light] .studio-app .seed-vault button,
+[data-theme=light] .studio-app .seed-vault-transfer label{
+  background:#e8e1fa;color:#3e3360;border-color:#aaa0d2;
+}
+[data-theme=light] .seed-vault-history,
+[data-theme=light] .studio-app .seed-vault-entry .seed-vault-select,
+[data-theme=light] .studio-app .seed-vault :is(input[type=text],input[type=search],input:not([type=file])){
+  background:#f4f4fa;color:#2f354b;border-color:#aba6c5;
+}
+[data-theme=light] .seed-vault-history>summary{color:#46366b}
+[data-theme=light] .seed-vault-select>small{color:#5b6177}
+[data-theme=light] .seed-vault-message{color:#145a47}
+@media(max-width:400px){
+  .seed-vault-navigation{gap:3px}
+  .studio-app .seed-vault button{font-size:10px;padding:7px 6px}
+}
