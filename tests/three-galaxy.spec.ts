@@ -8,6 +8,7 @@ async function openGalaxy(page:Page,gasOnly=false,starsOnly=false,detailOnly=fal
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto(detailOnly?'./?galaxyDetailOnly=1':
     gasOnly?'./?galaxyGasOnly=1':starsOnly?'./?galaxyStarsOnly=1':'./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('galaxy-ci');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();

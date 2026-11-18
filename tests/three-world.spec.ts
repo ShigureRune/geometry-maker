@@ -8,6 +8,7 @@ async function category(page:Page,name:string){await openSettingsCategory(page,n
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('3d-world-builder-2026');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();

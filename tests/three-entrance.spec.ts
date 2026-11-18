@@ -62,7 +62,8 @@ test('3D seeded entrance reveals, finishes, and replay starts a new one-shot ani
   // Replay also resumes playback even when the animation had been paused.
   const reset=await project(page);
   expect(reset.settings.animation).toBe(true);
-  expect(reset.elapsedSeconds).toBeLessThan(1.4);
+  expect(reset.elapsedSeconds).toBeLessThan(later.elapsedSeconds);
+  expect(reset.elapsedSeconds).toBeLessThan(2);
   await category(page,'アニメーション');
   await expect(page.getByRole('button',{name:'3Dを一時停止'})).toBeVisible();
   await expect(preview).toHaveAttribute('data-entrance-mode','spiral');

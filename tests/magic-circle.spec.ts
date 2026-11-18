@@ -161,7 +161,19 @@ test('infinite mode JSON restores seed variations and alpha SVG export',async({p
   await page.getByRole('button',{name:'同じシードから別の魔法陣を生成'}).click();
   await page.getByRole('button',{name:'同じシードから別の魔法陣を生成'}).click();
   await page.getByLabel('魔法陣だけを透過PNG / SVGで書き出す').check();
-  const blueprint=await page.getByTestId('shapes').innerHTML();
+  // SVG attribute insertion order can differ after JSON restoration even when every
+  // shape and attribute value is unchanged. Compare the canonical DOM structure.
+  const stableShapes=()=>page.getByTestId('shapes').evaluate(root=>{
+    const clone=root.cloneNode(true) as Element;
+    for(const element of Array.from(clone.querySelectorAll('*'))){
+      const attrs=Array.from(element.attributes).map(a=>({name:a.name,value:a.value}))
+        .sort((a,b)=>a.name.localeCompare(b.name));
+      for(const attr of attrs)element.removeAttribute(attr.name);
+      for(const attr of attrs)element.setAttribute(attr.name,attr.value);
+    }
+    return clone.innerHTML;
+  });
+  const blueprint=await stableShapes();
   await category(page,'書き出し');
   const saved=await exportFile(page,'作品の設定を保存');
   const json=JSON.parse(saved.toString('utf8'));
@@ -179,5 +191,5 @@ test('infinite mode JSON restores seed variations and alpha SVG export',async({p
   await expect(page.getByLabel('魔法陣の生成方式')).toHaveValue('infinite');
   await expect(page.getByTestId('magic-variation')).toContainText('派生番号：2');
   // Scene state and the playback clock settle on separate React renders after importing JSON.
-  await expect.poll(()=>page.getByTestId('shapes').innerHTML(),{timeout:7000}).toBe(blueprint);
+  await expect.poll(stableShapes,{timeout:7000}).toBe(blueprint);
 });
