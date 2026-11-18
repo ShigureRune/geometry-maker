@@ -159,9 +159,14 @@ test('real hero circuits fan out simultaneous light in both v4 and v5 playback',
    await page.getByLabel('シード値',{exact:true}).fill(candidate);
    await page.getByLabel('シード値',{exact:true}).press('Enter');
    await page.getByLabel('図形密度').fill('100');
-   if(await page.locator(`[data-kind="${kind}"][data-parent^="hero"]`).count()>=2){
+   // React updates the visible scene asynchronously after Enter.
+   // Wait for a real two-route layout rather than reading a stale frame.
+   try{
+    await expect.poll(async()=>page.locator(
+      `[data-kind="${kind}"][data-parent^="hero"]`).count(),
+      {timeout:1800,intervals:[100,250,400]}).toBeGreaterThan(1);
     found=true;break;
-   }
+   }catch{ /* This deterministic seed simply has fewer than two visible branches. */ }
   }
   expect(found,version+' needs a scene with two real authored circuits').toBe(true);
   await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm',version);
