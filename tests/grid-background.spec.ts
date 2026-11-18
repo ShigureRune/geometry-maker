@@ -123,3 +123,24 @@ test('grid speed is independent and follows the 0–360 degree infinite figure s
  expect(settings.gridBackground.animation.speed).toBe(0.1);
  expect(settings.ambient.scrollAngle).toBe(90);
 });
+
+
+test('grid presets provide ready-made static and animated backgrounds',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('navigation',{name:'設定カテゴリー'})
+    .getByRole('button',{name:'背景',exact:true}).click();
+  await page.getByRole('button',{name:'星屑ドットプリセットを適用'}).click();
+  await expect(page.getByLabel('グリッド背景を有効化')).toBeChecked();
+  await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-type','dot');
+  await expect(page.locator('#grid-spacing')).toHaveValue('64');
+  await page.getByRole('button',{name:'ネオン方眼プリセットを適用'}).click();
+  await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-type','line');
+  await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-motion','pulse');
+  await expect(page.locator('#grid-color')).toHaveValue('#57e4ff');
+  await page.getByRole('button',{name:'流れるドットプリセットを適用'}).click();
+  await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-motion','scroll');
+  await expect(page.locator('#grid-animation-speed')).toHaveValue('1.4');
+  await page.getByRole('button',{name:'方眼プリセットを適用',exact:true}).click();
+  await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-type','line');
+  await expect(page.getByLabel('グリッドアニメーションを有効化')).not.toBeChecked();
+});
