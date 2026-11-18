@@ -117,3 +117,20 @@ test('fine inspector is usable on a mobile viewport and responds to Escape',asyn
   await expect(choice).toBeFocused();
   await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'})).toBeVisible();
 });
+
+
+test('fine preview keeps main categories as seven tabs and reserves checkboxes for small items',async({page})=>{
+  await page.goto('./?fine-preview=1');
+  const tabs=page.getByRole('navigation',{name:'設定カテゴリー'});
+  await expect(tabs.getByRole('button')).toHaveCount(7);
+  await expect(tabs.getByRole('checkbox')).toHaveCount(0);
+  await expect(tabs.getByRole('button',{name:'図形',exact:true})).toHaveAttribute('aria-pressed','true');
+  await tabs.getByRole('button',{name:'背景',exact:true}).click();
+  await expect(page.locator('#panel-background')).toBeVisible();
+  await expect(tabs.getByRole('button',{name:'背景',exact:true})).toHaveAttribute('aria-pressed','true');
+  await tabs.getByRole('button',{name:'図形',exact:true}).click();
+  await expect(page.locator('#panel-shapes')).toBeVisible();
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'図形');
+  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('checkbox')).toHaveCount(6);
+});
