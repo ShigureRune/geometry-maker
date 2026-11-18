@@ -4,7 +4,7 @@ import { AmbientView } from './AmbientView';
 import {figureScrollAngle,type AmbientInput} from './ambient';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Preview } from './Preview';
-import {progressAt,schedule,MOTION_DEFAULTS,type AnimationSettings} from './animation';
+import {progressAt,schedule,motionPresetParameters,type AnimationSettings} from './animation';
 import {createFigureMotionPlan,figureFlowAt} from './figure-motion';
 import { serializeArtwork } from './export';
 import type { Background, Scene, Shape } from './scene';
@@ -26,11 +26,11 @@ export function createVideoRenderer(input: VideoArtwork) {
     const motion=magicSettings&&scene.version===MAGIC_ALGORITHM_VERSION
       ?magicCircleMotion(scene,magicSettings,seconds,growthEnd)
       :undefined;
+    const motionParams=motionPresetParameters(animation);
     const flow=scene.version!==MAGIC_ALGORITHM_VERSION&&
       animation.animationEnabled&&animation.continuousMotion&&after>0
         ?figureFlowAt(postGrowthPlan,after,
-          animation.motionStrength??MOTION_DEFAULTS.motionStrength,
-          animation.motionSpeed??MOTION_DEFAULTS.motionSpeed):undefined;
+          motionParams.strength,motionParams.speed):undefined;
     const markup = renderToStaticMarkup(ambient?.settings.enabled?<AmbientView input={ambient} seconds={seconds} world={world} figureCache={figureCache}/>:<Preview scene={scene} background={background} growth={growth} motion={motion} flow={flow} textOverlay={textOverlay} textSeconds={seconds} gridSeconds={seconds} gridFigureAngle={ambient?figureScrollAngle(ambient.settings,ambient.ratio):undefined} />);
     const svg = new DOMParser().parseFromString(markup, 'image/svg+xml').documentElement as unknown as SVGSVGElement;
     return serializeArtwork(svg, width, height, background.mode === 'solid' ? background.solid : background.colors[0]);

@@ -1,13 +1,29 @@
 import { seededRandom, type Shape, type AlgorithmVersion } from './scene';
 export const EASINGS = ['linear','ease-in','ease-out','ease-in-out','ease-out-in'] as const;
 export type Easing = typeof EASINGS[number];
+/** 2D post-growth looks; omission preserves the original motion exactly. */
+export const MOTION_PRESETS=['standard','gentle','dynamic'] as const;
+export type MotionPreset=typeof MOTION_PRESETS[number];
 export type AnimationSettings = {
   animationEnabled:boolean;animationDuration:number;playbackSpeed:number;easingType:Easing;
   /** Remain in motion after the growth timeline is 100%. Legacy files omit these. */
   continuousMotion?:boolean;motionStrength?:number;motionSpeed?:number;motionVideoSeconds?:number;
+  motionPreset?:MotionPreset;
 };
 export const defaults:AnimationSettings={animationEnabled:false,animationDuration:6,playbackSpeed:1,easingType:'ease-in-out'};
 export const MOTION_DEFAULTS={continuousMotion:true,motionStrength:100,motionSpeed:1,motionVideoSeconds:8} as const;
+/** One pure mapping shared by the live playback clock and video export.
+ * Existing project files without motionPreset use the original parameters. */
+export function motionPresetParameters(settings:AnimationSettings):{strength:number;speed:number}{
+  const baseStrength=settings.motionStrength??MOTION_DEFAULTS.motionStrength;
+  const baseSpeed=settings.motionSpeed??MOTION_DEFAULTS.motionSpeed;
+  const preset=settings.motionPreset??'standard';
+  const multiplier=preset==='gentle'?{strength:.65,speed:.65}
+    :preset==='dynamic'?{strength:1.3,speed:1.35}
+    :{strength:1,speed:1};
+  return {strength:Math.min(200,baseStrength*multiplier.strength),
+    speed:baseSpeed*multiplier.speed};
+}
 /** Keep the final frame and add an explicitly bounded period of continuing
  * motion when recording a finite video. Still images remain motion-free. */
 export function animationVideoDuration(settings:AnimationSettings,version:AlgorithmVersion):number{
@@ -18,9 +34,11 @@ export function animationVideoDuration(settings:AnimationSettings,version:Algori
 export function animationSettings(d:Record<string,unknown>):AnimationSettings {
  const a={...defaults,...Object.fromEntries(Object.keys(defaults).filter(k=>d[k]!==undefined).map(k=>[k,d[k]]))};
  if(typeof a.animationEnabled!=='boolean'||!Number.isFinite(a.animationDuration)||a.animationDuration<1||a.animationDuration>30||!Number.isFinite(a.playbackSpeed)||a.playbackSpeed<.25||a.playbackSpeed>4||!EASINGS.includes(a.easingType))throw new Error('アニメーション設定が不正です。');
- const optional=['continuousMotion','motionStrength','motionSpeed','motionVideoSeconds'] as const;
+ const optional=['continuousMotion','motionStrength','motionSpeed','motionVideoSeconds','motionPreset'] as const;
  const extra=Object.fromEntries(optional.filter(k=>d[k]!==undefined).map(k=>[k,d[k]]));
  if(extra.continuousMotion!==undefined&&typeof extra.continuousMotion!=='boolean')throw new Error('完成後の図形アニメーション設定が不正です。');
+ if(extra.motionPreset!==undefined&&!MOTION_PRESETS.includes(extra.motionPreset as MotionPreset))
+   throw new Error('アニメーションプリセットが不正です。');
  for(const [key,min,max] of [['motionStrength',0,200],['motionSpeed',.25,3],['motionVideoSeconds',2,30]] as const){
    if(extra[key]!==undefined&&(typeof extra[key]!=='number'||!Number.isFinite(extra[key])||extra[key]<min||extra[key]>max))throw new Error('完成後の図形アニメーション設定が不正です。');
  }

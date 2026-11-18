@@ -1,6 +1,6 @@
 import {HelpInfo} from './HelpInfo';
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {defaults,EASINGS,MOTION_DEFAULTS,type AnimationSettings} from './animation';
+import {defaults,EASINGS,MOTION_DEFAULTS,MOTION_PRESETS,type AnimationSettings,type MotionPreset} from './animation';
 import type {AlgorithmVersion} from './scene';
 
 export function usePlayback(settings:AnimationSettings){
@@ -69,6 +69,14 @@ export function AnimationControls({settings,onChange,playback,version}:{
    if(active&&settings.animationEnabled&&position===1)setPlaying(true);
  }}/> 完成後も線に光を流す</label>
  {continuing&&<>
+ <label htmlFor="figure-motion-preset">アニメーションプリセット</label>
+ <select id="figure-motion-preset" aria-label="アニメーションプリセット"
+   value={settings.motionPreset??'standard'}
+   onChange={e=>onChange({...settings,motionPreset:e.target.value as MotionPreset})}>
+   {MOTION_PRESETS.map((id,i)=><option value={id} key={id}>
+     {['標準（従来どおり）','ゆったり（淡くゆっくり）','躍動（明るく速く）'][i]}
+   </option>)}
+ </select>
  <label htmlFor="figure-motion-strength">光の流れの強さ</label>
  <output>{settings.motionStrength??MOTION_DEFAULTS.motionStrength}%</output>
  <input id="figure-motion-strength" aria-label="光の流れの強さ" type="range" min="0" max="200" step="10"

@@ -175,3 +175,27 @@ test('authored v4/v5 circuits branch, transfer and merge in browser and exported
   expect(await main.getAttribute('transform')).toBe(original);
  }
 });
+
+test('2D v4/v5 live and exported video frames share selected motion preset',async({page})=>{
+ for(const version of ['2d-v4','2d-v5'] as const){
+  await page.goto('/tests/fixtures/energy-relay.html?version='+version);
+  const connector=page.locator('[data-shape-id="relay-a"] [data-testid="figure-flow"]');
+  const effects=[];
+  for(const preset of ['gentle','standard','dynamic'] as const){
+   const fromVideo=await page.evaluate(({preset,stage})=>
+     (window as unknown as {
+       relayPreset:(p:'gentle'|'standard'|'dynamic',s:number)=>{opacity:string|null;offset:string|null;hasBar:boolean;hasCoupled:boolean}
+     }).relayPreset(preset,stage),{preset,stage:.83});
+   expect(fromVideo.opacity).not.toBeNull();
+   expect(fromVideo.offset).not.toBeNull();
+   expect(fromVideo.hasBar).toBe(true);
+   expect(fromVideo.hasCoupled).toBe(true);
+   await expect(connector).toHaveAttribute('data-flow-opacity',fromVideo.opacity!);
+   await expect(connector).toHaveAttribute('data-flow-offset',fromVideo.offset!);
+   effects.push({preset,...fromVideo});
+  }
+  expect(Number(effects[0].opacity)).toBeLessThan(Number(effects[1].opacity));
+  expect(Number(effects[2].opacity)).toBeGreaterThan(Number(effects[1].opacity));
+  expect(new Set(effects.map(e=>e.offset)).size).toBe(3);
+ }
+});
