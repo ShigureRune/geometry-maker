@@ -325,3 +325,86 @@ it('softened hero tracer follows curved circle and arc contours too',()=>{
   expect(svg).toContain('stroke-dasharray=');
   expect(svg).toContain(`transform="rotate(${flow[hero.id].spin})"`);
 });
+
+it('relays energy from a REAL hero connection to its actual child, then pulses on arrival',()=>{
+  for(const version of ['2d-v4','2d-v5'] as const){
+    const seed='real-connected-energy-'+version;
+    const existing=generateScene(seed,'16:9',version);
+    const hero={...existing.shapes[0],id:'relay-hero',group:'relay-hero',
+      parent:undefined,role:'hero' as const,kind:'diamond' as const,
+      filled:false,x:450,y:400,size:110,rotation:0};
+    const wire={...hero,id:'relay-wire',kind:(version==='2d-v5'?'branch-circuit':'circuit') as
+      'circuit'|'branch-circuit',role:'support' as const,group:'relay-hero',
+      parent:hero.id,x:560,y:400,size:110,rotation:0,filled:false,
+      points:[{x:0,y:0},{x:45,y:0},{x:75,y:20},{x:110,y:20}]};
+    const terminal={...hero,id:'relay-node',kind:'circle' as const,
+      role:'decoration' as const,group:'relay-hero',parent:wire.id,
+      x:670,y:420,size:14,filled:false,rotation:0};
+    const unconnected={...wire,id:'orphan-wire',parent:'not-visible'};
+    const highlight={...hero,id:'relay-highlight',kind:'line' as const,
+      role:'accent' as const,parent:hero.id};
+    const scene={...existing,shapes:[hero,wire,terminal,unconnected,highlight]};
+    const original=JSON.stringify(scene);
+    const plan=createFigureMotionPlan(scene,seed);
+    expect(createFigureMotionPlan(scene,seed)).toEqual(plan);
+    expect(createFigureMotionPlan(scene,seed+'-another')).not.toEqual(plan);
+    expect(JSON.stringify(scene)).toBe(original);
+    const connection=plan.find(p=>p.id===wire.id)!;
+    expect(connection.relay).toMatchObject({sourceId:hero.id,targetId:terminal.id});
+    expect(plan.find(p=>p.id===terminal.id)?.arrival).toEqual(connection.relay);
+    expect(plan.find(p=>p.id===unconnected.id)?.relay).toBeUndefined();
+    expect(plan.find(p=>p.id===highlight.id)).toBeUndefined();
+    const at=(stage:number)=>connection.relay!.period*(stage-connection.relay!.phase+1);
+    const source=figureFlowAt(plan,at(.2));
+    const transit=figureFlowAt(plan,at(.5));
+    const reached=figureFlowAt(plan,at(.83));
+    expect(source[wire.id].relayEnabled).toBe(true);
+    expect(source[wire.id].relaySource).toBeGreaterThan(0);
+    expect(source[wire.id].relayProgress).toBeUndefined();
+    expect(transit[wire.id].relayProgress).toBeGreaterThan(0);
+    expect(transit[wire.id].relayProgress).toBeLessThan(1);
+    expect(transit[terminal.id].arrivalPulse).toBe(0);
+    expect(reached[wire.id].relayProgress).toBeUndefined();
+    expect(reached[wire.id].relayArrival).toBeGreaterThan(0);
+    expect(reached[terminal.id].arrivalPulse).toBeGreaterThan(0);
+    expect(reached[unconnected.id].relayEnabled).toBeUndefined();
+    const base=renderToStaticMarkup(createElement(Preview,{scene,background}));
+    const during=renderToStaticMarkup(createElement(Preview,{scene,background,flow:transit}));
+    const final=renderToStaticMarkup(createElement(Preview,{scene,background,flow:reached}));
+    expect(base).not.toContain('data-testid="energy-relay"');
+    expect(during).toContain('data-testid="energy-relay"');
+    expect(during).toContain('data-testid="energy-transfer"');
+    expect(during).toContain('data-energy-progress="');
+    expect(during).not.toContain('data-testid="energy-arrival"');
+    expect(final).toContain('data-testid="energy-terminal"');
+    expect(final).toContain('data-testid="energy-arrival"');
+    expect((final.match(/data-testid="energy-arrival"/g)??[]).length).toBe(1);
+    const transform=(svg:string,id:string)=>svg.match(new RegExp(
+      'data-shape-id="'+id+'"[^>]*transform="([^"]+)"'))?.[1];
+    for(const shape of [hero,wire,terminal,highlight]){
+      expect(transform(during,shape.id)).toBe(transform(base,shape.id));
+      expect(transform(final,shape.id)).toBe(transform(base,shape.id));
+    }
+    expect(figureFlowAt(plan,0)).toEqual({});
+    expect(figureFlowAt(plan,at(.83),0)).toEqual({});
+    expect(figureFlowAt(plan,3,100,2)).toEqual(figureFlowAt(plan,6,100,1));
+  }
+});
+
+it('distributes route timings by seeded connection order without inventing geometry',()=>{
+  const seed='parallel-energy-relays';
+  const existing=generateScene(seed,'16:9','2d-v4');
+  const hero={...existing.shapes[0],id:'hero-linked',role:'hero' as const,
+    parent:undefined,kind:'circle' as const};
+  const wires=Array.from({length:3},(_,i)=>({...hero,id:'wire-'+i,
+    kind:'circuit' as const,role:'support' as const,parent:hero.id,
+    points:[{x:0,y:0},{x:40,y:10},{x:90,y:20}],x:hero.x+100+i*15}));
+  const orphan={...wires[0],id:'disconnected-wire',parent:'missing-parent'};
+  const scene={...existing,shapes:[hero,...wires,orphan]};
+  const plan=createFigureMotionPlan(scene,seed);
+  const signals=wires.map(w=>plan.find(p=>p.id===w.id)!.relay!);
+  expect(signals.every(s=>s.sourceId===hero.id)).toBe(true);
+  expect(new Set(signals.map(s=>s.phase)).size).toBe(3);
+  expect(new Set(signals.map(s=>s.period)).size).toBe(1);
+  expect(plan.find(p=>p.id===orphan.id)!.relay).toBeUndefined();
+});
