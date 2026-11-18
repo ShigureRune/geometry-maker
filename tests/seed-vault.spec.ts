@@ -24,8 +24,14 @@ test('seed history is committed, navigable, branched, and persists after reload'
   await page.locator('.seed-vault-history summary').click();
   await expect(page.locator('.seed-vault-history')).not.toContainText('second-vault-seed');
   await expect(page.locator('.seed-vault-history')).toContainText(original);
-  await expect.poll(async()=>page.evaluate(()=>localStorage.getItem('geometry-studio-seed-vault-v1')))
-    .not.toBeNull();
+  await expect.poll(async()=>page.evaluate(()=>{
+    try{return JSON.parse(localStorage.getItem('geometry-studio-seed-vault-v1')??'null')?.history?.at(-1)??null;}
+    catch{return null;}
+  })).toBe('branch-vault-seed');
+  await expect.poll(async()=>page.evaluate(()=>{
+    try{return JSON.parse(localStorage.getItem('geometry-maker-studio-autosave-v1')??'null')?.twoD?.seed??null;}
+    catch{return null;}
+  })).toBe('branch-vault-seed');
   await page.reload();
   await expect(seed).toHaveValue('branch-vault-seed');
   await expect(page.getByLabel('履歴の位置')).toHaveText('3 / 3');
@@ -97,7 +103,7 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
   expect(link).toBeTruthy();
   const shared=new URL(link!);
   expect(shared.searchParams.get('seed')).toBe('shared seed / 42');
-  expect(shared.pathname).toBe('/geometry-maker/');
+  expect(shared.pathname).toBe(new URL(page.url()).pathname);
   expect(shared.search).not.toContain('textOverlay');
   await page.reload();
   await expect(seed).toHaveValue('shared seed / 42');
