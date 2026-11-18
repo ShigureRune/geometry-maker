@@ -1,4 +1,4 @@
-import {shapeBounds} from './geometry';
+import {contoursOf,shapeBounds,worldPoint} from './geometry';
 import {seededRandom,type Scene,type Shape} from './scene';
 
 /** Thick bands, ordinary thin line strokes and narrow rectangular strips move
@@ -18,24 +18,24 @@ export const isCoupledRotor=(shape:Shape):boolean=>
   (shape.role==='hero'||(shape.role==='support'&&
     (shape.layer!=='background'||shape.kind==='arc')))&&ROTOR_KINDS.has(shape.kind);
 
-/** A real parent/child connection: energy is emitted at the hero-side start,
- * travels down the authored circuit, then illuminates the terminal and its
- * actual child figure. Every route has a deterministic seeded timing phase. */
+/** Authored hero circuits are synchronized within a small seeded fan-out.
+ * A real connector still carries each pulse to its existing child. */
 export type EnergyRelay={
-  sourceId:string;targetId?:string;period:number;phase:number;
+  sourceId:string;targetId?:string;period:number;phase:number;branchCount?:number;
 };
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
   intensity:number;
   spinSpeed:number;coupledSpinSpeed?:number;
   barSpeed:number;barExit:number;barEntry:number;barDirectionX:number;barDirectionY:number;
-  relay?:EnergyRelay;arrival?:EnergyRelay;
+  relay?:EnergyRelay;arrival?:EnergyRelay;mergeRelays?:readonly EnergyRelay[];
 };
 export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
   spin:number;coupledSpin?:number;
   barShift:number;barDx:number;barDy:number;
   relayEnabled?:boolean;relayProgress?:number;relaySource?:number;relayArrival?:number;arrivalPulse?:number;
+  branchPulse?:number;mergePulse?:number;
 };
 const rounded=(n:number)=>Number(n.toFixed(5));
 
@@ -84,22 +84,47 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
   // dense v5 scenes do not add dozens of animated filters.
   const relays=new Map<string,EnergyRelay>();
   const arrivals=new Map<string,EnergyRelay>();
+  const routes:{shape:Shape;relay:EnergyRelay;end:{x:number;y:number}}[]=[];
   for(const hero of scene.shapes.filter(s=>s.role==='hero')){
     const connections=scene.shapes.filter(s=>s.parent===hero.id &&
       (s.kind==='circuit'||s.kind==='branch-circuit') && s.role!=='accent')
       .sort((a,b)=>a.id.localeCompare(b.id)).slice(0,6);
     const random=seededRandom('2d-energy-relay:'+seed+':'+hero.id);
     const period=4.8+random()*1.8;
+    const sharedPhase=random()*.9;
     connections.forEach((connector,i)=>{
       const child=scene.shapes.filter(s=>s.parent===connector.id &&
         s.role!=='accent').sort((a,b)=>a.id.localeCompare(b.id))[0];
       const relay:EnergyRelay={
         sourceId:hero.id,targetId:child?.id,period,
-        phase:(i/connections.length*.82+random()*.08)%1,
+        // Small offsets make simultaneous packets visibly fork instead of
+        // sending unrelated pulses down every branch.
+        phase:(sharedPhase+i*.012+random()*.004)%1,
+        branchCount:connections.length,
       };
       relays.set(connector.id,relay);
       if(child)arrivals.set(child.id,relay);
+      const contour=contoursOf(connector)[0];
+      if(contour?.points.length)routes.push({
+        shape:connector,relay,
+        end:worldPoint(connector,contour.points.at(-1)!),
+      });
     });
+  }
+  // A merger exists only when two ORIGINAL circuit endpoints meet. Never
+  // synthesize connecting geometry or infer a link from parent IDs alone.
+  const merges=new Map<string,readonly EnergyRelay[]>();
+  const assigned=new Set<string>();
+  const tolerance=Math.min(scene.width,scene.height)*.008;
+  for(const route of routes){
+    if(assigned.has(route.shape.id))continue;
+    const meeting=routes.filter(other=>!assigned.has(other.shape.id)&&
+      Math.hypot(other.end.x-route.end.x,other.end.y-route.end.y)<=tolerance);
+    if(meeting.length<2)continue;
+    meeting.forEach(part=>assigned.add(part.shape.id));
+    // Draw the confluence bloom exactly once, attached to the first
+    // authored terminal. Each branch retains its own terminal/child pulse.
+    merges.set(route.shape.id,meeting.map(part=>part.relay));
   }
   return scene.shapes.flatMap(shape=>{
     // Highlight lines/arcs are separate overlay shapes with role=accent.
@@ -132,6 +157,7 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       barEntry:bounds?outOfViewDistance(bounds,scene.width,scene.height,-dx,-dy,padding):0,
       barDirectionX:dx,barDirectionY:dy,
       relay:relays.get(shape.id),arrival:arrivals.get(shape.id),
+      mergeRelays:merges.get(shape.id),
     }];
   });
 }
@@ -170,6 +196,13 @@ export function figureFlowAt(
       ?(relayPhase-.27)/.47:undefined;
     const terminal=relayPhase===undefined?undefined:bell(relayPhase,.72,.94);
     const arrival=arrivalPhase===undefined?undefined:bell(arrivalPhase,.72,.94);
+    const arriving=item.mergeRelays?.map(relay=>
+      bell(((elapsed/relay.period+relay.phase)%1+1)%1,.72,.94))
+      .sort((a,b)=>b-a);
+    // A merge bloom requires two actual, simultaneous arrivals. The second
+    // brightest packet gates the glow so solitary signals never fake a merge.
+    const merge=arriving&&arriving.length>1
+      ?Math.min(1,arriving[1]*.8+arriving[0]*.2):undefined;
     return [item.id,{
       offset:rounded(-phase),
       tailLength:rounded(item.tailLength),
@@ -183,6 +216,9 @@ export function figureFlowAt(
       barDx:rounded(shift*item.barDirectionX),
       barDy:rounded(shift*item.barDirectionY),
       ...(source===undefined?{}:{relayEnabled:true,relaySource:rounded(source*intensity*fade)}),
+      ...(item.relay&&item.relay.branchCount&&item.relay.branchCount>1
+        ?{branchPulse:rounded((source??0)*intensity*fade)}:{}),
+      ...(merge===undefined?{}:{mergePulse:rounded(merge*intensity*fade)}),
       ...(progressOnLink===undefined?{}:{relayProgress:rounded(progressOnLink)}),
       ...(terminal===undefined?{}:{relayArrival:rounded(terminal*intensity*fade)}),
       ...(arrival===undefined?{}:{arrivalPulse:rounded(arrival*intensity*fade)}),
