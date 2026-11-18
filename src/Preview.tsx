@@ -244,6 +244,7 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
         // Translate their whole geometry (including strokes and glow) in local
         // coordinates, leaving the parent shape transform/seed untouched.
         const barMotion=isMovingBar(shape)?flow?.[shape.id]:undefined;
+        const coupledSpin=flow?.[shape.id]?.coupledSpin;
         const angle=radians(shape.rotation);
         const localBarX=barMotion?barMotion.barDx*Math.cos(angle)+barMotion.barDy*Math.sin(angle):0;
         const localBarY=barMotion?-barMotion.barDx*Math.sin(angle)+barMotion.barDy*Math.cos(angle):0;
@@ -273,7 +274,10 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
                 transform={`translate(${Number(localBarX.toFixed(5))} ${Number(localBarY.toFixed(5))})`}>
                 {artwork}
               </g>
-            :artwork}
+            :coupledSpin!==undefined
+              ?<g data-testid="coupled-rotation" data-rotation-angle={coupledSpin}
+                  transform={`rotate(${coupledSpin})`}>{artwork}</g>
+              :artwork}
         </g>;
       })}
     </g>

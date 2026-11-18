@@ -91,6 +91,12 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect.poll(async()=>Number(await movingLine.getAttribute('data-bar-shift')),
    {timeout:5000}).toBeGreaterThan(previousRodShift);
  expect(await highlight.getAttribute('transform')).toBe(highlightPosition);
+ const coupled=page.locator('[data-role="hero"] [data-testid="coupled-rotation"]').first();
+ await expect(coupled).toHaveCount(1);
+ const initialRotation=await coupled.getAttribute('data-rotation-angle');
+ await expect.poll(async()=>coupled.getAttribute('data-rotation-angle'),{timeout:5000}).not.toBe(initialRotation);
+ // Seed density may omit all eligible linked satellite contours; the unit
+ // fixture verifies their synchronized counter-rotation independently.
  const dottedArc=page.locator('[data-kind="arc"] path[stroke-dasharray][transform^="rotate("]').first();
  await expect(dottedArc).toHaveCount(1);
  const oldAngle=await dottedArc.getAttribute('transform');
@@ -99,9 +105,11 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.waitForTimeout(110);
  const frozen=await flow.getAttribute('data-flow-offset');
  const frozenBar=await movingBar.getAttribute('data-bar-shift');
+ const frozenRotation=await coupled.getAttribute('data-rotation-angle');
  await page.waitForTimeout(220);
  expect(await flow.getAttribute('data-flow-offset')).toBe(frozen);
  expect(await movingBar.getAttribute('data-bar-shift')).toBe(frozenBar);
+ expect(await coupled.getAttribute('data-rotation-angle')).toBe(frozenRotation);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  await page.getByRole('button',{name:'再生',exact:true}).click();
  await expect.poll(async()=>flow.getAttribute('data-flow-offset'),{timeout:5000}).not.toBe(frozen);
@@ -109,6 +117,7 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
+ await expect(page.getByTestId('coupled-rotation')).toHaveCount(0);
  await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
  await expect(page.getByTestId('energy-relay')).toHaveCount(0);
  await expect(page.getByTestId('energy-arrival')).toHaveCount(0);
@@ -122,6 +131,7 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await page.getByLabel('完成後も線に光を流す').uncheck();
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
+ await expect(page.getByTestId('coupled-rotation')).toHaveCount(0);
  await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
  await expect(page.getByTestId('energy-relay')).toHaveCount(0);
  await expect(page.getByTestId('energy-arrival')).toHaveCount(0);
