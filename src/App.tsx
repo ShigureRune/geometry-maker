@@ -1,6 +1,8 @@
 import {HelpInfo} from './HelpInfo';
 import { SettingsCategories, categories, type Category } from './SettingsCategories';
 import {StudioCommandPalette, type StudioCommand} from './StudioCommandPalette';
+import {SeedVaultControls} from './SeedVaultControls';
+import {loadSeedVault,saveSeedVault,recordSeed,moveSeedHistory,seedFromSearch, type SeedVault} from './seed-vault';
 import {ShapeKindControls} from './ShapeKindControls';
 import {MagicCircleControls,MagicColorControls} from './MagicCircleControls';
 import {MagicCirclePreview} from './MagicCirclePreview';
@@ -67,6 +69,15 @@ export default function App() {
   const saved=useMemo(loadStudioAutosave,[]);
   const resetting=useRef(false);
   const lastProject=saved?.twoD;
+  // A share URL overrides only the seed, never the recipient's saved editor settings.
+  const sharedSeed=useMemo(()=>seedFromSearch(window.location.search),[]);
+  useEffect(()=>{
+    if(sharedSeed===null)return;
+    // Once opened, restore normal autosave behavior on reload/navigation.
+    const address=new URL(window.location.href);
+    address.searchParams.delete('seed');
+    window.history.replaceState(window.history.state,'',address.pathname+address.search+address.hash);
+  },[sharedSeed]);
   const [renderMode,setRenderMode]=useState<'2d'|'3d'>(saved?.mode??'2d');
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
   const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
@@ -134,10 +145,15 @@ export default function App() {
   const [magicSettings,setMagicSettings]=useState<MagicCircleSettings>(()=>lastProject?.magicCircle??{...magicDefaults});
   const ambientClock=useAmbientClock(renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled,ambient.lowPower,ambient,ratio);
   const artworkRef = useRef<HTMLDivElement>(null);
-  const [seed, setSeed] = useState(()=>lastProject?.seed??createRandomSeed());
+  const [seed, setSeed] = useState(()=>sharedSeed??lastProject?.seed??createRandomSeed());
+  const [seedVault,setSeedVault]=useState<SeedVault>(()=>loadSeedVault(seed));
+  useEffect(()=>{if(!resetting.current)saveSeedVault(seedVault);},[seedVault]);
   const [seedClipboardMessage,setSeedClipboardMessage]=useState('');
-  const [initialColors]=useState(()=>lastProject?.colorSettings??saved?.threeD.colorSettings??
-    reseedColors({...legacyColors(initialBackground),mode:'seed'},seed));
+  const [initialColors]=useState(()=>{
+    const existing=lastProject?.colorSettings??saved?.threeD.colorSettings??
+      reseedColors({...legacyColors(initialBackground),mode:'seed'},seed);
+    return sharedSeed!==null?reseedColors(existing,seed):existing;
+  });
   const [uiTheme,setUiTheme]=useState(()=>{try{return localStorage.getItem('geometry-ui-theme')==='light'?'light':'dark';}catch{return 'dark';}});
   useEffect(()=>{document.documentElement.dataset.theme=uiTheme;try{localStorage.setItem('geometry-ui-theme',uiTheme);}catch{}},[uiTheme]);
   const committedSeed=useRef(seed);
@@ -395,6 +411,7 @@ export default function App() {
       cameraPosition:threeView.current?.position?[...threeView.current.position]:undefined});
     committedSeed.current=next;
     setSeed(next);
+    setSeedVault(current=>recordSeed(current,next));
     if(colorSettings)applyColors(reseedColors(colorSettings,next));
   }
   useEffect(()=>{
@@ -428,8 +445,39 @@ export default function App() {
   },[renderMode,standby.enabled,standby.intervalSeconds,standby.transitionSeconds,standby.pauseOnInteraction,
     standby.mode,threeReady,threeSettings.animation,standbyTransition,threeExportBusy,seed,
     threeComposition,threeBaseComposition,threeBackground,visualTheme,colorSettings]);
-  function commitSeed(){if(committedSeed.current!==seed){committedSeed.current=seed;replayOnRegenerate();}}
-  function randomizeSeed(){if(threeExportBusy)return;const value=createRandomSeed();committedSeed.current=value;changeSeed(value);replayOnRegenerate();}
+  function commitSeed(){
+    if(committedSeed.current!==seed){
+      committedSeed.current=seed;
+      setSeedVault(current=>recordSeed(current,seed));
+      replayOnRegenerate();
+    }
+  }
+  function randomizeSeed(){
+    if(threeExportBusy)return;
+    const value=createRandomSeed();committedSeed.current=value;
+    changeSeed(value);setSeedVault(current=>recordSeed(current,value));
+    replayOnRegenerate();
+  }
+  function selectVaultSeed(value:string){
+    if(threeExportBusy||standbyTransition)return;
+    committedSeed.current=value;changeSeed(value);replayOnRegenerate();
+  }
+  function useVaultHistory(index:number){
+    if(threeExportBusy||standbyTransition||index<0||index>=seedVault.history.length)return;
+    setSeedVault(current=>({...current,cursor:index}));
+    selectVaultSeed(seedVault.history[index]);
+  }
+  function navigateVault(direction:-1|1){
+    const next=moveSeedHistory(seedVault,direction);
+    if(next&&!threeExportBusy&&!standbyTransition){
+      setSeedVault(next.vault);selectVaultSeed(next.seed);
+    }
+  }
+  function recallBookmarkedSeed(value:string){
+    if(threeExportBusy||standbyTransition)return;
+    setSeedVault(current=>recordSeed(current,value));
+    selectVaultSeed(value);
+  }
   async function copySeed(){
     try{
       if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');
@@ -445,7 +493,9 @@ export default function App() {
       if(!value||value.length>256){
         setSeedClipboardMessage('1〜256文字のシードをコピーしてから貼り付けてください。');return;
       }
-      committedSeed.current=value;changeSeed(value);replayOnRegenerate();
+      committedSeed.current=value;changeSeed(value);
+      setSeedVault(current=>recordSeed(current,value));
+      replayOnRegenerate();
       setSeedClipboardMessage('シードを貼り付けて生成しました');
     }catch{setSeedClipboardMessage('貼り付けできませんでした。ブラウザの権限を確認してください。');}
   }
@@ -569,6 +619,9 @@ export default function App() {
           </select>
           </div>
         </section>
+        <SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
+          onChange={setSeedVault} onSelect={recallBookmarkedSeed}
+          onNavigate={navigateVault} onHistoryIndex={useVaultHistory}/>
         {renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
         {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
@@ -722,7 +775,7 @@ export default function App() {
             setAnimation({animationEnabled:settings.animationEnabled??false,animationDuration:settings.animationDuration??8,playbackSpeed:settings.playbackSpeed??1,easingType:settings.easingType??'ease-in-out',continuousMotion:settings.continuousMotion??MOTION_DEFAULTS.continuousMotion,motionStrength:settings.motionStrength??MOTION_DEFAULTS.motionStrength,motionSpeed:settings.motionSpeed??MOTION_DEFAULTS.motionSpeed,motionVideoSeconds:settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds,motionPreset:settings.motionPreset??'standard'});playback.setPlaying(false);playback.setPosition(settings.algorithmVersion===MAGIC_ALGORITHM_VERSION?1:0);
             setMagicSettings(settings.magicCircle??{...magicDefaults});
              setVersion(settings.algorithmVersion as AlgorithmVersion);committedSeed.current=settings.seed;
-            setSeed(settings.seed); setRatio(settings.aspectRatio);
+            setSeed(settings.seed);setSeedVault(current=>recordSeed(current,settings.seed));setRatio(settings.aspectRatio);
             const bg:Background={grid:settings.gridBackground??gridBackgroundDefaults,lineWidth:settings.lineWidth??100,glowIntensity:settings.glowIntensity??0,mode:settings.backgroundMode,solid:settings.solidColor,colors:settings.gradientColors,angle:settings.gradientAngle};
             setColorSettings(settings.colorSettings);
             setBackground(settings.colorSettings ? coloredBackground(bg,settings.colorSettings) : bg);
