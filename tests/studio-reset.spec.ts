@@ -3,8 +3,11 @@ import {STUDIO_AUTOSAVE_KEY} from '../src/studio-autosave';
 
 test.setTimeout(120_000);
 async function openCategory(page:Page,name:string){
-  const item=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
-  if(await item.getAttribute('aria-expanded')!=='true')await item.click();
+  if((await page.locator('.settings-screen').getAttribute('class'))?.includes('is-detail')){
+    if((await page.locator('.settings-detail-current').textContent())===name)return;
+    await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
+  }
+  await page.getByRole('checkbox',{name:name+'の設定を開く'}).check();
 }
 async function acceptReset(page:Page,name:string){
   page.once('dialog',dialog=>dialog.accept());
@@ -13,6 +16,7 @@ async function acceptReset(page:Page,name:string){
 test('cancel leaves settings intact; confirmed full reset clears 2D, 3D, seed and UI but not other storage',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('keep-until-reset');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
   await page.getByLabel('図形密度').fill('80');
@@ -31,6 +35,7 @@ test('cancel leaves settings intact; confirmed full reset clears 2D, 3D, seed an
     page.getByRole('button',{name:'すべての設定を初期化'}).click(),
   ]);
   await expect(page.getByRole('button',{name:'2Dモード',exact:true})).toHaveAttribute('aria-pressed','true');
+  await openCategory(page,'図形');
   await expect(page.getByLabel('シード値',{exact:true})).toHaveValue(/^[0-9a-f]{24}$/);
   await expect(page.getByLabel('キャンバスの比率')).toHaveValue('16:9');
   await expect(page.getByLabel('図形密度')).toHaveValue('50');
@@ -45,6 +50,7 @@ test('individual 3D resets restore GALAXY/PARTICLE values while preserving curre
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
+  await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('keep-3d-seed');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openCategory(page,'図形');
@@ -73,6 +79,7 @@ test('VOID reset restores web defaults without losing the seed; 2D reset retains
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
+  await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('preserve-seed');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openCategory(page,'図形');
