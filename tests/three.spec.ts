@@ -3,11 +3,12 @@ import {test, expect, type Page, type Download} from '@playwright/test';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
-test.setTimeout(180_000); // Multi-stage WebGL export checks now include settings-page transitions.
+test.setTimeout(90_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page: Page) {
   await page.emulateMedia({reducedMotion: 'reduce'});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('シード値', {exact: true}).fill('geometry-3d');
   await page.getByLabel('シード値', {exact: true}).press('Enter');
   await page.getByRole('button', {name: '3Dモード', exact: true}).click();
@@ -46,7 +47,7 @@ test('3D is lazy, returns to the unchanged 2D geometry, text, locks and timeline
   await page.getByRole('button', {name: '3Dモード', exact: true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   expect(loaded.some(url => /ThreePreview/.test(url))).toBe(true);
-  await expect(page.getByRole('button', {name: '文字', exact: true})).toBeDisabled();
+  await expect(page.locator('#category-text')).toBeDisabled();
   await page.getByRole('button', {name: '2Dモード', exact: true}).click();
   await expect(page.getByTestId('preview')).toBeVisible();
   expect(await geometry()).toBe(before);

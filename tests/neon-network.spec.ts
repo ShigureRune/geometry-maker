@@ -3,10 +3,11 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 
-test.setTimeout(180_000); // Full PNG round-trips on CI include repeated settings-page navigation.
+test.setTimeout(120_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('cosmic-3d');await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByRole('button',{name:'視点をリセット',exact:true})).toBeEnabled();
