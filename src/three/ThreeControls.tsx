@@ -1,3 +1,4 @@
+import {useEffect,useRef,useState} from 'react';
 import {HelpInfo} from '../HelpInfo';
 import type {ThreeSettings} from './settings';
 import {visibilityDefaults,type ThreeVisibilitySettings} from './visibility';
@@ -33,10 +34,54 @@ export function ThreeShapeControls({settings, onChange}: Props) {
   const galaxy=settings.galaxy??galaxyDefaults;
   const cosmicWeb=!!settings.voidMode?.enabled&&settings.voidMode.version===VOID_WEB_VERSION;
   const legacyVoid=!!settings.voidMode?.enabled&&!cosmicWeb;
-  return <section className="control-section three-controls">
+  // Opt-in prototype: individual settings navigate to a dedicated inspector,
+  // while generation enable/disable remains inside each inspector.
+  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('fine-preview')==='1';
+  const [fineDetail,setFineDetail]=useState<'particle'|'galaxy'|null>(null);
+  const lastFineItem=useRef<'particle'|'galaxy'|null>(null);
+  const fineNavReady=useRef(false);
+  useEffect(()=>{
+    if(!finePreview)return;
+    if(!fineNavReady.current){fineNavReady.current=true;return;}
+    const selector=fineDetail
+      ? '.fine-settings-back button'
+      : lastFineItem.current?'#fine-open-'+lastFineItem.current:null;
+    if(selector)document.querySelector<HTMLElement>(selector)?.focus({preventScroll:true});
+  },[fineDetail,finePreview]);
+  return <section className={'control-section three-controls three-shape-controls'
+    +(finePreview?' fine-detail-enabled':'')+(fineDetail?' fine-detail-open':'')}
+    data-fine-selected={fineDetail??undefined}
+    onKeyDown={event=>{
+      if(finePreview&&fineDetail&&event.key==='Escape'){
+        event.stopPropagation();setFineDetail(null);
+      }
+    }}>
     <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
       <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
     </div>
+    {finePreview&&<>
+      <nav className="fine-settings-overview" aria-label="粒子・銀河の個別設定" hidden={fineDetail!==null}>
+        <p className="fine-settings-caption">細かい設定を選ぶと、専用画面を開きます。実際のON/OFFは詳細画面内で変更できます。</p>
+        <label className="fine-settings-choice" htmlFor="fine-open-particle">
+          <span className="fine-settings-choice-copy"><strong>PARTICLE MODE · 渦巻き集合</strong>
+            <small>立体を粒子で描く · 現在{particle.enabled?'ON':'OFF'}</small></span>
+          <input id="fine-open-particle" type="checkbox" checked={fineDetail==='particle'}
+            aria-label="PARTICLE MODEの詳細設定を開く"
+            onChange={event=>{if(event.target.checked){lastFineItem.current='particle';setFineDetail('particle');}}}/>
+        </label>
+        <label className="fine-settings-choice" htmlFor="fine-open-galaxy">
+          <span className="fine-settings-choice-copy"><strong>GALAXY MODE · 巨大銀河</strong>
+            <small>巨大銀河を生成する · 現在{galaxy.enabled?'ON':'OFF'}</small></span>
+          <input id="fine-open-galaxy" type="checkbox" checked={fineDetail==='galaxy'}
+            aria-label="GALAXY MODEの詳細設定を開く"
+            onChange={event=>{if(event.target.checked){lastFineItem.current='galaxy';setFineDetail('galaxy');}}}/>
+        </label>
+      </nav>
+      <div className="fine-settings-back" hidden={fineDetail===null}>
+        <button type="button" onClick={()=>setFineDetail(null)}>← 細かい設定一覧へ</button>
+        <span>{fineDetail==='particle'?'PARTICLE MODE':'GALAXY MODE'}</span>
+      </div>
+    </>}
     <ThreeRange id="three-spacing" label="図形の間隔" value={settings.spacingPercent??THREE_SPACING_DEFAULT}
       min={50} max={200} step={5} unit="%" onChange={spacingPercent=>onChange({...settings,spacingPercent})}/>
     <HelpInfo>{settings.voidMode?.enabled
