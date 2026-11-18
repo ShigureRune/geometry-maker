@@ -83,8 +83,10 @@ export default function App() {
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
   const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
   const activeCategory=renderMode==='2d'?category:threeCategory;
-  // Landing on the overview avoids presenting a giant list of controls at once.
-  const [settingsOverview,setSettingsOverview]=useState(true);
+  // Fine-detail prototype: keep the seven main categories as compact tabs;
+  // individual sections, not main categories, use the checkbox drill-down.
+  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('fine-preview')==='1';
+  const [settingsOverview,setSettingsOverview]=useState(!finePreview);
   const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
   useEffect(()=>{
@@ -132,7 +134,7 @@ export default function App() {
         event.preventDefault();setCommandOpen(true);
       }else if(event.key==='Escape'&&studioFocus&&!commandOpen){
         setStudioFocus(false);
-      }else if(event.key==='Escape'&&!commandOpen&&!settingsOverview&&
+      }else if(event.key==='Escape'&&!finePreview&&!commandOpen&&!settingsOverview&&
         !(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select'))){
         setSettingsOverview(true);
       }
@@ -552,7 +554,7 @@ export default function App() {
     }
   }
   function goToSettingsIndex(){
-    setSettingsOverview(true);
+    setSettingsOverview(!finePreview);
     setStudioFocus(false);setSidebarCollapsed(false);
     if(matchMedia('(max-width:720px)').matches){
       requestAnimationFrame(()=>document.getElementById('studio-settings')?.scrollIntoView({
@@ -645,6 +647,10 @@ export default function App() {
         </div>
         <div className="panel-intro"><span className="eyebrow">MAKE IT YOURS</span><h2>ひとつのシードから、<br />あなただけの幾何学を。</h2><p>文字や数字を変えて、新しい構図に出会う。</p></div>
 
+        {finePreview&&<SettingsCategories variant="tabs" active={activeCategory}
+          onChange={value=>{if(value)goToSettings(value);}}
+          disabled={threeExportBusy?categories.map(item=>item.id):
+            renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
         <div className={'settings-screen'+(settingsOverview?'':' is-detail')} aria-label="設定画面">
           <section className="settings-screen-index" aria-label="設定一覧"
             inert={!settingsOverview} aria-hidden={!settingsOverview}>
@@ -653,12 +659,12 @@ export default function App() {
               <h2>設定一覧</h2>
               <p>右のチェックをオンにして、専用の設定画面を開きます。</p>
             </div>
-            <SettingsCategories active={settingsOverview?null:activeCategory}
+            {!finePreview&&<SettingsCategories active={settingsOverview?null:activeCategory}
               onChange={value=>{if(threeExportBusy)return;
                 if(value===null){goToSettingsIndex();return;}
                 goToSettings(value);}}
               disabled={threeExportBusy?categories.map(item=>item.id):
-                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>
+                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
             <div className="studio-sidebar-resize">
               <label htmlFor="studio-sidebar-width">パネル幅</label>
               <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
@@ -668,7 +674,7 @@ export default function App() {
           </section>
           <section className="settings-screen-detail" aria-label="個別設定"
             inert={settingsOverview} aria-hidden={settingsOverview}>
-            <div className="settings-detail-toolbar">
+            <div className="settings-detail-toolbar" hidden={finePreview}>
               <button type="button" className="settings-detail-back" onClick={goToSettingsIndex}>
                 <span aria-hidden="true">←</span> 設定一覧へ
               </button>
