@@ -44,6 +44,11 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
    {timeout:5000}).not.toBe(oldHeroGlow);
  await expect(page.getByTestId('bar-soft-sheen')).toHaveCount(0);
  await expect(page.getByTestId('bar-soft-feather')).toHaveCount(0);
+ // Real hero-connected circuits receive synchronized energy packets.
+ const link=page.locator('[data-kind="circuit"] [data-testid="energy-relay"]').first();
+ await expect(link).toHaveCount(1);
+ await expect.poll(async()=>link.getByTestId('energy-transfer').count(),
+   {timeout:10000}).toBe(1);
  const flow=page.getByTestId('figure-flow').first();
  await expect(flow).toHaveCount(1);
  await expect.poll(async()=>Number(await flow.getAttribute('data-flow-opacity'))).toBeGreaterThan(.05);
@@ -105,6 +110,8 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
  await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
+ await expect(page.getByTestId('energy-relay')).toHaveCount(0);
+ await expect(page.getByTestId('energy-arrival')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  const download=page.waitForEvent('download');
  await page.getByRole('button',{name:'SVGを書き出す',exact:true}).click();
@@ -116,6 +123,8 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByTestId('figure-flow')).toHaveCount(0);
  await expect(page.getByTestId('bar-body-motion')).toHaveCount(0);
  await expect(page.getByTestId('main-figure-halo')).toHaveCount(0);
+ await expect(page.getByTestId('energy-relay')).toHaveCount(0);
+ await expect(page.getByTestId('energy-arrival')).toHaveCount(0);
  expect(await originalShape.getAttribute('transform')).toBe(originalTransform);
  await page.getByLabel('完成後も線に光を流す').check();
  await expect(flow).toHaveCount(1);
