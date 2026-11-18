@@ -8,16 +8,24 @@ export const isMovingBar=(shape:Shape):boolean=>
   shape.role!=='accent' &&
   (shape.kind==='band'||shape.kind==='line'||shape.kind==='rectangle');
 
+/** A real parent/child connection: energy is emitted at the hero-side start,
+ * travels down the authored circuit, then illuminates the terminal and its
+ * actual child figure. Every route has a deterministic seeded timing phase. */
+export type EnergyRelay={
+  sourceId:string;targetId?:string;period:number;phase:number;
+};
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
   intensity:number;
   spinSpeed:number;
   barSpeed:number;barExit:number;barEntry:number;barDirectionX:number;barDirectionY:number;
+  relay?:EnergyRelay;arrival?:EnergyRelay;
 };
 export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
   spin:number;
   barShift:number;barDx:number;barDy:number;
+  relayProgress?:number;relaySource?:number;relayArrival?:number;arrivalPulse?:number;
 };
 const rounded=(n:number)=>Number(n.toFixed(5));
 
@@ -43,6 +51,28 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
   const dx=Math.cos(angle),dy=Math.sin(angle);
   const barSpeed=Math.min(scene.width,scene.height)*(scene.version==='2d-v4'?.11:.09);
   const padding=Math.min(scene.width,scene.height)*.09;
+  // Use ONLY the scene's real parent relationships. No imaginary connecting
+  // segments and no mutation of the generated art. Cap each hero's routes so
+  // dense v5 scenes do not add dozens of animated filters.
+  const relays=new Map<string,EnergyRelay>();
+  const arrivals=new Map<string,EnergyRelay>();
+  for(const hero of scene.shapes.filter(s=>s.role==='hero')){
+    const connections=scene.shapes.filter(s=>s.parent===hero.id &&
+      (s.kind==='circuit'||s.kind==='branch-circuit') && s.role!=='accent')
+      .sort((a,b)=>a.id.localeCompare(b.id)).slice(0,6);
+    const random=seededRandom('2d-energy-relay:'+seed+':'+hero.id);
+    const period=4.8+random()*1.8;
+    connections.forEach((connector,i)=>{
+      const child=scene.shapes.filter(s=>s.parent===connector.id &&
+        s.role!=='accent').sort((a,b)=>a.id.localeCompare(b.id))[0];
+      const relay:EnergyRelay={
+        sourceId:hero.id,targetId:child?.id,period,
+        phase:(i/connections.length*.82+random()*.08)%1,
+      };
+      relays.set(connector.id,relay);
+      if(child)arrivals.set(child.id,relay);
+    });
+  }
   return scene.shapes.flatMap(shape=>{
     // Highlight lines/arcs are separate overlay shapes with role=accent.
     // They must keep their original world position as the rods pass beneath.
@@ -50,7 +80,7 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
     const bar=isMovingBar(shape);
     // Even decoration-classified thin strips move, but skip other tiny
     // decorations to avoid hundreds of useless glowing tracer elements.
-    if(!bar&&(shape.role==='decoration'||['dot','dots','accent'].includes(shape.kind)))
+    if(!bar&&!arrivals.has(shape.id)&&(shape.role==='decoration'||['dot','dots','accent'].includes(shape.kind)))
       return [];
     const random=seededRandom('finished-2d-flow:'+seed+':'+shape.id);
     const classic=scene.version==='2d-v4';
@@ -68,6 +98,7 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       barExit:bounds?outOfViewDistance(bounds,scene.width,scene.height,dx,dy,padding):0,
       barEntry:bounds?outOfViewDistance(bounds,scene.width,scene.height,-dx,-dy,padding):0,
       barDirectionX:dx,barDirectionY:dy,
+      relay:relays.get(shape.id),arrival:arrivals.get(shape.id),
     }];
   });
 }
@@ -93,6 +124,19 @@ export function figureFlowAt(
     // Only wrap after travelling the whole visible forward distance.
     const shift=item.barSpeed===0?0:travel<item.barExit?travel:
       ((travel-item.barExit)%cycle)-item.barEntry;
+    const relayPhase=item.relay?
+      ((elapsed/item.relay.period+item.relay.phase)%1+1)%1:undefined;
+    const arrivalPhase=item.arrival?
+      ((elapsed/item.arrival.period+item.arrival.phase)%1+1)%1:undefined;
+    const bell=(phase:number,start:number,end:number)=>
+      phase>start&&phase<end?Math.sin(Math.PI*(phase-start)/(end-start))**2:0;
+    // First the hero-side junction lights up, then the signal crosses the
+    // connection, and only AFTER the signal arrives does the terminal pulse.
+    const source=relayPhase===undefined?undefined:bell(relayPhase,.12,.31);
+    const progressOnLink=relayPhase!==undefined&&relayPhase>=.27&&relayPhase<.74
+      ?(relayPhase-.27)/.47:undefined;
+    const terminal=relayPhase===undefined?undefined:bell(relayPhase,.72,.94);
+    const arrival=arrivalPhase===undefined?undefined:bell(arrivalPhase,.72,.94);
     return [item.id,{
       offset:rounded(-phase),
       tailLength:rounded(item.tailLength),
@@ -102,6 +146,10 @@ export function figureFlowAt(
       barShift:rounded(shift),
       barDx:rounded(shift*item.barDirectionX),
       barDy:rounded(shift*item.barDirectionY),
+      ...(source===undefined?{}:{relaySource:rounded(source*intensity*fade)}),
+      ...(progressOnLink===undefined?{}:{relayProgress:rounded(progressOnLink)}),
+      ...(terminal===undefined?{}:{relayArrival:rounded(terminal*intensity*fade)}),
+      ...(arrival===undefined?{}:{arrivalPulse:rounded(arrival*intensity*fade)}),
     }];
   }));
 }
