@@ -281,6 +281,41 @@
 .studio-command-result-label small{color:#a9b2c4;font-size:10px}
 .studio-command-result kbd{font-size:10px;color:#b5add0}
 .studio-command-empty{padding:20px;text-align:center;color:#bbc4d2;font-size:12px}
+/* Creator productivity pack: selected-command favorites and compact controls. */
+.studio-command-actions{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:0 20px 8px;font-size:11px;color:#b8b8d4;
+}
+.studio-command-actions button{
+  min-height:36px;border:1px solid #7668a8;border-radius:9px;
+  background:#302b48;color:#e3d8ff;padding:7px 11px;font-size:11px;
+}
+.studio-command-actions button[aria-pressed=true]{background:#564478;border-color:#c4aaff}
+.studio-command-actions button:disabled{opacity:.45;cursor:not-allowed}
+.studio-app .seed-row{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.studio-app .seed-row input{width:auto;min-width:120px;flex:1 1 140px}
+.studio-app .seed-row .seed-clipboard-button{
+  min-height:40px;border-radius:8px;border:1px solid #70618e;
+  padding:7px 10px;background:#2b2940;color:#ebdfff;font-size:11px;
+}
+.studio-app .seed-row .seed-clipboard-button:disabled{opacity:.45}
+.seed-clipboard-status{margin:7px 0 0;color:#bde9d9;font-size:11px;line-height:1.5}
+.grid-background-presets{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:11px 0 17px;
+}
+.studio-app .grid-background-presets button{
+  min-height:43px;padding:8px 6px;border:1px solid #70618e;border-radius:9px;
+  background:#2b2940;color:#ebdfff;font-size:11px;
+}
+.studio-app .grid-background-presets button:hover{border-color:#c4adff}
+.timeline-jump-buttons{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin:8px 0 15px}
+.studio-app .timeline-jump-buttons button{
+  min-height:38px;padding:5px 2px;border-radius:7px;border:1px solid #70618e;
+  background:#2b2940;color:#ebdfff;font-size:10px;
+}
+.studio-app .timeline-jump-buttons button[aria-pressed=true]{
+  background:#514471;border-color:#bd9df7;color:white;
+}
 .studio-command-footer{display:flex;gap:16px;border-top:1px solid #323b50;padding:11px 20px;
   font-size:10px;color:#a5acc2}
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
