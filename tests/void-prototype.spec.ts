@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
@@ -6,7 +7,7 @@ import {voidDefaults} from '../src/three/void-settings';
 
 test.setTimeout(150_000);
 const hash=(buffer:Buffer)=>createHash('sha256').update(buffer).digest('hex');
-async function category(page:Page,name:string){const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});if(await button.getAttribute('aria-expanded')!=='true')await button.click();}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 const fixture=(enabled=false,seed='filament-prototype-01')=>({kind:'geometry-maker-3d',schemaVersion:1,algorithmVersion:'3d-v1',seed,aspectRatio:'16:9',density:100,visualTheme:'cosmic',
   background:{mode:'gradient',solid:'#060b21',colors:['#080526','#18112d','#071d31'],angle:135,glowIntensity:90},
   settings:{...threeDefaults,animation:false,quality:'high',floorGrid:{...threeDefaults.floorGrid,enabled:false},celestial:{...threeDefaults.celestial,enabled:false},
