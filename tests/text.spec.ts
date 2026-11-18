@@ -4,6 +4,9 @@ import {readFile} from 'node:fs/promises';
 
 test('text editor is reflected in preview, SVG and JSON without changing seed',async({page})=>{
  await page.goto('./');
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
  const seed=await page.getByTestId('current-seed').textContent();
  await openSettingsCategory(page,'文字');
  await page.getByLabel('文字を表示').check();
@@ -51,6 +54,9 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
 
 test('text colors track figure colors and glow survives SVG and JSON export',async({page})=>{
  await page.goto('./');
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
  await openSettingsCategory(page,'文字');
  await page.getByLabel('文字を表示').check();
  await page.getByLabel('表示する文字').fill('発光タイトル');
@@ -90,6 +96,9 @@ test('text colors track figure colors and glow survives SVG and JSON export',asy
 
 test('one-click hollow neon creates outline-only SVG, exports settings and restores them',async({page})=>{
  await page.goto('./');
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
  const seed=await page.getByTestId('current-seed').textContent();
  await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('ネオン\nOUTLINE');
