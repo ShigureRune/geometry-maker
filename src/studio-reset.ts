@@ -8,6 +8,7 @@ export const STUDIO_RESET_KEYS=[
   'geometry-studio-sidebar-width',
   'geometry-studio-command-favorites',
   'geometry-studio-command-recents',
+  'geometry-studio-seed-vault-v1',
 ] as const;
 
 /** Used only after explicit confirmation. Reload before rendering a new draft.
