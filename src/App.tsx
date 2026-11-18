@@ -917,7 +917,7 @@ export default function App() {
             setRegenerations(0);
           }} />
       </div>
-        {renderMode==='3d'&&<ThreeExportPanel api={threeApi} seed={seed} ready={threeReady}
+        {renderMode==='3d'&&<ThreeExportPanel finePreview={finePreview} api={threeApi} seed={seed} ready={threeReady}
            onBusyChange={setThreeExportBusy}
           project={()=>({kind:'geometry-maker-3d',schemaVersion:1,algorithmVersion:THREE_ALGORITHM_VERSION,seed,aspectRatio:ratio,density,visualTheme,background,
             colorSettings:activeColors,settings:threeSettings,
