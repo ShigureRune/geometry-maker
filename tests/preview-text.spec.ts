@@ -92,6 +92,7 @@ test('touch drag and tap can edit an outline title on a narrow portrait canvas',
  try{
   const page=await context.newPage();
   await page.goto('http://127.0.0.1:5173/');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
 
   await openSettingsCategory(page,'文字');

@@ -35,6 +35,7 @@ test('seed history is committed, navigable, branched, and persists after reload'
     catch{return null;}
   })).toBe('branch-vault-seed');
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(seed).toHaveValue('branch-vault-seed');
   await expect(page.getByLabel('履歴の位置')).toHaveText('3 / 3');
   await page.getByRole('button',{name:'← 前のシード'}).click();
@@ -61,6 +62,7 @@ test('bookmarks can be named, searched, recalled, renamed and deleted',async({pa
   await page.getByLabel('保存済みシードを検索').fill('夜の星');
   await expect(page.getByRole('button',{name:'夜の星を呼び出す'})).toBeVisible();
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(page.getByRole('button',{name:'夜の星を呼び出す'})).toBeVisible();
   await page.getByRole('button',{name:'夜の星を削除'}).click();
   await expect(page.getByText('まだ保存済みシードがありません。')).toBeVisible();
@@ -111,5 +113,6 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
   expect(shared.pathname).toBe(new URL(page.url()).pathname);
   expect(shared.search).not.toContain('textOverlay');
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(seed).toHaveValue('shared seed / 42');
 });

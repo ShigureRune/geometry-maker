@@ -100,6 +100,7 @@ test('mobile touch can select, resize a corner and double-tap to edit',async({br
  try{
   const page=await context.newPage();
   await page.goto('http://127.0.0.1:5173/');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
   await page.getByRole('button',{name:'プレビューに文字を追加'}).click();
   const quick=page.getByRole('group',{name:'プレビュー上で文字を編集'});

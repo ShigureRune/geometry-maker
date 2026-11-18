@@ -1,13 +1,10 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test.setTimeout(135_000);
 
-async function category(page:Page,label:string){
-  const tab=page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:label,exact:true});
-  if(await tab.getAttribute('aria-expanded')!=='true')await tab.click();
-}
+async function category(page:Page,label:string){await openSettingsCategory(page,label);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');

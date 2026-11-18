@@ -3,7 +3,7 @@ import {test, expect, type Page, type Download} from '@playwright/test';
 import {createHash} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 
-test.setTimeout(90_000);
+test.setTimeout(180_000); // Multi-stage WebGL export checks now include settings-page transitions.
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page: Page) {
   await page.emulateMedia({reducedMotion: 'reduce'});

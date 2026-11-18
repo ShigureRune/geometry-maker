@@ -3,7 +3,7 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 
-test.setTimeout(120_000);
+test.setTimeout(180_000); // Full PNG round-trips on CI include repeated settings-page navigation.
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./');
