@@ -253,7 +253,7 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
           {flow?.[shape.id]&&!barMotion&&shape.role!=='decoration'&&
             <FlowGeometry shape={shape} flow={flow[shape.id]}
               ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
-          {flow?.[shape.id]&&
+          {flow?.[shape.id]?.relayEnabled&&
             (shape.kind==='circuit'||shape.kind==='branch-circuit')&&
             <RelayGeometry shape={shape} flow={flow[shape.id]}
               lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
