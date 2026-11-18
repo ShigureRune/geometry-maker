@@ -143,48 +143,35 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByLabel('完成後も線に光を流す')).toBeChecked();
 });
 
-test('real hero circuits fan out simultaneous light in both v4 and v5 playback',async({page})=>{
+test('authored v4/v5 circuits branch, transfer and merge in browser and exported video frames',async({page})=>{
  for(const version of ['2d-v4','2d-v5'] as const){
-  await page.goto('./');
-  await page.getByLabel('生成アルゴリズム').selectOption(version);
-  // An arbitrary generated v5 layout may have no visible circuits.
-  // Pick a deterministic real scene with at least two authored hero branches.
-  const kind=version==='2d-v4'?'circuit':'branch-circuit';
-  let found=false;
-  for(const candidate of [
-   'postgrowth-bar-and-arc','real-connected-energy-2d-v5',
-   'v5-branched-flow','geometry-circuits-01','geometry-circuits-02',
-   'circular-network','hero-branches','multi-anchor-energy',
-  ]){
-   await page.getByLabel('シード値',{exact:true}).fill(candidate);
-   await page.getByLabel('シード値',{exact:true}).press('Enter');
-   await page.getByLabel('図形密度').fill('100');
-   // React updates the visible scene asynchronously after Enter.
-   // Wait for a real two-route layout rather than reading a stale frame.
-   try{
-    await expect.poll(async()=>page.locator(
-      `[data-kind="${kind}"][data-parent^="hero"]`).count(),
-      {timeout:1800,intervals:[100,250,400]}).toBeGreaterThan(1);
-    found=true;break;
-   }catch{ /* This deterministic seed simply has fewer than two visible branches. */ }
-  }
-  expect(found,version+' needs a scene with two real authored circuits').toBe(true);
+  await page.goto('/tests/fixtures/energy-relay.html?version='+version);
   await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm',version);
-  await page.getByLabel('成長時間（秒）').fill('1');
-  await page.getByLabel('再生速度',{exact:true}).selectOption('4');
-  const hero=page.locator('[data-role="hero"]').first();
-  const initialTransform=await hero.getAttribute('transform');
-  await page.getByRole('button',{name:'最初から再生',exact:true}).click();
-  await expect(page.getByTestId('playback-position')).toContainText('100%',{timeout:6000});
-  const signals=page.locator(`[data-kind="${kind}"] [data-testid="energy-relay"]`);
-  await expect.poll(async()=>signals.count(),{timeout:7000}).toBeGreaterThan(1);
-  await expect.poll(async()=>page.getByTestId('energy-branch').count(),
-    {timeout:14000}).toBeGreaterThan(1);
-  expect(await hero.getAttribute('transform')).toBe(initialTransform);
-  await expect(page.getByTestId('bar-body-motion').first()).toHaveCount(1);
+  const main=page.locator('[data-shape-id="relay-main"]');
+  const original=await main.getAttribute('transform');
+  const setStage=(stage:number)=>page.evaluate(value=>
+    (window as unknown as {relayStage:(p:number)=>void}).relayStage(value),stage);
+  const videoAt=(stage:number)=>page.evaluate(value=>
+    (window as unknown as {relayVideo:(p:number)=>string}).relayVideo(value),stage);
+  await setStage(.2);
+  await expect(page.getByTestId('energy-branch')).toHaveCount(3);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(0);
+  const forkVideo=await videoAt(.2);
+  expect((forkVideo.match(/data-testid="energy-branch"/g)??[]).length).toBe(3);
+  await setStage(.51);
+  await expect(page.getByTestId('energy-transfer')).toHaveCount(3);
+  await setStage(.83);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(1);
+  await expect(page.getByTestId('energy-arrival')).toHaveCount(2);
+  const mergedVideo=await videoAt(.83);
+  expect((mergedVideo.match(/data-testid="energy-merge"/g)??[]).length).toBe(1);
+  expect((mergedVideo.match(/data-testid="energy-arrival"/g)??[]).length).toBe(2);
+  await expect(page.getByTestId('bar-body-motion')).toHaveCount(1);
   await expect(page.getByTestId('coupled-rotation').first()).toHaveCount(1);
-  await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
+  expect(await main.getAttribute('transform')).toBe(original);
+  await setStage(-1);
   await expect(page.getByTestId('energy-branch')).toHaveCount(0);
   await expect(page.getByTestId('energy-merge')).toHaveCount(0);
+  expect(await main.getAttribute('transform')).toBe(original);
  }
 });
