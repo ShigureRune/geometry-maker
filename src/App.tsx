@@ -559,7 +559,7 @@ export default function App() {
             <HelpInfo label="シードの説明">「シード」は模様を再現する合言葉。同じ文字なら同じ模様になります。Enterか入力欄の外を押すと確定します。</HelpInfo>
           </div>
           <div className="seed-row"><input id="seed" aria-label="シード値" value={seed} onChange={e => changeSeed(e.target.value)} onBlur={commitSeed} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&e.keyCode!==229)commitSeed();}} spellCheck={false} autoComplete="off" /><button className="dice-button" type="button" onClick={randomizeSeed} aria-label="ランダムシードを生成" title="ランダムシードを生成">⚄ <span>ランダム</span></button><button type="button" className="seed-clipboard-button" onClick={()=>void copySeed()} aria-label="シードをコピー">コピー</button><button type="button" className="seed-clipboard-button" disabled={threeExportBusy} onClick={()=>void pasteSeed()} aria-label="シードを貼り付け">貼付</button></div>
-          <p className="seed-clipboard-status" role="status" aria-live="polite">{seedClipboardMessage}</p> 
+          {seedClipboardMessage&&<p className="seed-clipboard-status" role="status" aria-live="polite">{seedClipboardMessage}</p>} 
           <div hidden={renderMode==='3d'}><div className="studio-setting-label">
             <label className="algorithm-label" htmlFor="algorithm-version">作り方の種類</label>
             {version===LEGACY_ALGORITHM_VERSION&&<HelpInfo>旧v4設定の構図を保持しています。v5を選ぶと新しい構図に変わります。図形の種類別設定はv5で有効です。</HelpInfo>}
