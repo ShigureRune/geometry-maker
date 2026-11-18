@@ -85,7 +85,20 @@ export default function App() {
   const activeCategory=renderMode==='2d'?category:threeCategory;
   // Landing on the overview avoids presenting a giant list of controls at once.
   const [settingsOverview,setSettingsOverview]=useState(true);
+  const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
+  useEffect(()=>{
+    // When the overview becomes inert, move keyboard focus into the new page.
+    // Returning restores focus to the category the editor last visited.
+    if(!settingsNavigationInitialized.current){
+      settingsNavigationInitialized.current=true;
+      return;
+    }
+    const selector=settingsOverview
+      ? `#category-${activeCategory??'shapes'}`
+      : '.settings-detail-back';
+    document.querySelector<HTMLElement>(selector)?.focus({preventScroll:true});
+  },[settingsOverview]);
   const [studioFocus,setStudioFocus]=useState(saved?.focus??false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(saved?.collapsed??false);
   const [autosaveStatus,setAutosaveStatus]=useState<'pending'|'saved'|'unavailable'>('pending');
