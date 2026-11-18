@@ -89,7 +89,7 @@ test('all six fine-grained shape sections open separately and retain values',asy
       await expect(page.locator('#three-spacing')).toHaveValue('135');
     }
     if(id==='quality'){
-      await page.getByLabel('3D描画品質').selectOption('low');
+      await page.getByLabel('3D描画品質',{exact:true}).selectOption('low');
     }
     await back.click();
     await expect(nav).toBeVisible();
@@ -100,7 +100,7 @@ test('all six fine-grained shape sections open separately and retain values',asy
   await expect(page.locator('#three-spacing')).toHaveValue('135');
   await back.click();
   await nav.getByRole('checkbox',{name:'3D描画品質の詳細設定を開く'}).check();
-  await expect(page.getByLabel('3D描画品質')).toHaveValue('low');
+  await expect(page.getByLabel('3D描画品質',{exact:true})).toHaveValue('low');
 });
 
 test('fine inspector is usable on a mobile viewport and responds to Escape',async({page})=>{
