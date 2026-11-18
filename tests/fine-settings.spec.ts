@@ -15,8 +15,8 @@ test('fine settings preview opens individual particle and galaxy inspectors with
   const nav=page.getByRole('navigation',{name:'3D図形の細かい設定'});
   const particleDetail=page.getByTestId('particle-mode-controls');
   const galaxyDetail=page.getByTestId('galaxy-mode-controls');
-  const particleChoice=nav.getByRole('checkbox',{name:'PARTICLE MODEの詳細設定を開く'});
-  const galaxyChoice=nav.getByRole('checkbox',{name:'GALAXY MODEの詳細設定を開く'});
+  const particleChoice=nav.getByRole('checkbox',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
+  const galaxyChoice=nav.getByRole('checkbox',{name:'GALAXY MODE · 巨大銀河の詳細設定を開く'});
   await expect(nav).toBeVisible();
   await expect(nav.getByRole('checkbox')).toHaveCount(6);
   await expect(particleChoice).not.toBeChecked();
