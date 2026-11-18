@@ -142,3 +142,31 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v5');
  await expect(page.getByLabel('完成後も線に光を流す')).toBeChecked();
 });
+
+test('real hero circuits fan out simultaneous light in both v4 and v5 playback',async({page})=>{
+ for(const version of ['2d-v4','2d-v5'] as const){
+  await page.goto('./');
+  await page.getByLabel('生成アルゴリズム').selectOption(version);
+  await page.getByLabel('シード値',{exact:true}).fill('postgrowth-bar-and-arc');
+  await page.getByLabel('シード値',{exact:true}).press('Enter');
+  await page.getByLabel('図形密度').fill('100');
+  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm',version);
+  await page.getByLabel('成長時間（秒）').fill('1');
+  await page.getByLabel('再生速度',{exact:true}).selectOption('4');
+  const hero=page.locator('[data-role="hero"]').first();
+  const initialTransform=await hero.getAttribute('transform');
+  await page.getByRole('button',{name:'最初から再生',exact:true}).click();
+  await expect(page.getByTestId('playback-position')).toContainText('100%',{timeout:6000});
+  const kind=version==='2d-v4'?'circuit':'branch-circuit';
+  const signals=page.locator(`[data-kind="${kind}"] [data-testid="energy-relay"]`);
+  await expect.poll(async()=>signals.count(),{timeout:7000}).toBeGreaterThan(1);
+  await expect.poll(async()=>page.getByTestId('energy-branch').count(),
+    {timeout:14000}).toBeGreaterThan(1);
+  expect(await hero.getAttribute('transform')).toBe(initialTransform);
+  await expect(page.getByTestId('bar-body-motion').first()).toHaveCount(1);
+  await expect(page.getByTestId('coupled-rotation').first()).toHaveCount(1);
+  await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();
+  await expect(page.getByTestId('energy-branch')).toHaveCount(0);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(0);
+ }
+});
