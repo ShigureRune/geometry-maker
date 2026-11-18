@@ -1139,21 +1139,33 @@
 }
 .studio-app .fine-settings-overview[hidden],
 .studio-app .fine-settings-back[hidden]{display:none!important}
-.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open)
-  > [data-testid="particle-mode-controls"],
-.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open)
-  > [data-testid="galaxy-mode-controls"]{display:none!important}
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-  > :not(.fine-settings-back):not([data-testid="particle-mode-controls"]):not([data-testid="galaxy-mode-controls"]){
-    display:none!important;
+/* Existing controls remain mounted; only the selected fine section becomes visible. */
+.studio-app .fine-settings-structural{display:contents}
+.studio-app .three-shape-controls.fine-detail-enabled > [data-fine-item]{
+  display:none!important;
 }
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="particle"]
-  > [data-testid="galaxy-mode-controls"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
-  > [data-testid="particle-mode-controls"]{display:none!important}
 .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-  > :is([data-testid="particle-mode-controls"],[data-testid="galaxy-mode-controls"]){
+  > :not(.fine-settings-back):not([data-fine-item]){
+  display:none!important;
+}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="spacing"]
+  > [data-fine-item="spacing"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="kinds"]
+  > [data-fine-item="kinds"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="celestial"]
+  > [data-fine-item="celestial"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="particle"]
+  > [data-fine-item="particle"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
+  > [data-fine-item="galaxy"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="quality"]
+  > [data-fine-item="quality"]{
+  display:block!important;
   animation:fine-detail-enter .3s cubic-bezier(.22,1,.36,1);
+}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
+  > .fine-settings-structural{
+  min-width:0;
 }
 @keyframes fine-detail-enter{
   from{transform:translateX(28px);opacity:.2}
@@ -1169,7 +1181,7 @@
 }
 @media(prefers-reduced-motion:reduce){
   .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-    > :is([data-testid="particle-mode-controls"],[data-testid="galaxy-mode-controls"]){
+    > [data-fine-item]{
     animation:none;
   }
 }
