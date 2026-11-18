@@ -456,3 +456,91 @@ it('drives connected foreground rotors in opposite seeded directions while prese
     .map(match=>[match[1],match[2]]);
   expect(roots(animated)).toEqual(roots(baseline));
 });
+
+it('fans light into authored branches and blooms only when two real circuit endpoints merge (v4/v5)',()=>{
+  for(const version of ['2d-v4','2d-v5'] as const){
+    const seed='fork-and-confluence-'+version;
+    const generated=generateScene(seed,'16:9',version);
+    const hero={...generated.shapes[0],id:'fork-hero',group:'fork-hero',
+      parent:undefined,role:'hero' as const,kind:'circle' as const,
+      size:120,x:450,y:400,rotation:0};
+    const wireA={...hero,id:'fork-a',role:'support' as const,
+      kind:(version==='2d-v4'?'circuit':'branch-circuit') as 'circuit'|'branch-circuit',
+      parent:hero.id,x:500,y:405,size:110,filled:false,
+      points:[{x:0,y:0},{x:45,y:0},{x:90,y:20}]};
+    const wireB={...wireA,id:'fork-b',x:520,y:395,size:90,
+      points:[{x:0,y:0},{x:45,y:0},{x:70,y:30}]};
+    const wireC={...wireA,id:'fork-c',x:530,y:500};
+    const childA={...hero,id:'node-a',kind:'circle' as const,
+      role:'decoration' as const,size:12,parent:wireA.id,x:590,y:425};
+    const childB={...childA,id:'node-b',parent:wireB.id};
+    const accent={...hero,id:'fork-highlight',kind:'line' as const,
+      role:'accent' as const,parent:hero.id};
+    const bar={...hero,id:'fork-bar',kind:'band' as const,
+      role:'support' as const,parent:hero.id,thickness:24};
+    const scene={...generated,shapes:[hero,wireA,wireB,wireC,childA,childB,bar,accent]};
+    const original=JSON.stringify(scene);
+    const plan=createFigureMotionPlan(scene,seed);
+    expect(createFigureMotionPlan(scene,seed)).toEqual(plan);
+    expect(JSON.stringify(scene)).toBe(original);
+    const routes=[wireA,wireB,wireC].map(s=>plan.find(p=>p.id===s.id)!);
+    expect(routes.every(p=>p.relay?.sourceId===hero.id)).toBe(true);
+    expect(routes.every(p=>p.relay?.branchCount===3)).toBe(true);
+    expect(new Set(routes.map(p=>p.relay?.phase)).size).toBe(3);
+    expect(Math.max(...routes.map(p=>p.relay!.phase))-
+      Math.min(...routes.map(p=>p.relay!.phase))).toBeLessThan(.05);
+    expect(routes[0].mergeRelays).toHaveLength(2);
+    expect(routes[1].mergeRelays).toBeUndefined();
+    expect(routes[2].mergeRelays).toBeUndefined();
+    const at=(stage:number)=>routes[0].relay!.period*(stage-routes[0].relay!.phase+1);
+    const fork=figureFlowAt(plan,at(.2));
+    const travel=figureFlowAt(plan,at(.51));
+    const merged=figureFlowAt(plan,at(.83));
+    expect(fork[wireA.id].branchPulse).toBeGreaterThan(0);
+    expect(fork[wireB.id].branchPulse).toBeGreaterThan(0);
+    expect(fork[wireC.id].branchPulse).toBeGreaterThan(0);
+    expect(travel[wireA.id].relayProgress).toBeGreaterThan(0);
+    expect(travel[wireB.id].relayProgress).toBeGreaterThan(0);
+    expect(merged[wireA.id].mergePulse).toBeGreaterThan(.1);
+    expect(merged[wireB.id].mergePulse).toBeUndefined();
+    expect(merged[wireC.id].mergePulse).toBeUndefined();
+    expect(merged[childA.id].arrivalPulse).toBeGreaterThan(0);
+    expect(merged[childB.id].arrivalPulse).toBeGreaterThan(0);
+    expect(merged[bar.id].barShift).toBeGreaterThan(0);
+    expect(merged[hero.id].coupledSpin).toBeDefined();
+    expect(merged[accent.id]).toBeUndefined();
+    const staticSVG=renderToStaticMarkup(createElement(Preview,{scene,background}));
+    const forkSVG=renderToStaticMarkup(createElement(Preview,{scene,background,flow:fork}));
+    const mergeSVG=renderToStaticMarkup(createElement(Preview,{scene,background,flow:merged}));
+    expect(staticSVG).not.toContain('data-testid="energy-branch"');
+    expect(staticSVG).not.toContain('data-testid="energy-merge"');
+    expect(forkSVG.match(/data-testid="energy-branch"/g)).toHaveLength(3);
+    expect(forkSVG).not.toContain('data-testid="energy-merge"');
+    expect(mergeSVG.match(/data-testid="energy-merge"/g)).toHaveLength(1);
+    expect(mergeSVG.match(/data-testid="energy-arrival"/g)).toHaveLength(2);
+    expect(mergeSVG).toContain('data-testid="coupled-rotation"');
+    expect(mergeSVG).toContain('data-testid="bar-body-motion"');
+    const roots=(svg:string)=>[...svg.matchAll(/data-shape-id="([^"]+)"[^>]+transform="([^"]+)"/g)]
+      .map(hit=>[hit[1],hit[2]]);
+    expect(roots(forkSVG)).toEqual(roots(staticSVG));
+    expect(roots(mergeSVG)).toEqual(roots(staticSVG));
+    expect(figureFlowAt(plan,0)).toEqual({});
+    expect(figureFlowAt(plan,at(.83),0)).toEqual({});
+    expect(figureFlowAt(plan,3,100,2)).toEqual(figureFlowAt(plan,6));
+  }
+});
+
+it('does not invent a confluence for physically separate or crossing unconnected circuits',()=>{
+  const seed='unconnected-crossing';
+  const original=generateScene(seed,'16:9','2d-v4');
+  const hero={...original.shapes[0],id:'hero',role:'hero' as const,parent:undefined};
+  const first={...hero,id:'first',role:'support' as const,kind:'circuit' as const,
+    parent:hero.id,x:400,y:400,rotation:0,
+    points:[{x:0,y:0},{x:100,y:50}]};
+  const second={...first,id:'second',x:500,y:400,
+    points:[{x:0,y:50},{x:100,y:0}]};
+  const scene={...original,shapes:[hero,first,second]};
+  const plan=createFigureMotionPlan(scene,seed);
+  expect(plan.filter(p=>p.mergeRelays?.length)).toHaveLength(0);
+  expect(plan.filter(p=>p.relay?.branchCount===2)).toHaveLength(2);
+});
