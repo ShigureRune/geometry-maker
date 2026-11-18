@@ -97,6 +97,85 @@ const FlowGeometry=memo(function FlowGeometry({shape,flow,ink,lineWidth}:{
     })}
   </g>;
 });
+/** Exact authored circuit geometry (never a synthetic connection).
+ * A soft flash at its hero-side origin hands off a traveling white packet,
+ * then its terminal glows, followed by the linked child figure. */
+const RelayGeometry=memo(function RelayGeometry({shape,flow,lineWidth}:{
+  shape:Shape;flow:FigureFlowState;lineWidth:number;
+}){
+  const id='energy-relay-'+useId().replace(/:/g,'');
+  const path=useMemo(()=>contoursOf(shape)[0],[shape]);
+  const bounds=useMemo(()=>shapeBounds({...shape,x:0,y:0,rotation:0}),[shape]);
+  const start=path.points[0],end=path.points.at(-1)!;
+  const pad=Math.max(20,lineWidth*14);
+  const radius=Math.max(shape.strokeWidth*4.5,lineWidth*3);
+  const visible=flow.relayProgress!==undefined;
+  const source=flow.relaySource??0,arrival=flow.relayArrival??0;
+  return <g data-testid="energy-relay" fill="none" pointerEvents="none">
+    <defs>
+      <filter id={id} filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB"
+        x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2}
+        height={bounds.height+pad*2}>
+        <feGaussianBlur stdDeviation={Math.max(2.2,lineWidth*2.2)}/>
+      </filter>
+    </defs>
+    {source>0&&<g data-testid="energy-source" opacity={source}>
+      <circle cx={start.x} cy={start.y} r={radius*1.8} fill="#c5eaff"
+        filter={`url(#${id})`}/>
+      <circle cx={start.x} cy={start.y} r={radius*.55} fill="#ffffff"/>
+    </g>}
+    {visible&&<g data-testid="energy-transfer"
+      data-energy-progress={flow.relayProgress} strokeLinecap="round">
+      <path d={pathData(path)} pathLength={1} stroke="#b9eaff"
+        strokeWidth={lineWidth*6} opacity=".82"
+        strokeDasharray=".14 .86" strokeDashoffset={-flow.relayProgress!}
+        filter={`url(#${id})`}/>
+      <path d={pathData(path)} pathLength={1} stroke="#ffffff"
+        strokeWidth={lineWidth*1.85} opacity=".94"
+        strokeDasharray=".14 .86" strokeDashoffset={-flow.relayProgress!}/>
+    </g>}
+    {arrival>0&&<g data-testid="energy-terminal" opacity={arrival}>
+      <circle cx={end.x} cy={end.y} r={radius*2.1} fill="#b9eaff"
+        filter={`url(#${id})`}/>
+      <circle cx={end.x} cy={end.y} r={radius*.65} fill="#ffffff"/>
+    </g>}
+  </g>;
+});
+
+/** The destination reacts AFTER the connection is traversed. This glows
+ * briefly around the destination's original contours without translating
+ * the figure or accidentally animating accent-role highlights. */
+const ArrivalGlow=memo(function ArrivalGlow({shape,pulse,lineWidth}:{
+  shape:Shape;pulse:number;lineWidth:number;
+}){
+  const id='energy-arrival-'+useId().replace(/:/g,'');
+  const contours=useMemo(()=>contoursOf(shape),[shape]);
+  const bounds=useMemo(()=>shapeBounds({...shape,x:0,y:0,rotation:0}),[shape]);
+  if(pulse<=0)return null;
+  const pad=Math.max(24,lineWidth*15),blur=Math.max(2.5,lineWidth*2.5);
+  return <g data-testid="energy-arrival" data-energy-pulse={pulse}
+    opacity={pulse} fill="none" pointerEvents="none">
+    <defs><filter id={id} filterUnits="userSpaceOnUse"
+      x={bounds.x-pad} y={bounds.y-pad} width={bounds.width+pad*2}
+      height={bounds.height+pad*2} colorInterpolationFilters="sRGB">
+      <feGaussianBlur stdDeviation={blur}/>
+    </filter></defs>
+    {contours.map((contour,i)=><g key={i}>
+      {contour.circle?<>
+        <circle cx={contour.circle.x} cy={contour.circle.y} r={contour.circle.radius}
+          stroke="#b9eaff" strokeWidth={lineWidth*5}
+          filter={`url(#${id})`}/>
+        <circle cx={contour.circle.x} cy={contour.circle.y} r={contour.circle.radius}
+          stroke="#ffffff" strokeWidth={lineWidth*1.5}/>
+      </>:<>
+        <path d={pathData(contour)} stroke="#b9eaff"
+          strokeWidth={lineWidth*5} filter={`url(#${id})`}/>
+        <path d={pathData(contour)} stroke="#ffffff"
+          strokeWidth={lineWidth*1.5}/>
+      </>}
+    </g>)}
+  </g>;
+});
 function localPoint(shape: Shape, p: Point): Point {
   const dx = p.x - shape.x, dy = p.y - shape.y, angle = radians(-shape.rotation);
   return { x: dx * Math.cos(angle) - dy * Math.sin(angle), y: dx * Math.sin(angle) + dy * Math.cos(angle) };
@@ -171,8 +250,16 @@ export function Preview({ scene, background, growth, motion, flow, transparent=f
         const artwork=<>
           {paint.glow && <g filter={`url(#${gradientId}-glow-${shape.id})`} opacity={paint.glowOpacity} fill={background.glowIntensity===undefined?undefined:solidFill||['circuit','branch-circuit'].includes(shape.kind)?ink:"none"}><Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} /></g>}
           <Geometry shape={shape} finalFillOpacity={finalFillOpacity} progress={growth?.[shape.id]} magic={isMagic} spin={shape.kind==='arc'?flow?.[shape.id]?.spin:undefined} />
-          {flow?.[shape.id]&&!barMotion&&<FlowGeometry shape={shape} flow={flow[shape.id]}
-            ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
+          {flow?.[shape.id]&&!barMotion&&shape.role!=='decoration'&&
+            <FlowGeometry shape={shape} flow={flow[shape.id]}
+              ink={ink} lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
+          {flow?.[shape.id]?.relayEnabled&&
+            (shape.kind==='circuit'||shape.kind==='branch-circuit')&&
+            <RelayGeometry shape={shape} flow={flow[shape.id]}
+              lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
+          {!!flow?.[shape.id]?.arrivalPulse&&shape.role!=='accent'&&
+            <ArrivalGlow shape={shape} pulse={flow[shape.id].arrivalPulse!}
+              lineWidth={shape.strokeWidth*(background.lineWidth??100)/100}/>}
         </>;
         return <g key={shape.id} data-shape-id={shape.id} data-layer={shape.layer} data-role={shape.role} data-kind={shape.kind}
           data-group={shape.group} data-parent={shape.parent} data-glow={paint.glow || undefined}

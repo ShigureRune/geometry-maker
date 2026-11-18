@@ -84,7 +84,7 @@ export function AnimationControls({settings,onChange,playback,version}:{
  <input id="figure-motion-video-seconds" type="range" min="2" max="30" step="1"
    value={settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds}
    onChange={e=>onChange({...settings,motionVideoSeconds:+e.target.value})}/>
- <HelpInfo>v4クラシック・v5の完成後、メイン図形の輪郭上を白く柔らかな光が流れます。太い棒と細い棒は従来どおり一方向に移動し、画面外でのみループします（往復なし）。別レイヤーの固定ハイライトは動かず、二重の弧の点線は回転します。一時停止・再開、動画保存に対応しています。</HelpInfo>
+ <HelpInfo>v4クラシック・v5の完成後、メイン図形の白い光が実際の接続線を伝わり、先端と接続先の図形が順番にふわっと発光します。連動の順番はシードで決まります。太い棒・細い棒はこれまでどおり同じ方向に進み、固定ハイライトと二重の弧の動きも維持。一時停止・再開、動画保存に対応しています。</HelpInfo>
  </>}
  </>}
  <div className="play-buttons"><button disabled={!settings.animationEnabled} onClick={()=>{
