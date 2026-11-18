@@ -33,3 +33,19 @@ test('filtering resets keyboard selection and empty search does not execute',asy
   await search.fill('背景');
   await expect(page.locator('.studio-command-result').first()).toHaveAttribute('aria-current','true');
 });
+
+test('keyboard navigation highlights and scrolls the selected command into view',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('button',{name:'コマンド検索'}).click();
+  const search=page.getByRole('searchbox',{name:'コマンドを検索'});
+  const items=page.locator('.studio-command-result');
+  expect(await items.count()).toBeGreaterThan(4);
+  await search.press('End');
+  await expect(items.last()).toHaveAttribute('aria-current','true');
+  await expect(items.last()).toHaveCSS('background-color','rgb(47, 50, 82)');
+  await expect.poll(()=>page.locator('.studio-command-results').evaluate(el=>el.scrollTop)).toBeGreaterThan(0);
+  await search.press('Home');
+  await expect(items.first()).toHaveAttribute('aria-current','true');
+  await expect(page.locator('.studio-command-results')).toHaveJSProperty('scrollTop',0);
+  await expect(search).toBeFocused();
+});
