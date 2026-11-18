@@ -83,6 +83,9 @@ export default function App() {
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
   const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
   const activeCategory=renderMode==='2d'?category:threeCategory;
+  // Landing on the overview avoids presenting a giant list of controls at once.
+  const [settingsOverview,setSettingsOverview]=useState(true);
+  const [showBackToTop,setShowBackToTop]=useState(false);
   const [studioFocus,setStudioFocus]=useState(saved?.focus??false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(saved?.collapsed??false);
   const [autosaveStatus,setAutosaveStatus]=useState<'pending'|'saved'|'unavailable'>('pending');
@@ -100,6 +103,12 @@ export default function App() {
     try{localStorage.setItem('geometry-studio-sidebar-width',String(sidebarWidth));}catch{}
   },[sidebarWidth]);
   useEffect(()=>{
+    const update=()=>setShowBackToTop(window.scrollY>320);
+    update();
+    window.addEventListener('scroll',update,{passive:true});
+    return()=>window.removeEventListener('scroll',update);
+  },[]);
+  useEffect(()=>{
     const handler=(event:KeyboardEvent)=>{
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
         event.preventDefault();setCommandOpen(prev=>!prev);
@@ -110,11 +119,14 @@ export default function App() {
         event.preventDefault();setCommandOpen(true);
       }else if(event.key==='Escape'&&studioFocus&&!commandOpen){
         setStudioFocus(false);
+      }else if(event.key==='Escape'&&!commandOpen&&!settingsOverview&&
+        !(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select'))){
+        setSettingsOverview(true);
       }
     };
     window.addEventListener('keydown',handler);
     return()=>window.removeEventListener('keydown',handler);
-  },[studioFocus,commandOpen]);
+  },[studioFocus,commandOpen,settingsOverview]);
   const [threeSettings,setThreeSettings]=useState<ThreeSettings>(()=>{
     if(saved)return saved.threeD.settings;
     const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -517,6 +529,7 @@ export default function App() {
     if(threeExportBusy&&next!=='export')return;
     if(next==='text'&&(renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION))return;
     (renderMode==='2d'?setCategory:setThreeCategory)(next);
+    setSettingsOverview(false);
     setStudioFocus(false);setSidebarCollapsed(false);
     // Only reposition the page on phones; desktop keeps the live preview in place.
     if(matchMedia('(max-width:720px)').matches){
@@ -524,6 +537,18 @@ export default function App() {
         block:'start',behavior:'smooth'
       }));
     }
+  }
+  function goToSettingsIndex(){
+    setSettingsOverview(true);
+    setStudioFocus(false);setSidebarCollapsed(false);
+    if(matchMedia('(max-width:720px)').matches){
+      requestAnimationFrame(()=>document.getElementById('studio-settings')?.scrollIntoView({
+        block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'
+      }));
+    }
+  }
+  function scrollToTop(){
+    window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
   }
   function chooseVisualTheme(theme:VisualTheme){
    setVisualTheme(theme);
@@ -607,17 +632,36 @@ export default function App() {
         </div>
         <div className="panel-intro"><span className="eyebrow">MAKE IT YOURS</span><h2>ひとつのシードから、<br />あなただけの幾何学を。</h2><p>文字や数字を変えて、新しい構図に出会う。</p></div>
 
-        <SettingsCategories active={activeCategory}
-          onChange={value=>{if(!threeExportBusy)(renderMode==='2d'?setCategory:setThreeCategory)(value);}}
-          disabled={threeExportBusy?categories.map(item=>item.id):
-            renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>
-        <div className="studio-sidebar-resize">
-          <label htmlFor="studio-sidebar-width">パネル幅</label>
-          <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
-            value={sidebarWidth} onChange={event=>setSidebarWidth(Number(event.target.value))}/>
-          <output htmlFor="studio-sidebar-width">{sidebarWidth}px</output>
-        </div>
-        <div id="panel-shapes" className="category-panel" data-category="shapes" role="region" aria-labelledby="category-shapes" hidden={activeCategory!=='shapes'}>
+        <div className={'settings-screen'+(settingsOverview?'':' is-detail')} aria-label="設定画面">
+          <section className="settings-screen-index" aria-label="設定一覧"
+            inert={!settingsOverview} aria-hidden={!settingsOverview}>
+            <div className="settings-index-intro">
+              <span className="eyebrow">SETTINGS HUB</span>
+              <h2>設定一覧</h2>
+              <p>右のチェックをオンにして、専用の設定画面を開きます。</p>
+            </div>
+            <SettingsCategories active={settingsOverview?null:activeCategory}
+              onChange={value=>{if(threeExportBusy)return;
+                if(value===null){goToSettingsIndex();return;}
+                goToSettings(value);}}
+              disabled={threeExportBusy?categories.map(item=>item.id):
+                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>
+            <div className="studio-sidebar-resize">
+              <label htmlFor="studio-sidebar-width">パネル幅</label>
+              <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
+                value={sidebarWidth} onChange={event=>setSidebarWidth(Number(event.target.value))}/>
+              <output htmlFor="studio-sidebar-width">{sidebarWidth}px</output>
+            </div>
+          </section>
+          <section className="settings-screen-detail" aria-label="個別設定"
+            inert={settingsOverview} aria-hidden={settingsOverview}>
+            <div className="settings-detail-toolbar">
+              <button type="button" className="settings-detail-back" onClick={goToSettingsIndex}>
+                <span aria-hidden="true">←</span> 設定一覧へ
+              </button>
+              <span className="settings-detail-current">{categories.find(item=>item.id===activeCategory)?.label??'設定'}</span>
+            </div>
+            <div id="panel-shapes" className="category-panel" data-category="shapes" role="region" aria-labelledby="category-shapes" hidden={activeCategory!=='shapes'}>
           <h2 className="category-title">図形</h2>
         <section className="control-section" aria-labelledby="seed-heading">
           <div className="section-heading"><h3 id="seed-heading"><span>01</span> シード</h3><span className="tiny-label">SEED</span></div>
@@ -826,6 +870,8 @@ export default function App() {
               floorTime:project.floorElapsedSeconds??project.elapsedSeconds}));
           }}/>}
         </div>
+          </section>
+        </div>
       </aside>
 
       <section className="preview-panel studio-preview-panel" aria-labelledby="preview-heading">
@@ -845,7 +891,7 @@ export default function App() {
           </div>
         </div>
         <div className="canvas-stage">
-          {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>setCategory('text')}>
+          {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
               {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} flow={completedFlow} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
             </div>
@@ -895,8 +941,12 @@ export default function App() {
       </section>
 
     </main>
+    <button type="button" className="studio-back-to-top" aria-label="ページの先頭に戻る"
+      title="ページの先頭に戻る" hidden={!showBackToTop} onClick={scrollToTop}>
+      <span aria-hidden="true">↑</span><small>TOP</small>
+    </button>
     <nav className="studio-mobile-dock" aria-label="モバイルクイック操作">
-      <button type="button" onClick={()=>goToSettings('shapes')}>
+      <button type="button" onClick={goToSettingsIndex}>
         <span aria-hidden="true">◈</span><small>設定</small></button>
       <button type="button" onClick={randomizeSeed} disabled={threeExportBusy}>
         <span aria-hidden="true">↻</span><small>新規</small></button>
