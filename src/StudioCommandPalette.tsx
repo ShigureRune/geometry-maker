@@ -8,6 +8,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
   const [query,setQuery]=useState('');
   const [activeIndex,setActiveIndex]=useState(0);
   const input=useRef<HTMLInputElement>(null);
+  const results=useRef<HTMLDivElement>(null);
   useEffect(()=>{
     if(!open)return;
     setQuery('');
@@ -34,6 +35,11 @@ export function StudioCommandPalette({open,onClose,commands}:{
     return !q?commands:commands.filter(item=>
       [item.title,item.description,item.keywords??''].some(v=>v.toLocaleLowerCase().includes(q)));
   },[commands,query]);
+  useEffect(()=>{
+    if(!open||!filtered.length)return;
+    const index=Math.min(activeIndex,filtered.length-1);
+    (results.current?.children.item(index) as HTMLElement|null)?.scrollIntoView({block:'nearest'});
+  },[open,filtered,activeIndex]);
   if(!open)return null;
   const execute=(command:StudioCommand)=>{command.run();onClose();};
   const selectedIndex=Math.min(activeIndex,Math.max(0,filtered.length-1));
@@ -57,11 +63,14 @@ export function StudioCommandPalette({open,onClose,commands}:{
           if(event.key==='ArrowDown'||event.key==='ArrowUp'){
             event.preventDefault();
             if(filtered.length)setActiveIndex(index=>(index+(event.key==='ArrowDown'?1:-1)+filtered.length)%filtered.length);
+          }else if(event.key==='Home'||event.key==='End'){
+            event.preventDefault();
+            if(filtered.length)setActiveIndex(event.key==='Home'?0:filtered.length-1);
           }else if(event.key==='Enter'&&filtered[selectedIndex]){
             event.preventDefault();execute(filtered[selectedIndex]);
           }
         }}/>
-      <div id="studio-command-results" className="studio-command-results" role="list">
+      <div ref={results} id="studio-command-results" className="studio-command-results" role="list">
         {filtered.length?filtered.map(command=><button type="button" key={command.id}
           role="listitem" id={`studio-command-option-${command.id}`}
           aria-current={selectedIndex===filtered.indexOf(command)?'true':undefined}
@@ -73,7 +82,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
           {command.shortcut&&<kbd>{command.shortcut}</kbd>}
         </button>):<p className="studio-command-empty">一致する操作がありません。別のキーワードを試してみてね。</p>}
       </div>
-      <div className="studio-command-footer"><span>↑↓ で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
+      <div className="studio-command-footer"><span>↑↓・Home/End で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
     </section>
   </div>;
 }
