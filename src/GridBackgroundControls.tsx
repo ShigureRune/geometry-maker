@@ -1,5 +1,5 @@
 import {HelpInfo} from './HelpInfo';
-import {gridAnimationDefaults,type GridAnimationSettings,type GridBackgroundSettings} from './grid-background';
+import {GRID_BACKGROUND_PRESETS,gridPresetSettings,gridAnimationDefaults,type GridAnimationSettings,type GridBackgroundSettings} from './grid-background';
 
 export function GridBackgroundControls({value,onChange}:{value:GridBackgroundSettings;onChange:(value:GridBackgroundSettings)=>void}) {
   const update=(patch:Partial<GridBackgroundSettings>)=>onChange({...value,...patch});
@@ -10,6 +10,12 @@ export function GridBackgroundControls({value,onChange}:{value:GridBackgroundSet
     <input id={id} type="range" min={min} max={max} step={step} value={value[key]} onChange={event=>update({[key]:Number(event.target.value)})}/></>;
   return <section className="control-section grid-background-controls" aria-labelledby="grid-background-heading">
     <h3 id="grid-background-heading">2Dグリッド背景</h3>
+    <p className="help">好みの見た目からすぐ始められるクイックプリセットです。</p>
+    <div className="grid-background-presets" role="group" aria-label="グリッドのクイックプリセット">
+      {GRID_BACKGROUND_PRESETS.map(preset=>
+        <button type="button" key={preset.id} onClick={()=>onChange(gridPresetSettings(preset.id))}
+          aria-label={preset.label+'プリセットを適用'}>{preset.label}</button>)}
+    </div>
     <label className="glow-toggle"><input type="checkbox" checked={value.enabled}
       onChange={event=>update({enabled:event.target.checked})}/> グリッド背景を有効化</label>
     {value.enabled&&<>
