@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {readFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -14,7 +15,7 @@ function fixture(seed='cosmic-web-01'):ThreeProject{return {
     entrance:{...threeDefaults.entrance!,enabled:false},voidMode:{...voidWebDefaults,enabled:true,objectLimit:1400}},
   elapsedSeconds:24,floorElapsedSeconds:24,exportWidth:640,exportHeight:360,
 };}
-async function category(page:Page,name:string){const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});if(await button.getAttribute('aria-expanded')!=='true')await button.click();}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 function errorsOn(page:Page){const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error'&&/WebGLProgram|Shader Error|GLSL|VALIDATE_STATUS/.test(m.text()))errors.push(m.text());});return errors;}
 async function restore(page:Page,project:ThreeProject){
   await category(page,'書き出し');const old=await page.getByTestId('three-preview').locator('canvas').elementHandle();
