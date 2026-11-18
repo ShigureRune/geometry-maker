@@ -6,11 +6,14 @@ describe('studio reset safety',()=>{
   it('only clears the owned draft and UI keys',()=>{
     expect(STUDIO_RESET_KEYS).toEqual([
       STUDIO_AUTOSAVE_KEY,'geometry-ui-theme','geometry-studio-sidebar-width',
+      'geometry-studio-command-favorites','geometry-studio-command-recents',
     ]);
     const values=new Map<string,string>([
       [STUDIO_AUTOSAVE_KEY,'draft'],
       ['geometry-ui-theme','light'],
       ['geometry-studio-sidebar-width','480'],
+      ['geometry-studio-command-favorites','["seed"]'],
+      ['geometry-studio-command-recents','["open-background"]'],
       ['unrelated-project','must survive'],
     ]);
     clearStudioPreferences({removeItem:key=>{values.delete(key);}});
