@@ -61,5 +61,5 @@ test('command search announces result counts to assistive technology',async({pag
   await search.fill('絶対に存在しないコマンド');
   await expect(status).toHaveText('0 件のコマンドが見つかりました');
   await search.fill('背景');
-  await expect(status).toHaveText(/^[1-9]\\d* 件のコマンドが見つかりました$/);
+  await expect(status).toHaveText(/^[1-9]\d* 件のコマンドが見つかりました$/);
 });
