@@ -30,6 +30,15 @@ describe('portable, versioned settings', () => {
   expect(()=>parseSettings(JSON.stringify({...valid,visualTheme:123}))).toThrow();
  });
  it('round trips animation settings with legacy compatibility',()=>{const a={...valid,animationEnabled:true,animationDuration:12,playbackSpeed:2,easingType:'ease-out-in' as const};expect(parseSettings(settingsText(a))).toEqual(a);expect(parseSettings(settingsText(valid)).animationEnabled).toBeUndefined();expect(()=>parseSettings(JSON.stringify({...a,animationDuration:31}))).toThrow();});
+ it('round-trips preset selection and rejects unknown values without changing legacy JSON',()=>{
+  for(const motionPreset of ['standard','gentle','dynamic'] as const){
+   const saved={...valid,animationEnabled:true,motionPreset};
+   expect(parseSettings(settingsText(saved))).toMatchObject({motionPreset});
+  }
+  expect(parseSettings(settingsText(valid)).motionPreset).toBeUndefined();
+  for(const motionPreset of [null,2,'false','unknown'])
+   expect(()=>parseSettings(JSON.stringify({...valid,motionPreset}))).toThrow();
+ });
  it('saves v4/v5 post-growth motion and rejects malformed control settings',()=>{
    const controls={...valid,algorithmVersion:'2d-v4',animationEnabled:true,
      animationDuration:6,playbackSpeed:1,easingType:'ease-in-out' as const,
