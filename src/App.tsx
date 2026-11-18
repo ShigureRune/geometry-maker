@@ -844,19 +844,30 @@ export default function App() {
         </div>
         <div id="panel-decoration" className="category-panel" data-category="decoration" role="region" aria-labelledby="category-decoration" hidden={activeCategory!=='decoration'}>
           <h2 className="category-title">装飾</h2>
-        <section className="control-section">
+        {renderMode==='2d'&&<section className="control-section">
           <label className="glow-toggle"><input type="checkbox" checked={(background.glowIntensity??0)>0} onChange={e=>{if(e.target.checked)setBackground({...background,glowIntensity:lastGlow.current||100});else{lastGlow.current=background.glowIntensity||100;setBackground({...background,glowIntensity:0});}}}/> 発光を有効化</label>
           <div hidden={renderMode==='3d'}><label className="range-label" htmlFor="line-width">線の太さ <output>{background.lineWidth ?? 125}%</output></label>
           <input id="line-width" type="range" min="50" max="300" step="5" value={background.lineWidth ?? 125} onChange={e=>setBackground({...background,lineWidth:+e.target.value})}/></div>
           <label className="range-label" htmlFor="glow-intensity">発光強度 <output>{background.glowIntensity??0}%</output></label>
           <input id="glow-intensity" type="range" min="0" max="200" step="5" value={background.glowIntensity??0} onChange={e=>setBackground({...background,glowIntensity:+e.target.value})}/>
           <HelpInfo>0%は発光なし。主役を強め、補助・装飾は控えめに光らせます。</HelpInfo>
-        </section>
-        {renderMode==='3d'&&<><ThreeStyleControls settings={voidRenderSettings(threeSettings)} fixedTopology={voidEnabled} onChange={next=>{
+        </section>}
+        {renderMode==='3d'&&<FineSections id="decoration" enabled={finePreview} items={[
+{id:'glow',label:'発光と線の太さ',detail:'発光のON/OFFと強度',content:<section className="control-section">
+          <label className="glow-toggle"><input type="checkbox" checked={(background.glowIntensity??0)>0} onChange={e=>{if(e.target.checked)setBackground({...background,glowIntensity:lastGlow.current||100});else{lastGlow.current=background.glowIntensity||100;setBackground({...background,glowIntensity:0});}}}/> 発光を有効化</label>
+          <div hidden={renderMode==='3d'}><label className="range-label" htmlFor="line-width">線の太さ <output>{background.lineWidth ?? 125}%</output></label>
+          <input id="line-width" type="range" min="50" max="300" step="5" value={background.lineWidth ?? 125} onChange={e=>setBackground({...background,lineWidth:+e.target.value})}/></div>
+          <label className="range-label" htmlFor="glow-intensity">発光強度 <output>{background.glowIntensity??0}%</output></label>
+          <input id="glow-intensity" type="range" min="0" max="200" step="5" value={background.glowIntensity??0} onChange={e=>setBackground({...background,glowIntensity:+e.target.value})}/>
+          <HelpInfo>0%は発光なし。主役を強め、補助・装飾は控えめに光らせます。</HelpInfo>
+        </section>},
+{id:'network',label:'光る線とつながり',detail:'接続線・ネオン輪郭',content:<ThreeStyleControls settings={voidRenderSettings(threeSettings)} fixedTopology={voidEnabled} onChange={next=>{
           if(!voidEnabled){setThreeSettings(next);return;}
           setThreeSettings(current=>({...current,voidMode:{...(current.voidMode??voidDefaults),
             network:{...next.network!,mode:'neural'},neon:next.neon!}}));
-        }}/><ThreeMaterialControls settings={threeSettings} onChange={setThreeSettings}/></>}
+        }}/>},
+{id:'material',label:'質感と光',detail:'素材・金属感・ライト',content:<ThreeMaterialControls settings={threeSettings} onChange={setThreeSettings}/>}
+]}/>}
         </div>
         <div id="panel-animation" className="category-panel" data-category="animation" role="region" aria-labelledby="category-animation" hidden={activeCategory!=='animation'}>
           <h2 className="category-title">アニメーション</h2>
