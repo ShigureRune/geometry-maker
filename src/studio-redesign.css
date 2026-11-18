@@ -1100,3 +1100,76 @@
   .studio-app .settings-screen-detail,
   .studio-app .settings-index-option{transition:none!important}
 }
+
+
+/* Fine-grained 3D inspector prototype. Opt-in at ?fine-preview=1.
+   Keep the original enable/disable checkboxes inside the actual detail panels. */
+.studio-app .fine-settings-overview{
+  display:grid;gap:11px;margin:12px 0 16px;min-width:0;
+}
+.studio-app .fine-settings-caption{
+  margin:0 0 4px;color:var(--st-muted);font-size:12px;line-height:1.6;
+}
+.studio-app .fine-settings-choice{
+  display:flex;align-items:center;gap:12px;cursor:pointer;min-width:0;
+  padding:15px 13px;border:1px solid var(--st-stroke);border-radius:13px;
+  background:linear-gradient(115deg,#242d41,#1b2636);
+}
+.studio-app .fine-settings-choice:focus-within{
+  outline:2px solid #b59bff;outline-offset:2px;
+}
+.studio-app .fine-settings-choice-copy{
+  flex:1;min-width:0;display:grid;gap:5px;overflow-wrap:anywhere;
+}
+.studio-app .fine-settings-choice-copy strong{font-size:12px;color:#e9eaf7}
+.studio-app .fine-settings-choice-copy small{font-size:11px;color:#adb9d4}
+.studio-app .fine-settings-choice input[type="checkbox"]{
+  width:24px;height:24px;min-width:24px;margin:0;cursor:pointer;
+}
+.studio-app .fine-settings-back{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:0 0 13px;margin-bottom:14px;border-bottom:1px solid var(--st-stroke);
+}
+.studio-app .fine-settings-back button{
+  min-height:44px;padding:10px 13px;border-radius:10px;
+  background:#302b49;color:#f3ebff;border:1px solid #9981d3;
+}
+.studio-app .fine-settings-back span{
+  font-size:10px;color:var(--st-muted);overflow-wrap:anywhere;
+}
+.studio-app .fine-settings-overview[hidden],
+.studio-app .fine-settings-back[hidden]{display:none!important}
+.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open)
+  > [data-testid="particle-mode-controls"],
+.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open)
+  > [data-testid="galaxy-mode-controls"]{display:none!important}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
+  > :not(.fine-settings-back):not([data-testid="particle-mode-controls"]):not([data-testid="galaxy-mode-controls"]){
+    display:none!important;
+}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="particle"]
+  > [data-testid="galaxy-mode-controls"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
+  > [data-testid="particle-mode-controls"]{display:none!important}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
+  > :is([data-testid="particle-mode-controls"],[data-testid="galaxy-mode-controls"]){
+  animation:fine-detail-enter .3s cubic-bezier(.22,1,.36,1);
+}
+@keyframes fine-detail-enter{
+  from{transform:translateX(28px);opacity:.2}
+  to{transform:translateX(0);opacity:1}
+}
+[data-theme=light] .studio-app .fine-settings-choice{
+  background:linear-gradient(115deg,#fff,#f2f1fc);border-color:#c6cce0;
+}
+[data-theme=light] .studio-app .fine-settings-choice-copy strong{color:#36415e}
+[data-theme=light] .studio-app .fine-settings-choice-copy small{color:#56657e}
+[data-theme=light] .studio-app .fine-settings-back button{
+  background:#eee7f9;color:#523777;border-color:#bcaada;
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
+    > :is([data-testid="particle-mode-controls"],[data-testid="galaxy-mode-controls"]){
+    animation:none;
+  }
+}
