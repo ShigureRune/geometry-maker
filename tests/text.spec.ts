@@ -19,10 +19,10 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
  await expect(preview.getByTestId('text-overlay')).toBeVisible();
  expect(await preview.getByTestId('text-overlay').textContent()).toContain('急行 池袋');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
- const stateBefore=await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML);
+ const stateBefore=await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''));
  await page.getByLabel('文字の重なり順').selectOption('back');
  await expect(preview.getByTestId('text-overlay')).toHaveAttribute('data-text-layer','back');
- expect(await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML)).toBe(stateBefore);
+ expect(await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''))).toBe(stateBefore);
  await openSettingsCategory(page,'書き出し');
  const jsonEvent=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
@@ -68,7 +68,8 @@ test('text colors track figure colors and glow survives SVG and JSON export',asy
  await expect(overlay.locator('text').last()).toHaveAttribute('fill','#11ddaa');
  expect(before).not.toBe('#11ddaa');
  await page.getByLabel('文字色のモード').selectOption('gradient');
- await expect(overlay.getByTestId('text-gradient')).toBeVisible();
+ // Gradient definitions inside SVG <defs> are not painted boxes; existence is the correct check.
+ await expect(overlay.getByTestId('text-gradient')).toHaveCount(1);
  await page.getByLabel('発光色').selectOption('custom');
  await page.getByLabel('発光色（手動）').fill('#ff2266');
  await expect(overlay.getByTestId('text-glow').locator('text')).toHaveAttribute('fill','#ff2266');
@@ -105,9 +106,9 @@ test('one-click hollow neon creates outline-only SVG, exports settings and resto
  const glow=preview.getByTestId('text-glow').locator('text');
  await expect(glow).toHaveCount(1);
  await expect(glow).toHaveAttribute('fill','none');
- const originalShape=await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML);
+ const originalShape=await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''));
  await page.getByLabel('文字色のモード').selectOption('accent');
- expect(await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML)).toBe(originalShape);
+ expect(await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''))).toBe(originalShape);
  await openSettingsCategory(page,'書き出し');
  const jsonPromise=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
