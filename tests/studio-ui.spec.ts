@@ -185,7 +185,7 @@ test('Studio command search supports slash, multi-term matching and five-item pa
   await seed.focus();
   await seed.press('/');
   await expect(page.getByRole('dialog',{name:'クイックコマンド'})).toHaveCount(0);
-  await seed.blur();
+  await seed.evaluate(element=>(element as HTMLElement).blur());
   await page.keyboard.press('/');
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   await expect(search).toBeFocused();
