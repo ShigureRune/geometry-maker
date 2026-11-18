@@ -1185,3 +1185,30 @@
     animation:none;
   }
 }
+
+
+/* Main categories stay as conventional tabs in the fine-settings prototype. */
+.studio-app .studio-controls .category-navigation.settings-tabs-navigation{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
+  margin:0 0 16px;padding:0;position:static;top:auto;overflow:visible;
+  background:transparent;scroll-snap-type:none;
+}
+.studio-app .studio-controls .settings-tabs-navigation button{
+  display:block;min-width:0;min-height:40px;padding:8px 7px;
+  font-size:12px;font-weight:650;text-align:center;
+  border:1px solid var(--st-stroke);border-radius:10px;
+  color:#d7ddec;background:#20293b;overflow-wrap:anywhere;
+}
+.studio-app .studio-controls .settings-tabs-navigation button[aria-pressed="true"]{
+  background:#353051;border-color:#c2acff;color:#f6f0ff;
+}
+.studio-app .studio-controls .settings-tabs-navigation button:focus-visible{
+  outline:2px solid #cbb7ff;outline-offset:2px;
+}
+.studio-app .settings-detail-toolbar[hidden]{display:none!important}
+[data-theme=light] .studio-app .studio-controls .settings-tabs-navigation button{
+  color:#34405b;background:#f3f2fa;border-color:#c6cce0;
+}
+[data-theme=light] .studio-app .studio-controls .settings-tabs-navigation button[aria-pressed="true"]{
+  color:#50357a;background:#e5daf7;border-color:#8f71c5;
+}
