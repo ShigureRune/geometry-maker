@@ -948,3 +948,125 @@
 [data-theme=light] .seed-explorer-caption,
 [data-theme=light] .seed-explorer-card>code{color:#545d75}
 @media(prefers-reduced-motion:reduce){.seed-explorer-dialog button{transition:none}}
+
+
+/* Studio UI 2.2 — checkbox-based settings menu and slide-in detail screens */
+@keyframes studio-settings-open {
+  from { opacity:.45; transform:translateX(34px); }
+  to { opacity:1; transform:translateX(0); }
+}
+@keyframes studio-settings-return {
+  from { opacity:.45; transform:translateX(-34px); }
+  to { opacity:1; transform:translateX(0); }
+}
+.studio-app .panel-intro[hidden],
+.studio-app .studio-sidebar-resize[hidden],
+.studio-app .category-panel[hidden] { display:none!important; }
+.studio-app .category-navigation {
+  position:relative; top:auto; z-index:2; display:grid;
+  grid-template-columns:minmax(0,1fr); gap:9px;
+  overflow:visible; margin:0 0 10px; padding:12px 0 16px;
+  background:transparent; scroll-snap-type:none;
+  animation:studio-settings-return .27s ease-out both;
+}
+.studio-app .settings-menu-heading {
+  display:flex; flex-direction:column; gap:4px; margin:0 2px 4px;
+}
+.studio-app .settings-menu-heading strong { font-size:16px; color:var(--st-text); }
+.studio-app .settings-menu-heading span {
+  font-size:11px; line-height:1.6; color:var(--st-muted);
+}
+.studio-app .category-navigation .settings-menu-item {
+  display:flex; align-items:center; gap:12px; cursor:pointer;
+  width:100%; min-height:62px; padding:12px 15px;
+  border:1px solid var(--st-stroke); border-radius:12px;
+  color:var(--st-text); background:#202839;
+  font-size:13px; font-weight:650; line-height:1.35;
+  box-shadow:0 3px 12px #0001; scroll-snap-align:none;
+  transition:background .18s ease,border-color .18s ease;
+}
+.studio-app .category-navigation .settings-menu-item:hover {
+  background:#2a3348; border-color:#887cbe;
+}
+.studio-app .category-navigation .settings-menu-item:has(input:focus-visible) {
+  outline:2px solid #b4a2ff; outline-offset:2px;
+}
+.studio-app .category-navigation .settings-menu-item:has(input:disabled) {
+  opacity:.45; cursor:not-allowed;
+}
+.studio-app .category-navigation .settings-menu-item svg {
+  width:23px; height:23px; flex:none; color:#bdabf4;
+}
+.studio-app .settings-menu-item-label { flex:1; min-width:0; }
+.studio-app .settings-menu-item input[type=checkbox],
+.studio-app .settings-detail-current input[type=checkbox] {
+  flex:0 0 21px; width:21px; height:21px;
+  margin:0 0 0 auto; cursor:pointer; accent-color:#9980e4;
+}
+.studio-app .settings-menu-item input:disabled { cursor:not-allowed; }
+.studio-app .settings-detail-navigation {
+  position:sticky; top:76px; z-index:6;
+  display:grid; gap:10px; margin:0 0 14px; padding:12px 0;
+  background:#151b29ef; backdrop-filter:blur(12px);
+  animation:studio-settings-open .27s ease-out both;
+}
+.studio-app .settings-detail-back {
+  display:flex; align-items:center; gap:9px; width:max-content;
+  min-height:36px; padding:6px 10px; border-radius:9px;
+  border:1px solid var(--st-stroke); color:#d6caf8; background:#26263a;
+  font-size:12px; font-weight:650; cursor:pointer;
+}
+.studio-app .settings-detail-back span { font-size:19px; line-height:1; }
+.studio-app .settings-detail-back:hover { border-color:#ae9ae5; }
+.studio-app .settings-detail-current {
+  display:flex; align-items:center; gap:14px; min-height:52px;
+  padding:10px 14px; border:1px solid #8171be; border-radius:11px;
+  background:#302b49; color:#f5f0ff; cursor:pointer;
+}
+.studio-app .settings-detail-current strong { font-size:15px; }
+.studio-app .category-panel:not([hidden]) {
+  animation:studio-settings-open .29s cubic-bezier(.2,.7,.1,1) both;
+}
+.studio-app .studio-scroll-top {
+  position:fixed; right:22px; bottom:23px; z-index:27;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:0; width:51px; height:51px; padding:5px;
+  border:1px solid #ac96ee; border-radius:14px;
+  background:#342854ee; color:#fff; box-shadow:0 6px 22px #0006;
+  cursor:pointer; backdrop-filter:blur(9px);
+}
+.studio-app .studio-scroll-top>span:first-child { font-size:23px; line-height:1.1; }
+.studio-app .studio-scroll-top>span:last-child { font-size:9px; letter-spacing:.12em; }
+.studio-app .studio-scroll-top:hover { background:#4e3b79; }
+.studio-app .studio-scroll-top:focus-visible { outline:3px solid #b6a8ff; outline-offset:2px; }
+[data-theme=light] .studio-app .category-navigation { background:transparent; }
+[data-theme=light] .studio-app .category-navigation .settings-menu-item {
+  background:#fff; color:#3c445d; border-color:#c6cde0;
+}
+[data-theme=light] .studio-app .category-navigation .settings-menu-item:hover {
+  background:#f3edff; border-color:#9176c2;
+}
+[data-theme=light] .studio-app .settings-detail-navigation { background:#f7f8f9ee; }
+[data-theme=light] .studio-app .settings-detail-current {
+  background:#e9e0fa; color:#48346a; border-color:#a38ac9;
+}
+[data-theme=light] .studio-app .settings-detail-back {
+  background:#fff; color:#564079; border-color:#b9aacd;
+}
+@media(max-width:720px) {
+  .studio-app .category-navigation {
+    position:relative; top:auto; display:grid;
+    grid-template-columns:minmax(0,1fr); overflow:visible;
+    margin:0 0 10px; padding:12px 0 16px; background:transparent;
+    scroll-snap-type:none;
+  }
+  .studio-app .category-navigation .settings-menu-item {
+    flex-direction:row; justify-content:flex-start;
+    width:100%; min-height:58px; padding:11px 15px; font-size:13px;
+  }
+  .studio-app .settings-detail-navigation { top:0; }
+  .studio-app .studio-scroll-top {
+    right:14px; bottom:calc(99px + env(safe-area-inset-bottom,0px));
+    width:46px; height:46px; border-radius:12px;
+  }
+}
