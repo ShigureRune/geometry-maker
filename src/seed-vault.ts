@@ -40,7 +40,7 @@ export function parseSeedVault(value:unknown):SeedVault{
   if(!record(value)||value.version!==1||!Array.isArray(value.history)||
     value.history.length>SEED_HISTORY_LIMIT||
     !value.history.every(isUsableSeed)||
-    !Number.isInteger(value.cursor)||
+    (typeof value.cursor!=='number'||!Number.isInteger(value.cursor))||
     value.cursor< (value.history.length?0:-1)||
     value.cursor>=value.history.length)
     throw new Error('シード保管庫の履歴が不正です。');
