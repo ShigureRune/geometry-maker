@@ -78,3 +78,20 @@ test('corrupt or unsupported local drafts are ignored rather than crashing start
   },STUDIO_AUTOSAVE_KEY)).toBe(1);
   expect(errors).toEqual([]);
 });
+
+test('selected 2D motion preset survives local autosave and reload',async({page})=>{
+ await page.goto('./');
+ await page.getByRole('navigation',{name:'設定カテゴリー'})
+   .getByRole('button',{name:'アニメーション',exact:true}).click();
+ const control=page.getByLabel('アニメーションプリセット');
+ await expect(control).toHaveValue('standard');
+ await control.selectOption('dynamic');
+ await expect.poll(async()=>page.evaluate(()=>{
+   try{return JSON.parse(localStorage.getItem('geometry-maker-studio-autosave-v1')??'null')?.twoD?.motionPreset??null;}
+   catch{return null;}
+ })).toBe('dynamic');
+ await page.reload();
+ await page.getByRole('navigation',{name:'設定カテゴリー'})
+   .getByRole('button',{name:'アニメーション',exact:true}).click();
+ await expect(page.getByLabel('アニメーションプリセット')).toHaveValue('dynamic');
+});
