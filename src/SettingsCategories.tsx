@@ -7,7 +7,36 @@ export const categories = [
   {id:'animation',label:'アニメーション',icon:'M8 3 21 12 8 21Z M3 4V20'},
   {id:'export',label:'書き出し',icon:'M12 2V16 M6 10 12 16 18 10 M3 16V22H21V16'},
 ] as const;
+
 export type Category=typeof categories[number]['id'];
+
 export function SettingsCategories({active,onChange,disabled=[]}:{active:Category|null;onChange:(value:Category|null)=>void;disabled?:readonly Category[]}){
- return <nav className="category-navigation" aria-label="設定カテゴリー">{categories.map(item=><button type="button" key={item.id} id={`category-${item.id}`} disabled={disabled.includes(item.id)} title={disabled.includes(item.id)?'文字編集は2Dモードで利用できます':undefined} aria-expanded={active===item.id} aria-controls={`panel-${item.id}`} onClick={()=>onChange(active===item.id?null:item.id)}><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>{item.label}</button>)}</nav>;
+  const current=categories.find(item=>item.id===active);
+  if(current)return <div className="settings-detail-navigation" key={current.id}>
+    <button type="button" className="settings-detail-back" onClick={()=>onChange(null)} aria-label="設定一覧に戻る">
+      <span aria-hidden="true">←</span> 設定一覧に戻る
+    </button>
+    <label className="settings-detail-current" htmlFor="settings-current-toggle">
+      <strong id={`category-${current.id}`}>{current.label}の設定</strong>
+      <input id="settings-current-toggle" type="checkbox" checked
+        aria-label={`${current.label}の設定画面を閉じる`} onChange={()=>onChange(null)}/>
+    </label>
+  </div>;
+
+  return <nav className="category-navigation" aria-label="設定カテゴリー">
+    <div className="settings-menu-heading"><strong>設定一覧</strong><span>項目を選ぶと専用の設定画面が開きます</span></div>
+    {categories.map(item=><label key={item.id} id={`category-${item.id}`}
+      className="settings-menu-item" htmlFor={`settings-option-${item.id}`}
+      title={disabled.includes(item.id)?'このモードでは利用できません':undefined}>
+      <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d={item.icon}/>
+      </svg>
+      <span className="settings-menu-item-label">{item.label}</span>
+      <input id={`settings-option-${item.id}`} type="checkbox" checked={false}
+        disabled={disabled.includes(item.id)} aria-controls={`panel-${item.id}`}
+        aria-label={`${item.label}の設定画面を開く`}
+        onChange={event=>{if(event.target.checked)onChange(item.id);}}/>
+    </label>)}
+  </nav>;
 }

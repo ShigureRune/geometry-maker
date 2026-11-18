@@ -4,6 +4,7 @@ import {readFile} from 'node:fs/promises';
 test('seed history is committed, navigable, branched, and persists after reload',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await page.getByRole('checkbox',{name:'図形の設定画面を開く'}).check();
   const seed=page.getByLabel('シード値',{exact:true});
   const original=await seed.inputValue();
   await seed.fill('first-vault-seed');
@@ -42,6 +43,7 @@ test('seed history is committed, navigable, branched, and persists after reload'
 
 test('bookmarks can be named, searched, recalled, renamed and deleted',async({page})=>{
   await page.goto('./');
+  await page.getByRole('checkbox',{name:'図形の設定画面を開く'}).check();
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('star-vault-seed');await seed.press('Enter');
   await page.getByLabel('お気に入りの名前').fill('星空');
@@ -65,6 +67,7 @@ test('bookmarks can be named, searched, recalled, renamed and deleted',async({pa
 
 test('named seed collections round-trip JSON without replacing the active project',async({page})=>{
   await page.goto('./');
+  await page.getByRole('checkbox',{name:'図形の設定画面を開く'}).check();
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('json-library-seed');await seed.press('Enter');
   await page.getByLabel('お気に入りの名前').fill('一覧用');
@@ -95,6 +98,7 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
     }});
   });
   await page.goto('./?seed=shared%20seed%20%2F%2042');
+  await page.getByRole('checkbox',{name:'図形の設定画面を開く'}).check();
   const seed=page.getByLabel('シード値',{exact:true});
   await expect(seed).toHaveValue('shared seed / 42');
   await expect.poll(()=>page.url()).not.toContain('?seed=');
