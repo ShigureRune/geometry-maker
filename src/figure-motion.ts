@@ -8,6 +8,15 @@ export const isMovingBar=(shape:Shape):boolean=>
   shape.role!=='accent' &&
   (shape.kind==='band'||shape.kind==='line'||shape.kind==='rectangle');
 
+/** Spin only self-contained figures; connectors, sliding bars and fixed
+ * accent marks must retain their original world-space positions. */
+const ROTOR_KINDS:ReadonlySet<Shape['kind']>=new Set([
+  'frame','arc','triangle','diamond','circle','gear','hexagon','pentagon',
+  'octagon','star','concentric','shield','compound','sector','crescent','linked',
+]);
+export const isCoupledRotor=(shape:Shape):boolean=>
+  (shape.role==='hero'||shape.role==='support')&&ROTOR_KINDS.has(shape.kind);
+
 /** A real parent/child connection: energy is emitted at the hero-side start,
  * travels down the authored circuit, then illuminates the terminal and its
  * actual child figure. Every route has a deterministic seeded timing phase. */
@@ -17,13 +26,13 @@ export type EnergyRelay={
 export type FigureMotionPlan={
   id:string;phase:number;frequency:number;tailLength:number;headLength:number;
   intensity:number;
-  spinSpeed:number;
+  spinSpeed:number;coupledSpinSpeed?:number;
   barSpeed:number;barExit:number;barEntry:number;barDirectionX:number;barDirectionY:number;
   relay?:EnergyRelay;arrival?:EnergyRelay;
 };
 export type FigureFlowState={
   offset:number;tailLength:number;headLength:number;opacity:number;
-  spin:number;
+  spin:number;coupledSpin?:number;
   barShift:number;barDx:number;barDy:number;
   relayEnabled?:boolean;relayProgress?:number;relaySource?:number;relayArrival?:number;arrivalPulse?:number;
 };
@@ -51,6 +60,24 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
   const dx=Math.cos(angle),dy=Math.sin(angle);
   const barSpeed=Math.min(scene.width,scene.height)*(scene.version==='2d-v4'?.11:.09);
   const padding=Math.min(scene.width,scene.height)*.09;
+  // Every connected rotor inherits the SAME seeded hero drive. The orbiting
+  // children turn in the opposite direction, scaled by their size like gears.
+  // Walk real parent links (including fixed circuits), never guessed proximity.
+  const byId=new Map(scene.shapes.map(shape=>[shape.id,shape]));
+  const heroDrives=new Map(scene.shapes.filter(shape=>shape.role==='hero').map(hero=>{
+    const random=seededRandom('2d-coupled-rotation:'+seed+':'+hero.id);
+    return [hero.id,(random()<.5?-1:1)*(8+random()*7)] as const;
+  }));
+  const connectedHero=(shape:Shape):Shape|undefined=>{
+    const visited=new Set<string>();
+    let current:Shape|undefined=shape;
+    while(current&&!visited.has(current.id)){
+      if(current.role==='hero')return current;
+      visited.add(current.id);
+      current=current.parent?byId.get(current.parent):undefined;
+    }
+    return undefined;
+  };
   // Use ONLY the scene's real parent relationships. No imaginary connecting
   // segments and no mutation of the generated art. Cap each hero's routes so
   // dense v5 scenes do not add dozens of animated filters.
@@ -84,6 +111,10 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       return [];
     const random=seededRandom('finished-2d-flow:'+seed+':'+shape.id);
     const classic=scene.version==='2d-v4';
+    const hero=isCoupledRotor(shape)?connectedHero(shape):undefined;
+    const drive=hero===undefined?undefined:heroDrives.get(hero.id);
+    const coupledSpinSpeed=drive===undefined?undefined:hero!.id===shape.id?drive:
+      -drive*Math.min(2.4,Math.max(.75,hero!.size/Math.max(1,shape.size)));
     const role=shape.role==='hero'?1:shape.role==='support'?.85:.72;
     const bounds=bar?shapeBounds(shape):undefined;
     return [{
@@ -94,6 +125,7 @@ export function createFigureMotionPlan(scene:Scene,seed:string):FigureMotionPlan
       headLength:.035+random()*.025,
       intensity:role,
       spinSpeed:(classic?17:12)*(0.75+random()*.5)*(random()>.5?1:-1),
+      ...(coupledSpinSpeed===undefined?{}:{coupledSpinSpeed}),
       barSpeed:bar?barSpeed:0,
       barExit:bounds?outOfViewDistance(bounds,scene.width,scene.height,dx,dy,padding):0,
       barEntry:bounds?outOfViewDistance(bounds,scene.width,scene.height,-dx,-dy,padding):0,
@@ -143,6 +175,9 @@ export function figureFlowAt(
       headLength:rounded(item.headLength),
       opacity:rounded(Math.min(1,intensity*fade*item.intensity)),
       spin:rounded((elapsed*item.spinSpeed)%360),
+      ...(item.coupledSpinSpeed===undefined?{}:{
+        coupledSpin:rounded((elapsed*item.coupledSpinSpeed)%360),
+      }),
       barShift:rounded(shift),
       barDx:rounded(shift*item.barDirectionX),
       barDy:rounded(shift*item.barDirectionY),
