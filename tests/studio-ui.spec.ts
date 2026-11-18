@@ -1,9 +1,18 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,type Page} from '@playwright/test';
+
+async function openCategory(page:Page,name:string){
+  if((await page.locator('.settings-screen').getAttribute('class'))?.includes('is-detail')){
+    if((await page.locator('.settings-detail-current').textContent())===name)return;
+    await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
+  }
+  await page.getByRole('checkbox',{name:name+'の設定を開く'}).check();
+}
 
 test('Studio v2 desktop quick tuning, command search, inspector, focus, and theme',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openCategory(page,'図形');
   await expect(page.locator('.studio-app')).toBeVisible();
   await expect(page.locator('.studio-controls')).toBeVisible();
   await expect(page.getByRole('navigation',{name:'モバイルクイック操作'})).toBeHidden();
@@ -17,8 +26,7 @@ test('Studio v2 desktop quick tuning, command search, inspector, focus, and them
   await page.getByRole('searchbox',{name:'コマンドを検索'}).fill('背景');
   await page.getByText('背景の設定を開く',{exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'背景',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.settings-detail-current')).toHaveText('背景');
 
   await page.getByRole('button',{name:'設定パネルの表示切り替え'}).click();
   await expect(page.locator('.studio-app')).toHaveClass(/studio-sidebar-collapsed/);
@@ -51,6 +59,7 @@ test('Studio v2 mobile action dock and command navigation do not overflow',async
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openCategory(page,'図形');
   const dock=page.getByRole('navigation',{name:'モバイルクイック操作'});
   await expect(dock).toBeVisible();
   await expect(page.locator('.studio-preview-panel')).toBeVisible();
@@ -59,8 +68,7 @@ test('Studio v2 mobile action dock and command navigation do not overflow',async
   await expect(page.getByTestId('current-seed')).not.toHaveText(original!);
 
   await dock.getByRole('button',{name:'保存'}).click();
-  await expect(page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'書き出し',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.settings-detail-current')).toHaveText('書き出し');
   await dock.getByRole('button',{name:'集中'}).click();
   await expect(page.locator('.studio-app')).toHaveClass(/studio-focus/);
   await dock.getByRole('button',{name:'戻る'}).click();
@@ -69,8 +77,7 @@ test('Studio v2 mobile action dock and command navigation do not overflow',async
   await dock.getByRole('button',{name:'探す'}).click();
   await page.getByRole('searchbox',{name:'コマンドを検索'}).fill('カラー');
   await page.getByText('カラーの設定を開く',{exact:true}).click();
-  await expect(page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'カラー',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.settings-detail-current')).toHaveText('カラー');
   await expect.poll(async()=>page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);
   expect(errors).toEqual([]);
   await context.close();
@@ -80,12 +87,11 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openCategory(page,'図形');
   // Keep the old accessible name while simplifying the visible seed label.
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
   await expect(page.getByText('模様の合言葉',{exact:true})).toBeVisible();
-  const background=page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'背景',exact:true});
-  await background.click();
+  await openCategory(page,'背景');
   const info=page.locator('#panel-background .studio-info-disclosure').first();
   await expect(info).toBeVisible();
   await expect(info.locator('.studio-info-icon')).toHaveText('i');
@@ -95,8 +101,7 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
   await expect(popup).toBeVisible();
   await info.locator('summary').press('Enter');
   await expect(popup).toHaveCount(0);
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'アニメーション',exact:true}).click();
+  await openCategory(page,'アニメーション');
   const checkbox=page.locator('#panel-animation input[type="checkbox"]').first();
   await expect(checkbox).toBeVisible();
   const style=await checkbox.evaluate(element=>{
@@ -110,8 +115,7 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
   await checkbox.check();
   await expect(checkbox).toBeChecked();
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'アニメーション',exact:true}).click();
+  await openCategory(page,'アニメーション');
   await expect(page.getByRole('heading',{name:'自動切り替え'})).toBeVisible();
   await expect(page.getByLabel('3D待機画面モードを有効化')).toBeVisible();
   const standbyInfo=page.locator('.three-standby-controls .studio-info-disclosure');
@@ -123,6 +127,7 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
 
 test('Compact seed help sits next to the label instead of beneath the seed input',async({page})=>{
   await page.goto('./');
+  await openCategory(page,'図形');
   const row=page.locator('#panel-shapes .studio-setting-label').filter({
     has:page.getByText('模様の合言葉',{exact:true}),
   });
@@ -181,6 +186,7 @@ test('Compact seed help sits next to the label instead of beneath the seed input
 
 test('Studio command search supports slash, multi-term matching and five-item paging',async({page})=>{
   await page.goto('./');
+  await openCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.focus();
   await seed.press('/');
@@ -208,6 +214,7 @@ test('Studio command search supports slash, multi-term matching and five-item pa
 
 test('Studio command favorites and recent actions survive reopening and reload',async({page})=>{
   await page.goto('./');
+  await openCategory(page,'図形');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   await search.fill('背景');
@@ -236,6 +243,7 @@ test('Seed clipboard can copy and paste reproducible project seeds',async({page}
     }});
   });
   await page.goto('./');
+  await openCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('copied-seed-42');
   await page.getByRole('button',{name:'シードをコピー',exact:true}).click();
