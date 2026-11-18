@@ -2,11 +2,28 @@ import {useEffect,useMemo,useRef,useState} from 'react';
 
 export type StudioCommand={id:string;title:string;description:string;keywords?:string;shortcut?:string;run:()=>void};
 
+const FAVORITES_KEY='geometry-studio-command-favorites';
+const RECENT_KEY='geometry-studio-command-recents';
+function readCommandIds(key:string):string[]{
+  try{
+    if(typeof window==='undefined')return [];
+    const stored=JSON.parse(window.localStorage.getItem(key)??'[]');
+    return Array.isArray(stored)
+      ?stored.filter((id:unknown):id is string=>typeof id==='string').slice(0,20):[];
+  }catch{return [];}
+}
+function saveCommandIds(key:string,ids:string[]){
+  try{window.localStorage.setItem(key,JSON.stringify(ids));}catch{}
+}
+
+
 export function StudioCommandPalette({open,onClose,commands}:{
   open:boolean;onClose:()=>void;commands:readonly StudioCommand[];
 }){
   const [query,setQuery]=useState('');
   const [activeIndex,setActiveIndex]=useState(0);
+  const [favorites,setFavorites]=useState(()=>readCommandIds(FAVORITES_KEY));
+  const [recent,setRecent]=useState(()=>readCommandIds(RECENT_KEY));
   const input=useRef<HTMLInputElement>(null);
   const results=useRef<HTMLDivElement>(null);
   useEffect(()=>{
@@ -31,17 +48,38 @@ export function StudioCommandPalette({open,onClose,commands}:{
     return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',key);previous?.focus();};
   },[open,onClose]);
   const filtered=useMemo(()=>{
-    const q=query.trim().toLocaleLowerCase();
-    return !q?commands:commands.filter(item=>
-      [item.title,item.description,item.keywords??''].some(v=>v.toLocaleLowerCase().includes(q)));
-  },[commands,query]);
+    // Separate search terms can match different parts of a command, in any order.
+    const terms=query.toLocaleLowerCase().trim().split(/\s+/u).filter(Boolean);
+    const matching=terms.length?commands.filter(item=>{
+      const text=[item.title,item.description,item.keywords??''].join(' ').toLocaleLowerCase();
+      return terms.every(term=>text.includes(term));
+    }):[...commands];
+    // Preserve the original command order for normal search, but make common
+    // actions fast to reach whenever the search box is empty.
+    if(terms.length)return matching;
+    return matching.sort((a,b)=>{
+      const favorited=Number(favorites.includes(b.id))-Number(favorites.includes(a.id));
+      if(favorited)return favorited;
+      const aRecent=recent.indexOf(a.id),bRecent=recent.indexOf(b.id);
+      return (aRecent<0?100:aRecent)-(bRecent<0?100:bRecent);
+    });
+  },[commands,query,favorites,recent]);
   useEffect(()=>{
     if(!open||!filtered.length)return;
     const index=Math.min(activeIndex,filtered.length-1);
     (results.current?.children.item(index) as HTMLElement|null)?.scrollIntoView({block:'nearest'});
   },[open,filtered,activeIndex]);
   if(!open)return null;
-  const execute=(command:StudioCommand)=>{command.run();onClose();};
+  const execute=(command:StudioCommand)=>{
+    const next=[command.id,...recent.filter(id=>id!==command.id)].slice(0,8);
+    setRecent(next);saveCommandIds(RECENT_KEY,next);
+    command.run();onClose();
+  };
+  const toggleFavorite=(id:string)=>{
+    const next=favorites.includes(id)?favorites.filter(value=>value!==id):[...favorites,id];
+    setFavorites(next);saveCommandIds(FAVORITES_KEY,next);
+    input.current?.focus();
+  };
   const selectedIndex=Math.min(activeIndex,Math.max(0,filtered.length-1));
   return <div className="studio-command-backdrop" onMouseDown={event=>{
     if(event.target===event.currentTarget)onClose();
@@ -66,10 +104,22 @@ export function StudioCommandPalette({open,onClose,commands}:{
           }else if(event.key==='Home'||event.key==='End'){
             event.preventDefault();
             if(filtered.length)setActiveIndex(event.key==='Home'?0:filtered.length-1);
+          }else if(event.key==='PageDown'||event.key==='PageUp'){
+            event.preventDefault();
+            if(filtered.length)setActiveIndex(index=>Math.max(0,Math.min(filtered.length-1,
+              index+(event.key==='PageDown'?5:-5))));
           }else if(event.key==='Enter'&&filtered[selectedIndex]){
             event.preventDefault();execute(filtered[selectedIndex]);
           }
         }}/>
+      <div className="studio-command-actions">
+        <span>★ {favorites.length} 件のお気に入り</span>
+        <button type="button" disabled={!filtered.length}
+          aria-pressed={filtered.length?favorites.includes(filtered[selectedIndex].id):false}
+          onClick={()=>{if(filtered.length)toggleFavorite(filtered[selectedIndex].id);}}>
+          {filtered.length&&favorites.includes(filtered[selectedIndex].id)?'★ お気に入り解除':'☆ 選択中をお気に入り'}
+        </button>
+      </div>
       <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{filtered.length} 件のコマンドが見つかりました</p>
       <div ref={results} id="studio-command-results" className="studio-command-results" role="list">
         {filtered.length?filtered.map(command=><button type="button" key={command.id}
@@ -77,13 +127,13 @@ export function StudioCommandPalette({open,onClose,commands}:{
           aria-current={selectedIndex===filtered.indexOf(command)?'true':undefined}
           onMouseEnter={()=>setActiveIndex(filtered.indexOf(command))}
           onClick={()=>execute(command)} className="studio-command-result">
-          <span className="studio-command-result-icon" aria-hidden="true">↗</span>
+          <span className="studio-command-result-icon" aria-hidden="true">{favorites.includes(command.id)?'★':'↗'}</span>
           <span className="studio-command-result-label"><strong>{command.title}</strong>
             <small>{command.description}</small></span>
           {command.shortcut&&<kbd>{command.shortcut}</kbd>}
         </button>):<p className="studio-command-empty">一致する操作がありません。別のキーワードを試してみてね。</p>}
       </div>
-      <div className="studio-command-footer"><span>↑↓・Home/End で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
+      <div className="studio-command-footer"><span>↑↓・PageUp/Down・Home/End で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
     </section>
   </div>;
 }
