@@ -3,12 +3,17 @@ import {readFile} from 'node:fs/promises';
 
 test.setTimeout(180_000);
 async function category(page:Page,label:string){
-  const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name:label,exact:true});
-  if(await button.getAttribute('aria-expanded')!=='true')await button.click();
+  const screen=page.locator('.settings-screen');
+  if((await screen.getAttribute('class'))?.includes('is-detail')){
+    if((await page.locator('.settings-detail-current').textContent())===label)return;
+    await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
+  }
+  await page.getByRole('checkbox',{name:label+'の設定を開く'}).check();
 }
 async function magic(page:Page,reducedMotion:'reduce'|'no-preference'='reduce'){
   await page.emulateMedia({reducedMotion});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('生成アルゴリズム').selectOption('2d-magic-v1');
   await expect(page.getByTestId('magic-controls')).toBeVisible();
   await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-magic-v1');
