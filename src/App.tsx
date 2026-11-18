@@ -513,6 +513,16 @@ export default function App() {
       setSeedClipboardMessage('シードを貼り付けて生成しました');
     }catch{setSeedClipboardMessage('貼り付けできませんでした。ブラウザの権限を確認してください。');}
   }
+  function goToSettingsOverview(){
+    if(threeExportBusy)return;
+    (renderMode==='2d'?setCategory:setThreeCategory)(null);
+    setStudioFocus(false);setSidebarCollapsed(false);
+    if(matchMedia('(max-width:720px)').matches){
+      requestAnimationFrame(()=>document.querySelector('.studio-controls')?.scrollIntoView({
+        block:'start',behavior:'smooth'
+      }));
+    }
+  }
   function goToSettings(next:Category){
     if(threeExportBusy&&next!=='export')return;
     if(next==='text'&&(renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION))return;
@@ -899,7 +909,7 @@ export default function App() {
 
     </main>
     <nav className="studio-mobile-dock" aria-label="モバイルクイック操作">
-      <button type="button" onClick={()=>goToSettings('shapes')}>
+      <button type="button" onClick={goToSettingsOverview}>
         <span aria-hidden="true">◈</span><small>設定</small></button>
       <button type="button" onClick={randomizeSeed} disabled={threeExportBusy}>
         <span aria-hidden="true">↻</span><small>新規</small></button>
