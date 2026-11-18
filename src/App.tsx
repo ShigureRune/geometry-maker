@@ -80,8 +80,8 @@ export default function App() {
     window.history.replaceState(window.history.state,'',address.pathname+address.search+address.hash);
   },[sharedSeed]);
   const [renderMode,setRenderMode]=useState<'2d'|'3d'>(saved?.mode??'2d');
-  const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
-  const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
+  const [category,setCategory]=useState<Category|null>(saved?.category??null);
+  const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??null);
   const activeCategory=renderMode==='2d'?category:threeCategory;
   const [studioFocus,setStudioFocus]=useState(saved?.focus??false);
   const [sidebarCollapsed,setSidebarCollapsed]=useState(saved?.collapsed??false);
@@ -605,13 +605,16 @@ export default function App() {
           <button type="button" aria-label="設定パネルを折りたたむ" title="パネルを折りたたむ"
             onClick={()=>setSidebarCollapsed(true)}>✕</button>
         </div>
-        <div className="panel-intro"><span className="eyebrow">MAKE IT YOURS</span><h2>ひとつのシードから、<br />あなただけの幾何学を。</h2><p>文字や数字を変えて、新しい構図に出会う。</p></div>
+        <div className="panel-intro" hidden={activeCategory!==null}><span className="eyebrow">MAKE IT YOURS</span><h2>ひとつのシードから、<br />あなただけの幾何学を。</h2><p>文字や数字を変えて、新しい構図に出会う。</p></div>
 
         <SettingsCategories active={activeCategory}
-          onChange={value=>{if(!threeExportBusy)(renderMode==='2d'?setCategory:setThreeCategory)(value);}}
+          onChange={value=>{if(threeExportBusy)return;
+            (renderMode==='2d'?setCategory:setThreeCategory)(value);
+            requestAnimationFrame(()=>document.querySelector<HTMLElement>('.studio-controls')?.scrollTo({top:0,behavior:'smooth'}));
+          }}
           disabled={threeExportBusy?categories.map(item=>item.id):
             renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>
-        <div className="studio-sidebar-resize">
+        <div className="studio-sidebar-resize" hidden={activeCategory!==null}>
           <label htmlFor="studio-sidebar-width">パネル幅</label>
           <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
             value={sidebarWidth} onChange={event=>setSidebarWidth(Number(event.target.value))}/>
@@ -845,7 +848,7 @@ export default function App() {
           </div>
         </div>
         <div className="canvas-stage">
-          {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>setCategory('text')}>
+          {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
               {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} flow={completedFlow} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
             </div>
@@ -915,6 +918,11 @@ export default function App() {
       favoriteSeeds={seedVault.bookmarks.map(item=>item.seed)}
       onClose={closeExplorer} onSelect={selectExplorerSeed} onSave={saveExplorerFavorite}/>}
 
+    <button type="button" className="studio-scroll-top" aria-label="一番上へ戻る"
+      title="一番上へ戻る" onClick={()=>{
+        window.scrollTo({top:0,behavior:'smooth'});
+        document.querySelector<HTMLElement>('.studio-controls')?.scrollTo({top:0,behavior:'smooth'});
+      }}><span aria-hidden="true">↑</span><span>TOP</span></button>
     <footer><span>GENERATIVE DESIGN, DETERMINISTIC BY NATURE.</span><span>2D / 3D 背景スタジオ</span></footer>
   </div>;
 }
