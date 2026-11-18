@@ -111,6 +111,7 @@ const RelayGeometry=memo(function RelayGeometry({shape,flow,lineWidth}:{
   const radius=Math.max(shape.strokeWidth*4.5,lineWidth*3);
   const visible=flow.relayProgress!==undefined;
   const source=flow.relaySource??0,arrival=flow.relayArrival??0;
+  const branch=flow.branchPulse??0,merge=flow.mergePulse??0;
   return <g data-testid="energy-relay" fill="none" pointerEvents="none">
     <defs>
       <filter id={id} filterUnits="userSpaceOnUse" colorInterpolationFilters="sRGB"
@@ -123,6 +124,12 @@ const RelayGeometry=memo(function RelayGeometry({shape,flow,lineWidth}:{
       <circle cx={start.x} cy={start.y} r={radius*1.8} fill="#c5eaff"
         filter={`url(#${id})`}/>
       <circle cx={start.x} cy={start.y} r={radius*.55} fill="#ffffff"/>
+    </g>}
+    {branch>0&&<g data-testid="energy-branch" data-branch-pulse={branch}
+      opacity={Math.min(1,branch*.7)}>
+      <circle cx={start.x} cy={start.y} r={radius*2.6} fill="#b8e9ff"
+        filter={`url(#${id})`}/>
+      <circle cx={start.x} cy={start.y} r={radius*.7} fill="#ffffff"/>
     </g>}
     {visible&&<g data-testid="energy-transfer"
       data-energy-progress={flow.relayProgress} strokeLinecap="round">
@@ -137,6 +144,14 @@ const RelayGeometry=memo(function RelayGeometry({shape,flow,lineWidth}:{
     {arrival>0&&<g data-testid="energy-terminal" opacity={arrival}>
       <circle cx={end.x} cy={end.y} r={radius*2.1} fill="#b9eaff"
         filter={`url(#${id})`}/>
+      <circle cx={end.x} cy={end.y} r={radius*.65} fill="#ffffff"/>
+    </g>}
+    {merge>0&&<g data-testid="energy-merge" data-merge-pulse={merge}
+      opacity={Math.min(1,merge)} pointerEvents="none">
+      <circle cx={end.x} cy={end.y} r={radius*3.1}
+        fill="#b9eaff" filter={`url(#${id})`}/>
+      <circle cx={end.x} cy={end.y} r={radius*1.3}
+        fill="#d7f5ff" filter={`url(#${id})`}/>
       <circle cx={end.x} cy={end.y} r={radius*.65} fill="#ffffff"/>
     </g>}
   </g>;
