@@ -142,3 +142,36 @@ test('v4 classic contour light flows after 100%, pauses, resumes and leaves shap
  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-v5');
  await expect(page.getByLabel('完成後も線に光を流す')).toBeChecked();
 });
+
+test('authored v4/v5 circuits branch, transfer and merge in browser and exported video frames',async({page})=>{
+ for(const version of ['2d-v4','2d-v5'] as const){
+  await page.goto('/tests/fixtures/energy-relay.html?version='+version);
+  await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm',version);
+  const main=page.locator('[data-shape-id="relay-main"]');
+  const original=await main.getAttribute('transform');
+  const setStage=(stage:number)=>page.evaluate(value=>
+    (window as unknown as {relayStage:(p:number)=>void}).relayStage(value),stage);
+  const videoAt=(stage:number)=>page.evaluate(value=>
+    (window as unknown as {relayVideo:(p:number)=>string}).relayVideo(value),stage);
+  await setStage(.2);
+  await expect(page.getByTestId('energy-branch')).toHaveCount(3);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(0);
+  const forkVideo=await videoAt(.2);
+  expect((forkVideo.match(/data-testid="energy-branch"/g)??[]).length).toBe(3);
+  await setStage(.51);
+  await expect(page.getByTestId('energy-transfer')).toHaveCount(3);
+  await setStage(.83);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(1);
+  await expect(page.getByTestId('energy-arrival')).toHaveCount(2);
+  const mergedVideo=await videoAt(.83);
+  expect((mergedVideo.match(/data-testid="energy-merge"/g)??[]).length).toBe(1);
+  expect((mergedVideo.match(/data-testid="energy-arrival"/g)??[]).length).toBe(2);
+  await expect(page.getByTestId('bar-body-motion')).toHaveCount(1);
+  await expect(page.getByTestId('coupled-rotation').first()).toHaveCount(1);
+  expect(await main.getAttribute('transform')).toBe(original);
+  await setStage(-1);
+  await expect(page.getByTestId('energy-branch')).toHaveCount(0);
+  await expect(page.getByTestId('energy-merge')).toHaveCount(0);
+  expect(await main.getAttribute('transform')).toBe(original);
+ }
+});
