@@ -408,3 +408,51 @@ it('distributes route timings by seeded connection order without inventing geome
   expect(new Set(signals.map(s=>s.period)).size).toBe(1);
   expect(plan.find(p=>p.id===orphan.id)!.relay).toBeUndefined();
 });
+
+it('drives connected foreground rotors in opposite seeded directions while preserving fixed links and sliding bars',()=>{
+  const seed='coupled-gear-seed';
+  const generated=generateScene(seed,'16:9','2d-v4');
+  const source=generated.shapes[0];
+  const hero={...source,id:'rotor-main',kind:'gear' as const,role:'hero' as const,
+    layer:'midground' as const,size:200,parent:undefined};
+  const connector={...source,id:'rotor-link',kind:'circuit' as const,role:'support' as const,
+    layer:'midground' as const,parent:hero.id,points:[{x:0,y:0},{x:70,y:0}]};
+  const satellite={...source,id:'rotor-child',kind:'gear' as const,role:'support' as const,
+    layer:'midground' as const,size:100,parent:connector.id};
+  const bar={...source,id:'rotor-bar',kind:'band' as const,role:'support' as const,
+    layer:'midground' as const,parent:hero.id};
+  const overlay={...source,id:'rotor-accent',kind:'gear' as const,role:'accent' as const,
+    layer:'foreground' as const,parent:hero.id};
+  const backdrop={...source,id:'rotor-background',kind:'gear' as const,role:'support' as const,
+    layer:'background' as const,parent:hero.id};
+  const unrelated={...source,id:'rotor-unrelated',kind:'gear' as const,role:'support' as const,
+    layer:'midground' as const,parent:undefined};
+  const scene={...generated,shapes:[hero,connector,satellite,bar,overlay,backdrop,unrelated]};
+  const plan=createFigureMotionPlan(scene,seed);
+  expect(createFigureMotionPlan(scene,seed)).toEqual(plan);
+  const byId=new Map(plan.map(item=>[item.id,item]));
+  const drive=byId.get(hero.id)!.coupledSpinSpeed!;
+  const child=byId.get(satellite.id)!.coupledSpinSpeed!;
+  expect(Math.abs(drive)).toBeGreaterThan(0);
+  expect(Math.sign(child)).toBe(-Math.sign(drive));
+  expect(Math.abs(child)).toBeCloseTo(Math.abs(drive)*2);
+  for(const id of [connector.id,bar.id,backdrop.id,unrelated.id])
+    expect(byId.get(id)?.coupledSpinSpeed).toBeUndefined();
+  expect(byId.has(overlay.id)).toBe(false);
+  expect(byId.get(bar.id)?.barSpeed).toBeGreaterThan(0);
+  const frame=figureFlowAt(plan,3);
+  expect(Math.sign(frame[hero.id].coupledSpin!)).toBe(-Math.sign(frame[satellite.id].coupledSpin!));
+  expect(frame[hero.id].coupledSpin).not.toBe(figureFlowAt(plan,4)[hero.id].coupledSpin);
+  expect(figureFlowAt(plan,0)).toEqual({});
+  expect(figureFlowAt(plan,3,100,2)).toEqual(figureFlowAt(plan,6));
+  const baseline=renderToStaticMarkup(createElement(Preview,{scene,background}));
+  const animated=renderToStaticMarkup(createElement(Preview,{scene,background,flow:frame}));
+  expect(baseline).not.toContain('data-testid="coupled-rotation"');
+  expect(animated.match(/data-testid="coupled-rotation"/g)).toHaveLength(2);
+  expect(animated).toContain(`data-rotation-angle="${frame[hero.id].coupledSpin}"`);
+  expect(animated).toContain(`data-rotation-angle="${frame[satellite.id].coupledSpin}"`);
+  expect(animated).toContain('data-testid="bar-body-motion"');
+  const roots=(svg:string)=>[...svg.matchAll(/data-shape-id="([^"]+)"[^>]+transform="([^"]+)"/g)]
+    .map(match=>[match[1],match[2]]);
+  expect(roots(animated)).toEqual(roots(baseline));
+});
