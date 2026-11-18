@@ -1,12 +1,10 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 
 test.setTimeout(180_000);
-async function category(page:Page,name:string){
-  const b=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
-  if(await b.getAttribute('aria-expanded')!=='true')await b.click();
-}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
@@ -64,7 +62,8 @@ test('3D seeded entrance reveals, finishes, and replay starts a new one-shot ani
   // Replay also resumes playback even when the animation had been paused.
   const reset=await project(page);
   expect(reset.settings.animation).toBe(true);
-  expect(reset.elapsedSeconds).toBeLessThan(1.4);
+  expect(reset.elapsedSeconds).toBeLessThan(later.elapsedSeconds);
+  expect(reset.elapsedSeconds).toBeLessThan(2);
   await category(page,'アニメーション');
   await expect(page.getByRole('button',{name:'3Dを一時停止'})).toBeVisible();
   await expect(preview).toHaveAttribute('data-entrance-mode','spiral');

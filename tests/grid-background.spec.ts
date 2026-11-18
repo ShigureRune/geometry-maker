@@ -1,12 +1,20 @@
-import {test,expect} from './ui-test';
+import {test,expect,type Page} from './ui-test';
+
+async function openCategory(page:Page,name:string){
+  if((await page.locator('.settings-screen').getAttribute('class'))?.includes('is-detail')){
+    if((await page.locator('.settings-detail-current').textContent())===name)return;
+    await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
+  }
+  await page.getByRole('checkbox',{name:name+'の設定を開く'}).check();
+}
 import {readFile} from 'node:fs/promises';
 
 test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async({page})=>{
   await page.goto('./');
-  const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
-  await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
+
+  await openCategory(page,'アニメーション');
   await page.getByLabel('アニメーションを有効化').uncheck();
-  await nav.getByRole('button',{name:'背景',exact:true}).click();
+  await openCategory(page,'背景');
   await expect(page.getByRole('heading',{name:'2Dグリッド背景'})).toBeVisible();
   const toggle=page.getByLabel('グリッド背景を有効化');
   await toggle.check();
@@ -19,17 +27,17 @@ test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async
   await page.getByLabel('カスタム色').fill('#ff3355');
   await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-type','dot');
   const before=await page.getByTestId('shapes').evaluate(node=>node.outerHTML);
-  await nav.getByRole('button',{name:'図形',exact:true}).click();
+  await openCategory(page,'図形');
   await page.getByLabel('シード値').fill('stable-grid-test');
   const withSeed=await page.getByTestId('shapes').evaluate(node=>node.outerHTML);
-  await nav.getByRole('button',{name:'背景',exact:true}).click();
+  await openCategory(page,'背景');
   await toggle.uncheck();
   await expect(page.getByTestId('grid-background')).toHaveCount(0);
   await toggle.check();
   expect(await page.getByTestId('shapes').evaluate(node=>node.outerHTML)).toBe(withSeed);
   expect(before).not.toBe('');
 
-  await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+  await openCategory(page,'書き出し');
   const saved=page.waitForEvent('download');
   await page.getByRole('button',{name:'作品の設定を保存',exact:true}).click();
   const data=await readFile((await (await saved).path())!);
@@ -37,10 +45,10 @@ test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async
   expect(project.gridBackground.type).toBe('dot');
   expect(project.gridBackground.spacing).toBe(80);
   await page.getByLabel('保存した設定ファイル').setInputFiles({name:'grid.json',mimeType:'application/json',buffer:data});
-  await nav.getByRole('button',{name:'背景',exact:true}).click();
+  await openCategory(page,'背景');
   await expect(page.getByLabel('グリッド背景を有効化')).toBeChecked();
 
-  await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+  await openCategory(page,'書き出し');
   const svgDownload=page.waitForEvent('download');
   await page.getByRole('button',{name:'SVGを書き出す',exact:true}).click();
   const svg=(await readFile((await (await svgDownload).path())!)).toString();
@@ -55,10 +63,10 @@ test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async
 
 test('animated grid scrolls, rotates and pulses independently of shape growth',async({page})=>{
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
+
+ await openCategory(page,'アニメーション');
  await page.getByLabel('アニメーションを有効化').uncheck();
- await nav.getByRole('button',{name:'背景',exact:true}).click();
+ await openCategory(page,'背景');
  await page.getByLabel('グリッド背景を有効化').check();
  await page.getByLabel('グリッドアニメーションを有効化').check();
  await page.locator('#grid-animation-duration').fill('4');
@@ -77,14 +85,14 @@ test('animated grid scrolls, rotates and pulses independently of shape growth',a
  const opacity=page.getByTestId('grid-background').locator('rect').last();
  const before=await opacity.getAttribute('opacity');
  await expect.poll(()=>opacity.getAttribute('opacity'),{timeout:4000}).not.toBe(before);
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openCategory(page,'書き出し');
  const saved=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存',exact:true}).click();
  const bytes=await readFile((await(await saved).path())!);
  const settings=JSON.parse(bytes.toString());
  expect(settings.gridBackground.animation).toMatchObject({enabled:true,mode:'pulse',duration:4,speed:7.5,reverse:true});
  await page.getByLabel('保存した設定ファイル').setInputFiles({name:'grid-animated.json',mimeType:'application/json',buffer:bytes});
- await nav.getByRole('button',{name:'背景',exact:true}).click();
+ await openCategory(page,'背景');
  await expect(page.getByLabel('グリッドアニメーションを有効化')).toBeChecked();
  await expect(page.locator('#grid-animation-mode')).toHaveValue('pulse');
  await page.locator('#grid-animation-mode').selectOption('scroll');
@@ -96,13 +104,13 @@ test('animated grid scrolls, rotates and pulses independently of shape growth',a
 
 test('grid speed is independent and follows the 0–360 degree infinite figure scroll setting',async({page})=>{
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'背景',exact:true}).click();
+
+ await openCategory(page,'背景');
  await page.getByLabel('グリッド背景を有効化').check();
  await page.getByLabel('グリッドアニメーションを有効化').check();
  await page.locator('#grid-animation-speed').fill('0.1');
  await expect(page.locator('#grid-animation-speed')).toHaveValue('0.1');
- await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
+ await openCategory(page,'アニメーション');
  await page.getByLabel('自動待機画面を有効化').check();
  await page.getByLabel('待機アニメーション').selectOption('scroll');
  await page.getByText('待機画面の詳細設定',{exact:true}).click();
@@ -115,7 +123,7 @@ test('grid speed is independent and follows the 0–360 degree infinite figure s
  await expect(page.locator('#ambient-scrollAngle')).toHaveValue('90');
  await expect(page.getByTestId('ambient-preview').getByTestId('grid-background')).toHaveAttribute('data-grid-motion','scroll');
  await expect(page.getByTestId('ambient-preview')).toHaveAttribute('data-scroll-world','v3');
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openCategory(page,'書き出し');
  const download=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存',exact:true}).click();
  const bytes=await readFile((await(await download).path())!);
@@ -127,8 +135,7 @@ test('grid speed is independent and follows the 0–360 degree infinite figure s
 
 test('grid presets provide ready-made static and animated backgrounds',async({page})=>{
   await page.goto('./');
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'背景',exact:true}).click();
+  await openCategory(page,'背景');
   await page.getByRole('button',{name:'星屑ドットプリセットを適用'}).click();
   await expect(page.getByLabel('グリッド背景を有効化')).toBeChecked();
   await expect(page.getByTestId('grid-background')).toHaveAttribute('data-grid-type','dot');

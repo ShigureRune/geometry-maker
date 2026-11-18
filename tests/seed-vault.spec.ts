@@ -1,9 +1,11 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('seed history is committed, navigable, branched, and persists after reload',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   const original=await seed.inputValue();
   await seed.fill('first-vault-seed');
@@ -33,6 +35,7 @@ test('seed history is committed, navigable, branched, and persists after reload'
     catch{return null;}
   })).toBe('branch-vault-seed');
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(seed).toHaveValue('branch-vault-seed');
   await expect(page.getByLabel('履歴の位置')).toHaveText('3 / 3');
   await page.getByRole('button',{name:'← 前のシード'}).click();
@@ -42,6 +45,7 @@ test('seed history is committed, navigable, branched, and persists after reload'
 
 test('bookmarks can be named, searched, recalled, renamed and deleted',async({page})=>{
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('star-vault-seed');await seed.press('Enter');
   await page.getByLabel('お気に入りの名前').fill('星空');
@@ -58,6 +62,7 @@ test('bookmarks can be named, searched, recalled, renamed and deleted',async({pa
   await page.getByLabel('保存済みシードを検索').fill('夜の星');
   await expect(page.getByRole('button',{name:'夜の星を呼び出す'})).toBeVisible();
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(page.getByRole('button',{name:'夜の星を呼び出す'})).toBeVisible();
   await page.getByRole('button',{name:'夜の星を削除'}).click();
   await expect(page.getByText('まだ保存済みシードがありません。')).toBeVisible();
@@ -65,6 +70,7 @@ test('bookmarks can be named, searched, recalled, renamed and deleted',async({pa
 
 test('named seed collections round-trip JSON without replacing the active project',async({page})=>{
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('json-library-seed');await seed.press('Enter');
   await page.getByLabel('お気に入りの名前').fill('一覧用');
@@ -95,6 +101,7 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
     }});
   });
   await page.goto('./?seed=shared%20seed%20%2F%2042');
+  await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await expect(seed).toHaveValue('shared seed / 42');
   await expect.poll(()=>page.url()).not.toContain('?seed=');
@@ -106,5 +113,6 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
   expect(shared.pathname).toBe(new URL(page.url()).pathname);
   expect(shared.search).not.toContain('textOverlay');
   await page.reload();
+   await openSettingsCategory(page,'図形');
   await expect(seed).toHaveValue('shared seed / 42');
 });

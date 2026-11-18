@@ -1,12 +1,9 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 
 test.setTimeout(110_000);
 
-async function category(page:Page,label:string){
-  const item=page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:label,exact:true});
-  if(await item.getAttribute('aria-expanded')!=='true')await item.click();
-}
+async function category(page:Page,label:string){await openSettingsCategory(page,label);}
 
 for(const style of ['grid','circuit'] as const){
   test(`moving ${style} floor keeps its animation phase across morph and exit-enter seed changes`,

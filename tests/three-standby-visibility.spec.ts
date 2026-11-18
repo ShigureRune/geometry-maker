@@ -1,11 +1,8 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 test.setTimeout(150_000);
 
-async function category(page:Page,label:string){
-  const tab=page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:label,exact:true});
-  if(await tab.getAttribute('aria-expanded')!=='true')await tab.click();
-}
+async function category(page:Page,label:string){await openSettingsCategory(page,label);}
 
 test('standby morph and repeated entrances coexist with connected neon wires',async({page})=>{
   const errors:string[]=[];

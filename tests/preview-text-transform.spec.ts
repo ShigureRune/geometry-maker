@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
@@ -51,8 +52,8 @@ test('single click selects text; corners resize; rotation handle drags; double c
  await inline.getByLabel('文字をその場で編集').press('ControlOrMeta+Enter');
  await expect(svg.getByTestId('text-overlay')).toContainText('編集成功');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+
+ await openSettingsCategory(page,'書き出し');
  const jsonPending=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const json=JSON.parse((await readFile((await (await jsonPending).path())!)).toString());
@@ -99,6 +100,7 @@ test('mobile touch can select, resize a corner and double-tap to edit',async({br
  try{
   const page=await context.newPage();
   await page.goto('http://127.0.0.1:5173/');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
   await page.getByRole('button',{name:'プレビューに文字を追加'}).click();
   const quick=page.getByRole('group',{name:'プレビュー上で文字を編集'});

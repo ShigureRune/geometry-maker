@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -7,14 +8,11 @@ const KINDS=[
   'endless-desert','salt-flat','moonlit-flowers','forest-edge',
   'twilight-plain','cloud-sea','dark-mirror',
 ] as const;
-async function category(page:Page,name:string){
-  const button=page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name,exact:true});
-  if(await button.getAttribute('aria-expanded')!=='true')await button.click();
-}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('seven-natural-liminal-3d');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();

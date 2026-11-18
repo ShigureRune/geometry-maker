@@ -1,15 +1,14 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 
 test.setTimeout(180_000);
-async function category(page:Page,name:string){
-  const b=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
-  if(await b.getAttribute('aria-expanded')!=='true')await b.click();
-}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('eight-sky-presets');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();

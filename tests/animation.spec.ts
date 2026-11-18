@@ -203,8 +203,7 @@ test('2D v4/v5 live and exported video frames share selected motion preset',asyn
 
 test('timeline quick-jump buttons seek precisely and pause playback',async({page})=>{
   await page.goto('./');
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'アニメーション',exact:true}).click();
+  await page.getByRole('checkbox',{name:'アニメーションの設定を開く'}).check();
   for(const percent of [25,50,75,100,0]){
     const jump=page.getByRole('button',{name:`再生位置を${percent}%に移動`});
     await jump.click();

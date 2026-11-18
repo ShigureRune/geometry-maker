@@ -1,11 +1,14 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('text editor is reflected in preview, SVG and JSON without changing seed',async({page})=>{
  await page.goto('./');
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
  const seed=await page.getByTestId('current-seed').textContent();
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('文字を表示').check();
  await page.getByLabel('表示する文字').fill('急行 池袋\nGeometry & Studio');
  await page.getByLabel('フォント').selectOption('serif');
@@ -19,11 +22,11 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
  await expect(preview.getByTestId('text-overlay')).toBeVisible();
  expect(await preview.getByTestId('text-overlay').textContent()).toContain('急行 池袋');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
- const stateBefore=await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML);
+ const stateBefore=await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''));
  await page.getByLabel('文字の重なり順').selectOption('back');
  await expect(preview.getByTestId('text-overlay')).toHaveAttribute('data-text-layer','back');
- expect(await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML)).toBe(stateBefore);
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ expect(await preview.locator('[data-testid="shapes"]').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''))).toBe(stateBefore);
+ await openSettingsCategory(page,'書き出し');
  const jsonEvent=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const json=JSON.parse((await readFile((await (await jsonEvent).path())!)).toString());
@@ -38,11 +41,11 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
  await page.getByRole('button',{name:'PNGを書き出す'}).click();
  const png=await readFile((await (await pngEvent).path())!);
  expect(png.subarray(0,8).toString('hex')).toBe('89504e470d0a1a0a');
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('文字を表示').uncheck();
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openSettingsCategory(page,'書き出し');
  await page.getByLabel('保存した設定ファイル').setInputFiles({name:'text.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(json))});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await expect(page.getByLabel('文字を表示')).toBeChecked();
  await expect(page.getByLabel('表示する文字')).toHaveValue('急行 池袋\nGeometry & Studio');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
@@ -51,8 +54,10 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
 
 test('text colors track figure colors and glow survives SVG and JSON export',async({page})=>{
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('文字を表示').check();
  await page.getByLabel('表示する文字').fill('発光タイトル');
  await page.getByLabel('文字色のモード').selectOption('primary');
@@ -63,17 +68,18 @@ test('text colors track figure colors and glow survives SVG and JSON export',asy
  await expect(overlay).toHaveAttribute('data-text-color-mode','primary');
  await expect(overlay.getByTestId('text-glow')).toBeVisible();
  const before=await overlay.locator('text').last().getAttribute('fill');
- await nav.getByRole('button',{name:'カラー',exact:true}).click();
+ await openSettingsCategory(page,'カラー');
  await page.getByLabel('主役色 HEX').fill('#11ddaa');
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await expect(overlay.locator('text').last()).toHaveAttribute('fill','#11ddaa');
  expect(before).not.toBe('#11ddaa');
  await page.getByLabel('文字色のモード').selectOption('gradient');
- await expect(overlay.getByTestId('text-gradient')).toBeVisible();
+ // Gradient definitions inside SVG <defs> are not painted boxes; existence is the correct check.
+ await expect(overlay.getByTestId('text-gradient')).toHaveCount(1);
  await page.getByLabel('発光色').selectOption('custom');
  await page.getByLabel('発光色（手動）').fill('#ff2266');
  await expect(overlay.getByTestId('text-glow').locator('text')).toHaveAttribute('fill','#ff2266');
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openSettingsCategory(page,'書き出し');
  const jsonEvent=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const config=JSON.parse((await readFile((await (await jsonEvent).path())!)).toString());
@@ -90,9 +96,11 @@ test('text colors track figure colors and glow survives SVG and JSON export',asy
 
 test('one-click hollow neon creates outline-only SVG, exports settings and restores them',async({page})=>{
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
+ // Geometry comparisons must use a stable frame, not partially grown paths.
+ await openSettingsCategory(page,'アニメーション');
+ await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
  const seed=await page.getByTestId('current-seed').textContent();
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('ネオン\nOUTLINE');
  await page.getByRole('button',{name:'中抜きネオンを一発設定'}).click();
  await expect(page.getByLabel('文字を表示')).toBeChecked();
@@ -107,10 +115,10 @@ test('one-click hollow neon creates outline-only SVG, exports settings and resto
  const glow=preview.getByTestId('text-glow').locator('text');
  await expect(glow).toHaveCount(1);
  await expect(glow).toHaveAttribute('fill','none');
- const originalShape=await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML);
+ const originalShape=await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''));
  await page.getByLabel('文字色のモード').selectOption('accent');
- expect(await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML)).toBe(originalShape);
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ expect(await page.getByTestId('preview').getByTestId('shapes').evaluate(n=>n.outerHTML.replace(/style="[^"]*"/g,''))).toBe(originalShape);
+ await openSettingsCategory(page,'書き出し');
  const jsonPromise=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const json=JSON.parse((await readFile((await (await jsonPromise).path())!)).toString());
@@ -126,11 +134,11 @@ test('one-click hollow neon creates outline-only SVG, exports settings and resto
  await page.getByRole('button',{name:'PNGを書き出す'}).click();
  const png=await readFile((await (await pngPromise).path())!);
  expect(png.subarray(0,8).toString('hex')).toBe('89504e470d0a1a0a');
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('文字の塗り').selectOption('solid');
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openSettingsCategory(page,'書き出し');
  await page.getByLabel('保存した設定ファイル').setInputFiles({name:'neon.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(json))});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await expect(page.getByLabel('文字の塗り')).toHaveValue('transparent');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
 });

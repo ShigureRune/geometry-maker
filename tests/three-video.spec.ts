@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile,mkdir} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
@@ -10,8 +11,7 @@ test('3D WebM exports a playable, animated frame-exact video and restores live p
   await page.goto('./');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'書き出し',exact:true}).click();
+  await openSettingsCategory(page,'書き出し');
   await page.locator('.three-video-panel > summary').click();
   await page.getByLabel('動画の形式').selectOption('webm');
   await page.locator('#three-video-width').fill('256');
@@ -52,8 +52,7 @@ test('3D video UI rejects unsupported encoder, validates resolution, and stays u
   await page.goto('./');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview')).toBeVisible();
-  await page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'書き出し',exact:true}).click();
+  await openSettingsCategory(page,'書き出し');
   await page.locator('.three-video-panel > summary').click();
   await expect(page.getByText(/WebCodecsに対応していません/)).toBeVisible();
   await expect(page.getByRole('button',{name:'3D動画を保存',exact:true})).toBeDisabled();

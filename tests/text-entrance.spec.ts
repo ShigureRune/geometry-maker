@@ -1,11 +1,12 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('text entrance settings animate preview independently and save completed SVG with JSON',async({page})=>{
  await page.goto('./');
  const seed=await page.getByTestId('current-seed').textContent();
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('登場！\nGeometry 𒉼');
  await page.getByLabel('登場エフェクト').selectOption('slide-up');
  await page.getByLabel('登場までの待ち時間').fill('0.3');
@@ -16,7 +17,7 @@ test('text entrance settings animate preview independently and save completed SV
  await page.getByRole('button',{name:/登場アニメをプレビュー|最初から再生/}).click();
  await expect.poll(async()=>Number(await overlay.getAttribute('data-text-progress')),{timeout:3000}).toBeGreaterThan(.7);
  await expect.poll(async()=>Number(await overlay.getAttribute('data-text-progress')),{timeout:4000}).toBe(1);
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openSettingsCategory(page,'書き出し');
  const jsonPending=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const json=JSON.parse((await readFile((await (await jsonPending).path())!)).toString());
@@ -30,7 +31,7 @@ test('text entrance settings animate preview independently and save completed SV
  expect(svg).toContain('Geometry 𒉼');
  expect(svg).not.toContain('preview-text-selection');
  await expect(page.getByTestId('current-seed')).toHaveText(seed??'');
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('登場エフェクト').selectOption('typewriter');
  await page.getByLabel('登場までの待ち時間').fill('1');
  await page.getByLabel('登場にかける時間').fill('2');
@@ -44,19 +45,19 @@ test('text entrance settings animate preview independently and save completed SV
 test('exported video duration includes slow text entrance even when figure growth is short',async({page})=>{
  test.setTimeout(120000);
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('動画タイトル');
  await page.getByLabel('登場エフェクト').selectOption('zoom');
  await page.getByLabel('登場までの待ち時間').fill('1');
  await page.getByLabel('登場にかける時間').fill('1');
- await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
+ await openSettingsCategory(page,'アニメーション');
  // This case measures text entrance independently of the optional seconds
  // appended for completed-figure motion; the latter has separate coverage.
  await page.getByLabel('完成後も線に光を流す').uncheck();
  await page.getByLabel('成長時間（秒）').fill('1');
  await page.getByLabel('再生速度',{exact:true}).selectOption('4');
- await nav.getByRole('button',{name:'書き出し',exact:true}).click();
+ await openSettingsCategory(page,'書き出し');
  await page.locator('summary').filter({hasText:'動画書き出し'}).click();
  await page.locator('.video-panel > .studio-info-disclosure').last().locator('summary').click();
  await expect(page.getByTestId('studio-info-popover')).toContainText(/長さ：約2\.0\d秒/);

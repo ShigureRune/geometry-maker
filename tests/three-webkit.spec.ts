@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 
 test.use({browserName:'webkit',viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
@@ -20,8 +21,7 @@ test('iPhone-sized WebKit can open 3D and render the live motherboard',async({pa
   const preview=page.getByTestId('three-preview');
   await expect(preview.locator('canvas')).toBeVisible();
   await expect(preview).toHaveAttribute('data-quality','low');
-  const bg=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name:'背景',exact:true});
-  if(await bg.getAttribute('aria-expanded')!=='true')await bg.click();
+  await openSettingsCategory(page,'背景');
   await page.getByLabel('3D床グリッドを有効化').check();
   await page.getByLabel('床のデザイン').selectOption('circuit');
   await expect(preview).toHaveAttribute('data-floor-style','circuit');

@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
@@ -5,6 +6,7 @@ test('2D exploration compares related and random seed batches without changing t
   test.setTimeout(75_000);
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('explorer-browser-source');
   await seed.press('Enter');
@@ -36,6 +38,7 @@ test('2D exploration compares related and random seed batches without changing t
 test('favorite a candidate, adopt it, then reuse it from the existing Seed Vault',async({page})=>{
   test.setTimeout(60_000);
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('explorer-favorites-start');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'構図探索ボードを開く'}).click();
@@ -62,6 +65,7 @@ test('copy share links, export candidate TXT and close the mobile gallery with E
   });
   await page.setViewportSize({width:390,height:844});
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   await page.getByRole('button',{name:'構図探索ボードを開く'}).click();
   const dialog=page.getByRole('dialog',{name:'構図探索ボード'});
   await expect(dialog).toBeVisible();

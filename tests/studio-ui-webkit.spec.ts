@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 
 test.use({browserName:'webkit',viewport:{width:390,height:844},
@@ -8,6 +9,7 @@ test('iPhone-size WebKit Studio v2 dock, command search and focus navigation',as
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   const dock=page.getByRole('navigation',{name:'モバイルクイック操作'});
   await expect(dock).toBeVisible();
   await expect(page.getByLabel('クイック比率')).toBeVisible();
@@ -39,8 +41,7 @@ test('iPhone-size WebKit Studio v2 dock, command search and focus navigation',as
   await page.getByRole('searchbox',{name:'コマンドを検索'}).fill('背景');
   await page.getByText('背景の設定を開く',{exact:true}).tap();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('navigation',{name:'設定カテゴリー'})
-    .getByRole('button',{name:'背景',exact:true})).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.settings-detail-current')).toHaveText('背景');
   const info=page.locator('#panel-background .studio-info-disclosure').first();
   await expect(popup).toHaveCount(0);
   await info.locator('summary').tap();
@@ -67,6 +68,7 @@ test('iPhone-size WebKit Studio v2 dock, command search and focus navigation',as
 
 test('iPhone-size Safari/WebKit restores the same scene after reload',async({page})=>{
   await page.goto('./');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('safari-reload-keeps-work');
   await page.getByLabel('クイック比率').selectOption('9:16');
   await page.getByLabel('クイック密度').fill('70');
@@ -75,6 +77,7 @@ test('iPhone-size Safari/WebKit restores the same scene after reload',async({pag
     catch{return null;}
   })).toBe('safari-reload-keeps-work');
   await page.reload();
+  await openSettingsCategory(page,'図形');
   await expect(page.getByLabel('シード値',{exact:true})).toHaveValue('safari-reload-keeps-work');
   await expect(page.getByLabel('クイック比率')).toHaveValue('9:16');
   await expect(page.getByLabel('クイック密度')).toHaveValue('70');

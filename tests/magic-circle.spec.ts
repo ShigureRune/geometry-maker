@@ -3,12 +3,17 @@ import {readFile} from 'node:fs/promises';
 
 test.setTimeout(180_000);
 async function category(page:Page,label:string){
-  const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name:label,exact:true});
-  if(await button.getAttribute('aria-expanded')!=='true')await button.click();
+  const screen=page.locator('.settings-screen');
+  if((await screen.getAttribute('class'))?.includes('is-detail')){
+    if((await page.locator('.settings-detail-current').textContent())===label)return;
+    await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
+  }
+  await page.getByRole('checkbox',{name:label+'の設定を開く'}).check();
 }
 async function magic(page:Page,reducedMotion:'reduce'|'no-preference'='reduce'){
   await page.emulateMedia({reducedMotion});
   await page.goto('./');
+  await category(page,'図形');
   await page.getByLabel('生成アルゴリズム').selectOption('2d-magic-v1');
   await expect(page.getByTestId('magic-controls')).toBeVisible();
   await expect(page.getByTestId('preview')).toHaveAttribute('data-algorithm','2d-magic-v1');
@@ -156,7 +161,19 @@ test('infinite mode JSON restores seed variations and alpha SVG export',async({p
   await page.getByRole('button',{name:'同じシードから別の魔法陣を生成'}).click();
   await page.getByRole('button',{name:'同じシードから別の魔法陣を生成'}).click();
   await page.getByLabel('魔法陣だけを透過PNG / SVGで書き出す').check();
-  const blueprint=await page.getByTestId('shapes').innerHTML();
+  // SVG attribute insertion order can differ after JSON restoration even when every
+  // shape and attribute value is unchanged. Compare the canonical DOM structure.
+  const stableShapes=()=>page.getByTestId('shapes').evaluate(root=>{
+    const clone=root.cloneNode(true) as Element;
+    for(const element of Array.from(clone.querySelectorAll('*'))){
+      const attrs=Array.from(element.attributes).map(a=>({name:a.name,value:a.value}))
+        .sort((a,b)=>a.name.localeCompare(b.name));
+      for(const attr of attrs)element.removeAttribute(attr.name);
+      for(const attr of attrs)element.setAttribute(attr.name,attr.value);
+    }
+    return clone.innerHTML;
+  });
+  const blueprint=await stableShapes();
   await category(page,'書き出し');
   const saved=await exportFile(page,'作品の設定を保存');
   const json=JSON.parse(saved.toString('utf8'));
@@ -174,5 +191,5 @@ test('infinite mode JSON restores seed variations and alpha SVG export',async({p
   await expect(page.getByLabel('魔法陣の生成方式')).toHaveValue('infinite');
   await expect(page.getByTestId('magic-variation')).toContainText('派生番号：2');
   // Scene state and the playback clock settle on separate React renders after importing JSON.
-  await expect.poll(()=>page.getByTestId('shapes').innerHTML(),{timeout:7000}).toBe(blueprint);
+  await expect.poll(stableShapes,{timeout:7000}).toBe(blueprint);
 });

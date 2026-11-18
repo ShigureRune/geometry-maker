@@ -1,3 +1,4 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
@@ -34,13 +35,13 @@ test('create, drag, directly edit and export a title from the live canvas',async
  await expect(inline).toBeVisible();
  await inline.getByLabel('文字をその場で編集').fill('移動できた！');
  await inline.getByLabel('文字をその場で編集').press('ControlOrMeta+Enter');
- await page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name:'文字',exact:true}).click();
+ await openSettingsCategory(page,'文字');
  await expect(page.locator('#panel-text')).toBeVisible();
  await expect(page.getByLabel('表示する文字')).toHaveValue('移動できた！');
  await expect(page.getByTestId('current-seed')).toHaveText(initialSeed??'');
  const position=Number(await page.getByLabel('横位置').inputValue());
  expect(position).toBeGreaterThan(55);
- await page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name:'書き出し'}).click();
+ await openSettingsCategory(page,'書き出し');
  const pending=page.waitForEvent('download');
  await page.getByRole('button',{name:'作品の設定を保存'}).click();
  const json=JSON.parse((await readFile((await (await pending).path())!)).toString());
@@ -55,11 +56,11 @@ test('create, drag, directly edit and export a title from the live canvas',async
 
 test('outline-only neon can be dragged and edited in the ambient preview',async({page})=>{
  await page.goto('./');
- const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
- await nav.getByRole('button',{name:'文字',exact:true}).click();
+
+ await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('ネオン');
  await page.getByRole('button',{name:'中抜きネオンを一発設定'}).click();
- await nav.getByRole('button',{name:'アニメーション',exact:true}).click();
+ await openSettingsCategory(page,'アニメーション');
  await page.getByLabel('自動待機画面を有効化').check();
  const ambient=page.getByTestId('ambient-preview');
  const title=ambient.getByTestId('text-overlay');
@@ -91,9 +92,10 @@ test('touch drag and tap can edit an outline title on a narrow portrait canvas',
  try{
   const page=await context.newPage();
   await page.goto('http://127.0.0.1:5173/');
+  await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
-  const nav=page.getByRole('navigation',{name:'設定カテゴリー'});
-  await nav.getByRole('button',{name:'文字',exact:true}).click();
+
+  await openSettingsCategory(page,'文字');
   await page.getByLabel('表示する文字').fill('ネオン');
   await page.getByRole('button',{name:'中抜きネオンを一発設定'}).click();
   const sharp=page.getByTestId('preview').getByTestId('text-overlay').locator('text').last();

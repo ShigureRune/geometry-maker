@@ -1,15 +1,14 @@
+import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 import {mkdir,readFile} from 'node:fs/promises';
 import {GALAXY_TYPES} from '../src/three/galaxy';
 test.setTimeout(120_000);
-async function category(page:Page,name:string){
-  const button=page.getByRole('navigation',{name:'設定カテゴリー'}).getByRole('button',{name,exact:true});
-  if(await button.getAttribute('aria-expanded')!=='true')await button.click();
-}
+async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function openGalaxy(page:Page,gasOnly=false,starsOnly=false,detailOnly=false){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto(detailOnly?'./?galaxyDetailOnly=1':
     gasOnly?'./?galaxyGasOnly=1':starsOnly?'./?galaxyStarsOnly=1':'./');
+  await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('galaxy-ci');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
