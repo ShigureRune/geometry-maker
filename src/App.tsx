@@ -756,7 +756,9 @@ export default function App() {
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
-        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&<section className="control-section" aria-labelledby="background-heading">
+        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&
+    <FineSections id="background" enabled={finePreview} items={[
+      {id:'base',label:'背景の種類',detail:'単色・グラデーション・角度',content:<section className="control-section" aria-labelledby="background-heading">
           <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
           <div className="segmented" role="group" aria-label="背景の種類">
             <button type="button" aria-pressed={background.mode === 'solid'} onClick={() => setBackground({ ...background, mode: 'solid' })}>単色</button>
@@ -767,10 +769,11 @@ export default function App() {
             <input id="angle" type="range" min="0" max="360" value={background.angle} onChange={e=>setBackground({...background,angle:Number(e.target.value)})}/>
           </>}
           <HelpInfo>背景の各色は「カラー」で編集できます。</HelpInfo>
-        </section>}
-        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<HelpInfo>魔法陣の背景・自動配色は「カラー」から変更できます。背景なしでの表示や透過保存は「図形」の魔法陣設定で切り替えられます。</HelpInfo>}
-        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&<GridBackgroundControls value={background.grid??gridBackgroundDefaults} onChange={grid=>setBackground(bg=>({...bg,grid}))}/>}
-        {renderMode==='3d'&&<FineSections id="background" enabled={finePreview} items={[
+        </section>},
+      {id:'grid',label:'2Dグリッド背景',detail:'格子・アニメーション・遠近感',content:<GridBackgroundControls value={background.grid??gridBackgroundDefaults} onChange={grid=>setBackground(bg=>({...bg,grid}))}/>}
+    ]}/>}
+    {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<HelpInfo>魔法陣の背景・自動配色は「カラー」から変更できます。背景なしでの表示や透過保存は「図形」の魔法陣設定で切り替えられます。</HelpInfo>}
+    {renderMode==='3d'&&<FineSections id="background" enabled={finePreview} items={[
 {id:'base',label:'背景の種類',detail:'単色・グラデーションと方向',content:<section className="control-section" aria-labelledby="background-heading">
           <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
           <div className="segmented" role="group" aria-label="背景の種類">
@@ -840,7 +843,7 @@ export default function App() {
         </div>
         <div id="panel-text" className="category-panel" data-category="text" role="region" aria-labelledby="category-text" hidden={renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION||activeCategory!=='text'}>
           <h2 className="category-title">文字</h2>
-          <TextControls settings={textOverlay} onChange={setTextOverlay} onReplay={entrancePreview.replay} previewPlaying={entrancePreview.playing}/>
+          <TextControls settings={textOverlay} onChange={setTextOverlay} onReplay={entrancePreview.replay} previewPlaying={entrancePreview.playing} finePreview={finePreview}/>
         </div>
         <div id="panel-decoration" className="category-panel" data-category="decoration" role="region" aria-labelledby="category-decoration" hidden={activeCategory!=='decoration'}>
           <h2 className="category-title">装飾</h2>
@@ -871,10 +874,10 @@ export default function App() {
         </div>
         <div id="panel-animation" className="category-panel" data-category="animation" role="region" aria-labelledby="category-animation" hidden={activeCategory!=='animation'}>
           <h2 className="category-title">アニメーション</h2>
-        <div hidden={renderMode==='3d'}>
-        {version!==MAGIC_ALGORITHM_VERSION&&<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}
-        <AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>
-        </div>
+        {renderMode==='2d'&&<FineSections id="animation" enabled={finePreview} items={[
+      ...(version!==MAGIC_ALGORITHM_VERSION?[{id:'ambient',label:'自動再生・待機画面',detail:'自動切替・スクロール',content:<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}]:[]),
+      {id:'growth',label:'成長アニメーション',detail:'速度・動き・再生',content:<AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>}
+    ]}/>}
         {renderMode==='3d'&&<FineSections id="animation" enabled={finePreview} items={[
 {id:'motion',label:'図形の動き',detail:'回転・登場・消える演出',content:<ThreeAnimationControls settings={threeSettings} onChange={setThreeSettings} seed={seed} onReplay={()=>{setStandbyFinishedSeed(null);setThreeSettings(current=>({...current,animation:true}));setRegenerations(n=>n+1);}}/>
           },
@@ -885,7 +888,7 @@ export default function App() {
         <div id="panel-export" className="category-panel" data-category="export" role="region" aria-labelledby="category-export" hidden={activeCategory!=='export'}>
           <h2 className="category-title">書き出し</h2>
       <div className="export-area" hidden={renderMode==='3d'}>
-        <ExportPanel textOverlay={textOverlay} magicSettings={version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined} videoArtwork={{scene,candidates,seed,background:twoDBackground,animation,magicSettings:version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined,textOverlay:version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay,ambient:{scrollFigureState:ambientClock.scrollFigureState,scrollPaletteState:ambientClock.scrollPaletteState,scrollPath:ambientClock.scrollPath,seed,version,ratio,density,background:twoDBackground,colors:activeColors,animation,settings:{...ambient,enabled:version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled},visualTheme,enabledShapeKinds,textOverlay}}} version={version} density={density} colorSettings={activeColors} visualTheme={visualTheme} enabledShapeKinds={enabledShapeKinds} seed={seed} ratio={ratio} background={background} animation={animation} artwork={completedArtwork}
+        <ExportPanel finePreview={finePreview} textOverlay={textOverlay} magicSettings={version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined} videoArtwork={{scene,candidates,seed,background:twoDBackground,animation,magicSettings:version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined,textOverlay:version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay,ambient:{scrollFigureState:ambientClock.scrollFigureState,scrollPaletteState:ambientClock.scrollPaletteState,scrollPath:ambientClock.scrollPath,seed,version,ratio,density,background:twoDBackground,colors:activeColors,animation,settings:{...ambient,enabled:version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled},visualTheme,enabledShapeKinds,textOverlay}}} version={version} density={density} colorSettings={activeColors} visualTheme={visualTheme} enabledShapeKinds={enabledShapeKinds} seed={seed} ratio={ratio} background={background} animation={animation} artwork={completedArtwork}
           onRatio={setRatio} onRestore={settings => {
             ambientClock.stop();setAmbient({...ambientDefaults,...settings.ambient,enabled:false});
             setDensity(settings.density ?? 50);setVisualTheme(settings.visualTheme??'standard');setTextOverlay(settings.textOverlay??{...textOverlayDefaults});
