@@ -1212,3 +1212,35 @@
 [data-theme=light] .studio-app .studio-controls .settings-tabs-navigation button[aria-pressed="true"]{
   color:#50357a;background:#e5daf7;border-color:#8f71c5;
 }
+
+
+/* Shared fine-settings inspector for 3D background, decoration and animation. */
+.studio-app .fine-sections{display:block;min-width:0}
+.studio-app .fine-sections-list{display:grid;gap:10px;margin:5px 0 15px;min-width:0}
+.studio-app .fine-sections-list[hidden],
+.studio-app .fine-sections-panel[hidden],
+.studio-app .fine-sections-back[hidden]{display:none!important}
+.studio-app .fine-sections-back{
+  display:flex;gap:12px;align-items:center;justify-content:space-between;
+  margin:0 0 15px;padding-bottom:12px;border-bottom:1px solid var(--st-stroke);
+}
+.studio-app .fine-sections-back button{
+  min-height:44px;padding:9px 13px;border:1px solid #9981d3;
+  border-radius:10px;background:#302b49;color:#f3ebff;
+}
+.studio-app .fine-sections-back button:focus-visible{
+  outline:2px solid #cbb7ff;outline-offset:2px;
+}
+.studio-app .fine-sections-back strong{
+  font-size:11px;text-align:right;color:var(--st-muted);
+}
+.studio-app .fine-sections-panel{
+  min-width:0;animation:fine-detail-enter .3s cubic-bezier(.22,1,.36,1);
+}
+.studio-app .fine-sections-panel > .control-section{margin-top:0}
+[data-theme=light] .studio-app .fine-sections-back button{
+  background:#eee7f9;color:#523777;border-color:#bcaada;
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .fine-sections-panel{animation:none}
+}
