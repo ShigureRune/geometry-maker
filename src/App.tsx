@@ -12,7 +12,7 @@ import {figureScrollAngle} from './ambient';
 import { darkTheme,VISUAL_THEMES,THEME_PRESETS,applyThemePalette,themeScene,type VisualTheme } from './themes';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AnimationControls,usePlayback } from './AnimationControls';
-import { defaults,MOTION_DEFAULTS,schedule,progressAt,type AnimationSettings } from './animation';
+import { defaults,MOTION_DEFAULTS,motionPresetParameters,schedule,progressAt,type AnimationSettings } from './animation';
 import {createFigureMotionPlan,figureFlowAt} from './figure-motion';
 import { densityCandidates, visibleScene } from './density';
 import { ColorEditor } from './ColorEditor';
@@ -216,6 +216,7 @@ export default function App() {
     motionStrength:lastProject?.motionStrength??MOTION_DEFAULTS.motionStrength,
     motionSpeed:lastProject?.motionSpeed??MOTION_DEFAULTS.motionSpeed,
     motionVideoSeconds:lastProject?.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds,
+    motionPreset:lastProject?.motionPreset??'standard',
   }));
   // Magic Circle already owns a separate continuous rotation clock.
   // Never run a redundant 2D figure-motion clock in that mode.
@@ -451,13 +452,14 @@ export default function App() {
   const growth=animation.animationEnabled?Object.fromEntries(scene.shapes.map(s=>[s.id,progressAt(cues[s.id],playback.position,animation.easingType)])):undefined;
   // Growth stops at 100%; the independent pauseable clock drives bright
   // streaks along the existing v4/v5 contours, never changing their layout.
+  const motionParams=motionPresetParameters(animation);
   const completedFlow=useMemo(()=>animation.animationEnabled&&animation.continuousMotion&&
     version!==MAGIC_ALGORITHM_VERSION&&playback.motionSeconds>0
       ?figureFlowAt(figureMotionPlan,playback.motionSeconds,
-        animation.motionStrength??MOTION_DEFAULTS.motionStrength,
-        animation.motionSpeed??MOTION_DEFAULTS.motionSpeed):undefined,
+        motionParams.strength,motionParams.speed):undefined,
     [figureMotionPlan,animation.animationEnabled,animation.continuousMotion,
-      animation.motionStrength,animation.motionSpeed,version,playback.motionSeconds]);
+      animation.motionStrength,animation.motionSpeed,animation.motionPreset,
+      version,playback.motionSeconds]);
   function completedArtwork(transparentOnly=false){return new DOMParser().parseFromString(renderToStaticMarkup(<Preview scene={scene} background={twoDBackground} transparent={version===MAGIC_ALGORITHM_VERSION&&transparentOnly} textOverlay={version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>),'image/svg+xml').documentElement as unknown as SVGSVGElement;}
   const studioCommands:StudioCommand[]=[
     ...categories.filter(item=>item.id!=='text'||
@@ -689,7 +691,7 @@ export default function App() {
             ambientClock.stop();setAmbient({...ambientDefaults,...settings.ambient,enabled:false});
             setDensity(settings.density ?? 50);setVisualTheme(settings.visualTheme??'standard');setTextOverlay(settings.textOverlay??{...textOverlayDefaults});
             setEnabledShapeKinds(settings.enabledShapeKinds??[...ALL_SHAPE_KINDS]);
-            setAnimation({animationEnabled:settings.animationEnabled??false,animationDuration:settings.animationDuration??8,playbackSpeed:settings.playbackSpeed??1,easingType:settings.easingType??'ease-in-out',continuousMotion:settings.continuousMotion??MOTION_DEFAULTS.continuousMotion,motionStrength:settings.motionStrength??MOTION_DEFAULTS.motionStrength,motionSpeed:settings.motionSpeed??MOTION_DEFAULTS.motionSpeed,motionVideoSeconds:settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds});playback.setPlaying(false);playback.setPosition(settings.algorithmVersion===MAGIC_ALGORITHM_VERSION?1:0);
+            setAnimation({animationEnabled:settings.animationEnabled??false,animationDuration:settings.animationDuration??8,playbackSpeed:settings.playbackSpeed??1,easingType:settings.easingType??'ease-in-out',continuousMotion:settings.continuousMotion??MOTION_DEFAULTS.continuousMotion,motionStrength:settings.motionStrength??MOTION_DEFAULTS.motionStrength,motionSpeed:settings.motionSpeed??MOTION_DEFAULTS.motionSpeed,motionVideoSeconds:settings.motionVideoSeconds??MOTION_DEFAULTS.motionVideoSeconds,motionPreset:settings.motionPreset??'standard'});playback.setPlaying(false);playback.setPosition(settings.algorithmVersion===MAGIC_ALGORITHM_VERSION?1:0);
             setMagicSettings(settings.magicCircle??{...magicDefaults});
              setVersion(settings.algorithmVersion as AlgorithmVersion);committedSeed.current=settings.seed;
             setSeed(settings.seed); setRatio(settings.aspectRatio);
