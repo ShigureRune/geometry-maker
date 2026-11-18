@@ -309,3 +309,27 @@ test('2D text, animation and export preserve their original controls behind fine
   await eList.getByRole('checkbox',{name:'動画の書き出しの詳細設定を開く'}).check();
   await expect(exp.locator('[data-fine-panel="video"]')).toBeVisible();
 });
+
+
+test('3D export has separate PNG, video, and project settings inspectors',async({page})=>{
+  await page.goto('./?fine-preview=1');
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'書き出し');
+  const root=page.locator('#fine-sections-export');
+  const nav=root.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(nav.getByRole('checkbox')).toHaveCount(3);
+  const image=nav.getByRole('checkbox',{name:'3D画像の保存の詳細設定を開く'});
+  await image.check();
+  await expect(page.getByRole('button',{name:'3D PNGを書き出す'})).toBeVisible();
+  await page.locator('#three-export-width').fill('1600');
+  await root.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await nav.getByRole('checkbox',{name:'3D設定の保存・復元の詳細設定を開く'}).check();
+  await expect(page.getByRole('button',{name:'3Dの設定を保存'})).toBeVisible();
+  await root.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await nav.getByRole('checkbox',{name:'3D動画の保存の詳細設定を開く'}).check();
+  await expect(root.locator('[data-fine-panel="video"]')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(image).not.toBeChecked();
+  await image.check();
+  await expect(page.locator('#three-export-width')).toHaveValue('1600');
+});
