@@ -7,6 +7,7 @@ describe('studio reset safety',()=>{
     expect(STUDIO_RESET_KEYS).toEqual([
       STUDIO_AUTOSAVE_KEY,'geometry-ui-theme','geometry-studio-sidebar-width',
       'geometry-studio-command-favorites','geometry-studio-command-recents',
+      'geometry-studio-seed-vault-v1',
     ]);
     const values=new Map<string,string>([
       [STUDIO_AUTOSAVE_KEY,'draft'],
@@ -14,6 +15,7 @@ describe('studio reset safety',()=>{
       ['geometry-studio-sidebar-width','480'],
       ['geometry-studio-command-favorites','["seed"]'],
       ['geometry-studio-command-recents','["open-background"]'],
+      ['geometry-studio-seed-vault-v1','{"version":1,"history":[],"cursor":-1,"bookmarks":[]}'],
       ['unrelated-project','must survive'],
     ]);
     clearStudioPreferences({removeItem:key=>{values.delete(key);}});
