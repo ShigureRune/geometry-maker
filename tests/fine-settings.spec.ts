@@ -217,3 +217,95 @@ test('non-preview 3D background, decoration and animation retain existing direct
   await expect(page.getByLabel('3Dアニメーションを有効化')).toBeVisible();
   await expect(page.locator('.fine-sections')).toHaveCount(0);
 });
+
+
+test('2D shape details allow switching between seed, density and ratio without losing values',async({page})=>{
+  await page.goto('./?fine-preview=1');
+  await openSettingsCategory(page,'図形');
+  const list=page.locator('#fine-sections-shapes').getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(list.getByRole('checkbox')).toHaveCount(7);
+  const seed=list.getByRole('checkbox',{name:'シードと生成方式の詳細設定を開く'});
+  await seed.check();
+  await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
+  await page.getByLabel('シード値',{exact:true}).fill('fine-2d-regression');
+  await page.getByLabel('シード値',{exact:true}).press('Enter');
+  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  const density=list.getByRole('checkbox',{name:'図形密度の詳細設定を開く'});
+  await density.check();
+  await page.locator('#density').fill('65');
+  await expect(page.locator('#density')).toHaveValue('65');
+  await page.keyboard.press('Escape');
+  await expect(density).toBeFocused();
+  await list.getByRole('checkbox',{name:'縦横比の詳細設定を開く'}).check();
+  await expect(page.locator('#ratio')).toBeVisible();
+  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await seed.check();
+  await expect(page.getByLabel('シード値',{exact:true})).toHaveValue('fine-2d-regression');
+  await expect(page.locator('#density')).toBeHidden();
+});
+
+test('2D background, colors, and decoration use small settings screens',async({page})=>{
+  await page.goto('./?fine-preview=1');
+  await openSettingsCategory(page,'背景');
+  const background=page.locator('#fine-sections-background');
+  const bg=background.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(bg.getByRole('checkbox')).toHaveCount(2);
+  await bg.getByRole('checkbox',{name:'背景の種類の詳細設定を開く'}).check();
+  await page.getByRole('button',{name:'グラデーション',exact:true}).click();
+  await background.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await bg.getByRole('checkbox',{name:'2Dグリッド背景の詳細設定を開く'}).check();
+  await expect(page.getByRole('heading',{name:'2Dグリッド背景'})).toBeVisible();
+
+  await openSettingsCategory(page,'カラー');
+  const colors=page.locator('#fine-sections-colors');
+  const palette=colors.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(palette.getByRole('checkbox')).toHaveCount(3);
+  await palette.getByRole('checkbox',{name:'ビジュアルテーマの詳細設定を開く'}).check();
+  await expect(page.locator('#visual-theme')).toBeVisible();
+  await colors.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await palette.getByRole('checkbox',{name:'背景と図形の配色の詳細設定を開く'}).check();
+  await expect(page.locator('#color-mode')).toBeVisible();
+
+  await openSettingsCategory(page,'装飾');
+  const decor=page.locator('#fine-sections-decoration');
+  const list=decor.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(list.getByRole('checkbox')).toHaveCount(2);
+  await list.getByRole('checkbox',{name:'線の太さの詳細設定を開く'}).check();
+  await page.locator('#line-width').fill('150');
+  await decor.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await list.getByRole('checkbox',{name:'発光の強さの詳細設定を開く'}).check();
+  await expect(page.locator('#glow-intensity')).toBeVisible();
+});
+
+test('2D text, animation and export preserve their original controls behind fine navigation',async({page})=>{
+  await page.goto('./?fine-preview=1');
+  await openSettingsCategory(page,'文字');
+  const text=page.locator('#fine-sections-text');
+  const tnav=text.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(tnav.getByRole('checkbox')).toHaveCount(4);
+  await tnav.getByRole('checkbox',{name:'文字とフォントの詳細設定を開く'}).check();
+  await page.locator('#overlay-text').fill('小項目テスト');
+  await text.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await tnav.getByRole('checkbox',{name:'位置と重なり順の詳細設定を開く'}).check();
+  await expect(page.locator('#text-align')).toBeVisible();
+  await text.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await tnav.getByRole('checkbox',{name:'文字とフォントの詳細設定を開く'}).check();
+  await expect(page.locator('#overlay-text')).toHaveValue('小項目テスト');
+
+  await openSettingsCategory(page,'アニメーション');
+  const animation=page.locator('#fine-sections-animation');
+  const aList=animation.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(aList.getByRole('checkbox')).toHaveCount(2);
+  await aList.getByRole('checkbox',{name:'成長アニメーションの詳細設定を開く'}).check();
+  await expect(animation.locator('[data-fine-panel="growth"]')).toBeVisible();
+
+  await openSettingsCategory(page,'書き出し');
+  const exp=page.locator('#fine-sections-export');
+  const eList=exp.getByRole('navigation',{name:'細かい設定項目一覧'});
+  await expect(eList.getByRole('checkbox')).toHaveCount(2);
+  await eList.getByRole('checkbox',{name:'画像と設定ファイルの保存の詳細設定を開く'}).check();
+  await expect(page.getByRole('button',{name:'PNGを書き出す'})).toBeVisible();
+  await exp.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await eList.getByRole('checkbox',{name:'動画の書き出しの詳細設定を開く'}).check();
+  await expect(exp.locator('[data-fine-panel="video"]')).toBeVisible();
+});
