@@ -103,6 +103,14 @@ export function AnimationControls({settings,onChange,playback,version}:{
  <button onClick={()=>{setPlaying(false);setPosition(1);}}>完成状態を表示</button></div>
  <label>タイムライン<input type="range" min="0" max="1000" step="1" value={Math.round(position*1000)}
    onChange={e=>{setPlaying(false);setPosition(+e.target.value/1000);}}/></label>
+ <div className="timeline-jump-buttons" role="group" aria-label="タイムラインのクイック移動">
+   {[0,25,50,75,100].map(percent=><button key={percent} type="button"
+     aria-label={`再生位置を${percent}%に移動`}
+     aria-pressed={Math.round(position*100)===percent}
+     onClick={()=>{setPlaying(false);setPosition(percent/100);}}>
+     {percent}%
+   </button>)}
+ </div>
  <output data-testid="playback-position">{(position*settings.animationDuration).toFixed(2)} / {settings.animationDuration}秒（{Math.round(position*100)}%）</output>
  <output data-testid="post-growth-motion" aria-label="完成後の経過時間">{playback.motionSeconds.toFixed(2)}秒</output>
  <HelpInfo>シード確定・再生成で成長から再生します。「完成状態を表示」は光の流れを停止します。静止画保存は常に完成状態です。</HelpInfo>

@@ -199,3 +199,17 @@ test('2D v4/v5 live and exported video frames share selected motion preset',asyn
   expect(new Set(effects.map(e=>e.offset)).size).toBe(3);
  }
 });
+
+
+test('timeline quick-jump buttons seek precisely and pause playback',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('navigation',{name:'設定カテゴリー'})
+    .getByRole('button',{name:'アニメーション',exact:true}).click();
+  for(const percent of [25,50,75,100,0]){
+    const jump=page.getByRole('button',{name:`再生位置を${percent}%に移動`});
+    await jump.click();
+    await expect(jump).toHaveAttribute('aria-pressed','true');
+    await expect(page.getByTestId('playback-position')).toContainText(`（${percent}%）`);
+  }
+  await expect(page.getByRole('button',{name:'再生',exact:true})).toBeEnabled();
+});

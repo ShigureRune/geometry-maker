@@ -43,6 +43,30 @@ export const gridBackgroundDefaults: GridBackgroundSettings = {
   animation: {...gridAnimationDefaults},
 };
 
+/** One-click visual recipes, with valid exportable values and no extra saved fields. */
+export const GRID_BACKGROUND_PRESETS=[
+  {id:'classic',label:'方眼'},
+  {id:'stars',label:'星屑ドット'},
+  {id:'neon',label:'ネオン方眼'},
+  {id:'flow',label:'流れるドット'},
+] as const;
+export type GridBackgroundPreset=typeof GRID_BACKGROUND_PRESETS[number]['id'];
+export function gridPresetSettings(id:GridBackgroundPreset):GridBackgroundSettings{
+  const base:GridBackgroundSettings={...gridBackgroundDefaults,enabled:true,
+    animation:{...gridAnimationDefaults}};
+  switch(id){
+    case 'classic':return base;
+    case 'stars':return {...base,type:'dot',spacing:64,thickness:2,opacity:45,glow:25};
+    case 'neon':return {...base,type:'line',spacing:80,thickness:1.5,opacity:65,glow:75,
+      rotation:30,colorMode:'custom',color:'#57e4ff',
+      animation:{...gridAnimationDefaults,enabled:true,mode:'pulse'}};
+    case 'flow':return {...base,type:'dot',spacing:40,thickness:2,opacity:55,glow:35,
+      rotation:15,colorMode:'custom',color:'#d0aaff',
+      animation:{...gridAnimationDefaults,enabled:true,mode:'scroll',duration:9,speed:1.4}};
+  }
+}
+
+
 export function validateGridAnimation(value: unknown): GridAnimationSettings {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('グリッドアニメーション設定が不正です。');

@@ -89,6 +89,11 @@ export default function App() {
     const handler=(event:KeyboardEvent)=>{
       if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){
         event.preventDefault();setCommandOpen(prev=>!prev);
+      }else if(event.key==='/'&&!commandOpen&&!event.ctrlKey&&!event.metaKey&&
+        !event.altKey&&!event.isComposing&&!event.repeat&&
+        !(event.target instanceof HTMLElement&&
+          (event.target.isContentEditable||event.target.closest('input,textarea,select,[contenteditable="true"]')))){
+        event.preventDefault();setCommandOpen(true);
       }else if(event.key==='Escape'&&studioFocus&&!commandOpen){
         setStudioFocus(false);
       }
@@ -130,6 +135,7 @@ export default function App() {
   const ambientClock=useAmbientClock(renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled,ambient.lowPower,ambient,ratio);
   const artworkRef = useRef<HTMLDivElement>(null);
   const [seed, setSeed] = useState(()=>lastProject?.seed??createRandomSeed());
+  const [seedClipboardMessage,setSeedClipboardMessage]=useState('');
   const [initialColors]=useState(()=>lastProject?.colorSettings??saved?.threeD.colorSettings??
     reseedColors({...legacyColors(initialBackground),mode:'seed'},seed));
   const [uiTheme,setUiTheme]=useState(()=>{try{return localStorage.getItem('geometry-ui-theme')==='light'?'light':'dark';}catch{return 'dark';}});
@@ -160,7 +166,7 @@ export default function App() {
   const twoDBackground=useMemo(()=>version===MAGIC_ALGORITHM_VERSION
     ?backgroundForMagic(background,magicColors):background,[version,background,magicColors]);
   function applyColors(c:ColorSettings) { setColorSettings(c);setBackground(bg=>coloredBackground(bg,c)); }
-  function changeSeed(value:string) {setStandbyTransition(null);setSeed(value);if(colorSettings)applyColors(reseedColors(colorSettings,value));}
+  function changeSeed(value:string) {setSeedClipboardMessage('');setStandbyTransition(null);setSeed(value);if(colorSettings)applyColors(reseedColors(colorSettings,value));}
   function editor(id:Slot,label:string) { const slot=activeColors.slots[id];return <ColorEditor label={label} value={slot.color} locked={slot.locked}
    onColor={color=>applyColors({...activeColors,edited:[...new Set([...(activeColors.edited??[]),id])],slots:{...activeColors.slots,[id]:{...slot,color}}})}
    onRoll={()=>applyColors(rerollColor(activeColors,seed,id))}
@@ -424,6 +430,25 @@ export default function App() {
     threeComposition,threeBaseComposition,threeBackground,visualTheme,colorSettings]);
   function commitSeed(){if(committedSeed.current!==seed){committedSeed.current=seed;replayOnRegenerate();}}
   function randomizeSeed(){if(threeExportBusy)return;const value=createRandomSeed();committedSeed.current=value;changeSeed(value);replayOnRegenerate();}
+  async function copySeed(){
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(seed);
+      setSeedClipboardMessage('シードをコピーしました');
+    }catch{setSeedClipboardMessage('コピーできませんでした。ブラウザの権限を確認してください。');}
+  }
+  async function pasteSeed(){
+    if(threeExportBusy)return;
+    try{
+      if(!navigator.clipboard?.readText)throw new Error('clipboard unavailable');
+      const value=(await navigator.clipboard.readText()).trim();
+      if(!value||value.length>256){
+        setSeedClipboardMessage('1〜256文字のシードをコピーしてから貼り付けてください。');return;
+      }
+      committedSeed.current=value;changeSeed(value);replayOnRegenerate();
+      setSeedClipboardMessage('シードを貼り付けて生成しました');
+    }catch{setSeedClipboardMessage('貼り付けできませんでした。ブラウザの権限を確認してください。');}
+  }
   function goToSettings(next:Category){
     if(threeExportBusy&&next!=='export')return;
     if(next==='text'&&(renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION))return;
@@ -467,6 +492,8 @@ export default function App() {
       .map(item=>({id:'open-'+item.id,title:item.label+'の設定を開く',
         description:'設定パネル / '+item.label,keywords:item.id,run:()=>goToSettings(item.id)})),
     {id:'seed',title:'新しいシードを生成',description:'ランダムな構図をすぐ生成',keywords:'random 乱数',run:randomizeSeed},
+    {id:'seed-copy',title:'シードをコピー',description:'構図の再現用に合言葉をコピー',keywords:'clipboard コピー',run:()=>{void copySeed();}},
+    {id:'seed-paste',title:'シードを貼り付け',description:'コピーしたシードで構図を再生成',keywords:'clipboard ペースト',run:()=>{void pasteSeed();}},
     {id:'focus',title:studioFocus?'集中表示を終了':'プレビューに集中',
       description:'作業パネルを隠してキャンバスを広げる',keywords:'full screen canvas',run:()=>setStudioFocus(v=>!v)},
     {id:'panel',title:'設定パネルの表示を切り替える',
@@ -531,7 +558,8 @@ export default function App() {
             <label htmlFor="seed">模様の合言葉</label>
             <HelpInfo label="シードの説明">「シード」は模様を再現する合言葉。同じ文字なら同じ模様になります。Enterか入力欄の外を押すと確定します。</HelpInfo>
           </div>
-          <div className="seed-row"><input id="seed" aria-label="シード値" value={seed} onChange={e => changeSeed(e.target.value)} onBlur={commitSeed} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&e.keyCode!==229)commitSeed();}} spellCheck={false} autoComplete="off" /><button className="dice-button" type="button" onClick={randomizeSeed} aria-label="ランダムシードを生成" title="ランダムシードを生成">⚄ <span>ランダム</span></button></div> 
+          <div className="seed-row"><input id="seed" aria-label="シード値" value={seed} onChange={e => changeSeed(e.target.value)} onBlur={commitSeed} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&e.keyCode!==229)commitSeed();}} spellCheck={false} autoComplete="off" /><button className="dice-button" type="button" onClick={randomizeSeed} aria-label="ランダムシードを生成" title="ランダムシードを生成">⚄ <span>ランダム</span></button><button type="button" className="seed-clipboard-button" onClick={()=>void copySeed()} aria-label="シードをコピー">コピー</button><button type="button" className="seed-clipboard-button" disabled={threeExportBusy} onClick={()=>void pasteSeed()} aria-label="シードを貼り付け">貼付</button></div>
+          {seedClipboardMessage&&<p className="seed-clipboard-status" role="status" aria-live="polite">{seedClipboardMessage}</p>} 
           <div hidden={renderMode==='3d'}><div className="studio-setting-label">
             <label className="algorithm-label" htmlFor="algorithm-version">作り方の種類</label>
             {version===LEGACY_ALGORITHM_VERSION&&<HelpInfo>旧v4設定の構図を保持しています。v5を選ぶと新しい構図に変わります。図形の種類別設定はv5で有効です。</HelpInfo>}

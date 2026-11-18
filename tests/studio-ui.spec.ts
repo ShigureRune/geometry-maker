@@ -177,3 +177,74 @@ test('Compact seed help sits next to the label instead of beneath the seed input
   await page.locator('.shape-kind-presets button').first().click();
   await expect(popup).toHaveCount(0);
 });
+
+
+test('Studio command search supports slash, multi-term matching and five-item paging',async({page})=>{
+  await page.goto('./');
+  const seed=page.getByLabel('シード値',{exact:true});
+  await seed.focus();
+  await seed.press('/');
+  await expect(page.getByRole('dialog',{name:'クイックコマンド'})).toHaveCount(0);
+  await seed.evaluate(element=>(element as HTMLElement).blur());
+  await page.keyboard.press('/');
+  const search=page.getByRole('searchbox',{name:'コマンドを検索'});
+  await expect(search).toBeFocused();
+  await search.fill('2d svg');
+  await expect(page.getByText('2Dモードに切り替える',{exact:true})).toBeVisible();
+  await search.fill('存在しない 2d');
+  await expect(page.locator('.studio-command-result')).toHaveCount(0);
+  await search.fill('');
+  const items=page.locator('.studio-command-result');
+  expect(await items.count()).toBeGreaterThan(6);
+  await search.press('PageDown');
+  await expect(items.nth(5)).toHaveAttribute('aria-current','true');
+  await search.press('PageUp');
+  await expect(items.first()).toHaveAttribute('aria-current','true');
+  await search.press('End');
+  await expect(items.last()).toHaveAttribute('aria-current','true');
+  await search.press('Home');
+  await expect(items.first()).toHaveAttribute('aria-current','true');
+});
+
+test('Studio command favorites and recent actions survive reopening and reload',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('button',{name:'コマンド検索'}).click();
+  const search=page.getByRole('searchbox',{name:'コマンドを検索'});
+  await search.fill('背景');
+  await expect(page.locator('.studio-command-result').first()).toContainText('背景の設定を開く');
+  await page.getByRole('button',{name:'☆ 選択中をお気に入り'}).click();
+  await expect(page.getByRole('button',{name:'★ お気に入り解除'})).toHaveAttribute('aria-pressed','true');
+  await search.fill('');
+  await expect(page.locator('.studio-command-result').first()).toContainText('背景の設定を開く');
+  await search.press('Enter');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button',{name:'コマンド検索'}).click();
+  await expect(page.locator('.studio-command-result').first()).toContainText('背景の設定を開く');
+  await expect(page.getByText('★ 1 件のお気に入り')).toBeVisible();
+  await page.getByRole('button',{name:'★ お気に入り解除'}).click();
+  await expect(page.getByRole('button',{name:'☆ 選択中をお気に入り'})).toHaveAttribute('aria-pressed','false');
+  await expect(page.locator('.studio-command-result').first()).toContainText('背景の設定を開く');
+});
+
+test('Seed clipboard can copy and paste reproducible project seeds',async({page})=>{
+  await page.addInitScript(()=>{
+    const clipWindow=window as Window & {__seedTestClipboard?:string};
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText:async(text:string)=>{clipWindow.__seedTestClipboard=text;},
+      readText:async()=>clipWindow.__seedTestClipboard??'',
+    }});
+  });
+  await page.goto('./');
+  const seed=page.getByLabel('シード値',{exact:true});
+  await seed.fill('copied-seed-42');
+  await page.getByRole('button',{name:'シードをコピー',exact:true}).click();
+  await expect(page.getByText('シードをコピーしました')).toBeVisible();
+  expect(await page.evaluate(()=>(window as Window & {__seedTestClipboard?:string}).__seedTestClipboard))
+    .toBe('copied-seed-42');
+  await page.evaluate(()=>{(window as Window & {__seedTestClipboard?:string}).__seedTestClipboard='pasted-seed-77';});
+  await page.getByRole('button',{name:'シードを貼り付け',exact:true}).click();
+  await expect(seed).toHaveValue('pasted-seed-77');
+  await expect(page.getByTestId('current-seed')).toHaveText('pasted-seed-77');
+  await expect(page.getByText('シードを貼り付けて生成しました')).toBeVisible();
+});

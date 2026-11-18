@@ -6,6 +6,8 @@ export const STUDIO_RESET_KEYS=[
   STUDIO_AUTOSAVE_KEY,
   'geometry-ui-theme',
   'geometry-studio-sidebar-width',
+  'geometry-studio-command-favorites',
+  'geometry-studio-command-recents',
 ] as const;
 
 /** Used only after explicit confirmation. Reload before rendering a new draft.
