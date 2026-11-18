@@ -34,3 +34,15 @@ test('mobile floating top button returns to the first screen',async({page})=>{
   await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeLessThan(30);
   await expect(page.locator('html')).not.toHaveAttribute('data-error','true');
 });
+
+test('keyboard navigation transfers focus to the settings detail and back',async({page})=>{
+  await page.goto('./');
+  const shapes=page.getByRole('checkbox',{name:'図形の設定を開く'});
+  await shapes.focus();
+  await shapes.press('Space');
+  const back=page.getByRole('button',{name:'設定一覧へ',exact:true});
+  await expect(back).toBeFocused();
+  await back.press('Enter');
+  await expect(shapes).toBeFocused();
+  await expect(page.locator('.settings-screen')).not.toHaveClass(/is-detail/);
+});
