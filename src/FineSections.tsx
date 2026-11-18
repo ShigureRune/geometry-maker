@@ -10,14 +10,19 @@ export type FineSectionItem = {
 /** Keep the real controls mounted while the fine-settings inspector changes pages.
  * Navigation checkboxes are independent of the controls they open.
  * Without preview mode this renders the original controls with no wrapper. */
-export function FineSections({id,items,enabled=false}:{
+export function FineSections({id,items,enabled=false,label}:{
   id:string;
   items:readonly FineSectionItem[];
   enabled?:boolean;
+  label?:string;
 }){
   const [active,setActive]=useState<string|null>(null);
   const lastVisited=useRef<string|null>(null);
   const didNavigate=useRef(false);
+  const itemIds=items.map(item=>item.id).join('|');
+  useEffect(()=>{
+    if(active&&!itemIds.split('|').includes(active))setActive(null);
+  },[itemIds,active]);
   useEffect(()=>{
     if(!enabled||!didNavigate.current)return;
     const selector=active?'.fine-sections-back-button':
@@ -31,7 +36,7 @@ export function FineSections({id,items,enabled=false}:{
   if(!enabled)return <>{items.map(item=><Fragment key={item.id}>{item.content}</Fragment>)}</>;
 
   return <section className="fine-sections" id={`fine-sections-${id}`}
-    aria-label={`${id==='background'?'背景':id==='decoration'?'装飾':'アニメーション'}の細かい設定`}
+    aria-label={`${label??({background:'背景',decoration:'装飾',animation:'アニメーション',colors:'カラー',shapes:'図形',text:'文字',export:'書き出し'}[id]??'設定')}の細かい設定`}
     onKeyDown={event=>{
       if(active&&event.key==='Escape'){
         event.preventDefault();
