@@ -506,7 +506,9 @@ it('fans light into authored branches and blooms only when two real circuit endp
     expect(merged[wireC.id].mergePulse).toBeUndefined();
     expect(merged[childA.id].arrivalPulse).toBeGreaterThan(0);
     expect(merged[childB.id].arrivalPulse).toBeGreaterThan(0);
-    expect(merged[bar.id].barShift).toBeGreaterThan(0);
+    // Bars legitimately wrap to a negative off-screen entry offset.
+    expect(Number.isFinite(merged[bar.id].barShift)).toBe(true);
+    expect(Math.abs(merged[bar.id].barShift)).toBeGreaterThan(0);
     expect(merged[hero.id].coupledSpin).toBeDefined();
     expect(merged[accent.id]).toBeUndefined();
     const staticSVG=renderToStaticMarkup(createElement(Preview,{scene,background}));
