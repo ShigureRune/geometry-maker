@@ -49,3 +49,17 @@ test('keyboard navigation highlights and scrolls the selected command into view'
   await expect(page.locator('.studio-command-results')).toHaveJSProperty('scrollTop',0);
   await expect(search).toBeFocused();
 });
+
+
+test('command search announces result counts to assistive technology',async({page})=>{
+  await page.goto('./');
+  await page.getByRole('button',{name:'コマンド検索'}).click();
+  const search=page.getByRole('searchbox',{name:'コマンドを検索'});
+  const status=page.getByRole('status');
+  const count=await page.locator('.studio-command-result').count();
+  await expect(status).toHaveText(`${count} 件のコマンドが見つかりました`);
+  await search.fill('絶対に存在しないコマンド');
+  await expect(status).toHaveText('0 件のコマンドが見つかりました');
+  await search.fill('背景');
+  await expect(status).toHaveText(/^[1-9]\d* 件のコマンドが見つかりました$/);
+});

@@ -70,6 +70,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
             event.preventDefault();execute(filtered[selectedIndex]);
           }
         }}/>
+      <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">{filtered.length} 件のコマンドが見つかりました</p>
       <div ref={results} id="studio-command-results" className="studio-command-results" role="list">
         {filtered.length?filtered.map(command=><button type="button" key={command.id}
           role="listitem" id={`studio-command-option-${command.id}`}
