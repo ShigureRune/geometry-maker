@@ -1,4 +1,5 @@
 import {HelpInfo} from './HelpInfo';
+import {FineSections} from './FineSections';
 import { SettingsCategories, categories, type Category } from './SettingsCategories';
 import {StudioCommandPalette, type StudioCommand} from './StudioCommandPalette';
 import {SeedExplorerBoard} from './SeedExplorerBoard';
@@ -755,7 +756,7 @@ export default function App() {
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
-        {!(renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION)&&<section className="control-section" aria-labelledby="background-heading">
+        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&<section className="control-section" aria-labelledby="background-heading">
           <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
           <div className="segmented" role="group" aria-label="背景の種類">
             <button type="button" aria-pressed={background.mode === 'solid'} onClick={() => setBackground({ ...background, mode: 'solid' })}>単色</button>
@@ -769,7 +770,20 @@ export default function App() {
         </section>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<HelpInfo>魔法陣の背景・自動配色は「カラー」から変更できます。背景なしでの表示や透過保存は「図形」の魔法陣設定で切り替えられます。</HelpInfo>}
         {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&<GridBackgroundControls value={background.grid??gridBackgroundDefaults} onChange={grid=>setBackground(bg=>({...bg,grid}))}/>}
-        {renderMode==='3d'&&<><VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
+        {renderMode==='3d'&&<FineSections id="background" enabled={finePreview} items={[
+{id:'base',label:'背景の種類',detail:'単色・グラデーションと方向',content:<section className="control-section" aria-labelledby="background-heading">
+          <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
+          <div className="segmented" role="group" aria-label="背景の種類">
+            <button type="button" aria-pressed={background.mode === 'solid'} onClick={() => setBackground({ ...background, mode: 'solid' })}>単色</button>
+            <button type="button" aria-pressed={background.mode === 'gradient'} onClick={() => setBackground({ ...background, mode: 'gradient' })}>グラデーション</button>
+          </div>
+          {background.mode==='gradient'&&<>
+            <label className="range-label" htmlFor="angle">方向 <output htmlFor="angle">{background.angle}°</output></label>
+            <input id="angle" type="range" min="0" max="360" value={background.angle} onChange={e=>setBackground({...background,angle:Number(e.target.value)})}/>
+          </>}
+          <HelpInfo>背景の各色は「カラー」で編集できます。</HelpInfo>
+        </section>},
+{id:'void',label:'VOID MODE',detail:'コズミックウェブ・無限空間',content:<VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
           if(voidMode.enabled!==voidEnabled||(voidMode.enabled&&voidMode.version!==voidVersion)){
             const floorTime=threeApi.current?.getFloorElapsedSeconds?.()??threeRestore.floorTime;
             if(voidMode.enabled){
@@ -780,7 +794,10 @@ export default function App() {
             setStandbyTransition(null);setStandbyFinishedSeed(!voidMode.enabled&&beforeVoid.current?.seed===seed?beforeVoid.current.complete:null);
           }
           setThreeSettings(settings=>({...settings,voidMode}));
-        }}/><SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/><FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/></>}
+        }}/>},
+{id:'sky',label:'空と景色',detail:'空・天候・地形・自然',content:<SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/>},
+{id:'floor',label:'床の模様',detail:'3D床・回路・床グリッド',content:<FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/>}
+]}/>}
 
 
         </div>
