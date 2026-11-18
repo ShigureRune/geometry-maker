@@ -6,10 +6,12 @@ export function StudioCommandPalette({open,onClose,commands}:{
   open:boolean;onClose:()=>void;commands:readonly StudioCommand[];
 }){
   const [query,setQuery]=useState('');
+  const [activeIndex,setActiveIndex]=useState(0);
   const input=useRef<HTMLInputElement>(null);
   useEffect(()=>{
     if(!open)return;
     setQuery('');
+    setActiveIndex(0);
     const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
     const frame=requestAnimationFrame(()=>input.current?.focus());
     const key=(event:KeyboardEvent)=>{
@@ -34,6 +36,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
   },[commands,query]);
   if(!open)return null;
   const execute=(command:StudioCommand)=>{command.run();onClose();};
+  const selectedIndex=Math.min(activeIndex,Math.max(0,filtered.length-1));
   return <div className="studio-command-backdrop" onMouseDown={event=>{
     if(event.target===event.currentTarget)onClose();
   }}>
@@ -47,19 +50,30 @@ export function StudioCommandPalette({open,onClose,commands}:{
       </div>
       <label htmlFor="studio-command-search" className="sr-only">コマンドを検索</label>
       <input ref={input} id="studio-command-search" type="search" value={query}
-        placeholder="例：背景 / 3D / 書き出し / シード…" autoComplete="off"
-        onChange={event=>setQuery(event.target.value)}
-        onKeyDown={event=>{if(event.key==='Enter'&&filtered[0]){event.preventDefault();execute(filtered[0]);}}}/>
-      <div className="studio-command-results" role="list">
+        placeholder="例：背景 / 3D / 書き出し / シード…" autoComplete="off" aria-controls="studio-command-results"
+        aria-activedescendant={filtered.length?`studio-command-option-${filtered[selectedIndex].id}`:undefined}
+        onChange={event=>{setQuery(event.target.value);setActiveIndex(0);}}
+        onKeyDown={event=>{
+          if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+            event.preventDefault();
+            if(filtered.length)setActiveIndex(index=>(index+(event.key==='ArrowDown'?1:-1)+filtered.length)%filtered.length);
+          }else if(event.key==='Enter'&&filtered[selectedIndex]){
+            event.preventDefault();execute(filtered[selectedIndex]);
+          }
+        }}/>
+      <div id="studio-command-results" className="studio-command-results" role="list">
         {filtered.length?filtered.map(command=><button type="button" key={command.id}
-          role="listitem" onClick={()=>execute(command)} className="studio-command-result">
+          role="listitem" id={`studio-command-option-${command.id}`}
+          aria-current={selectedIndex===filtered.indexOf(command)?'true':undefined}
+          onMouseEnter={()=>setActiveIndex(filtered.indexOf(command))}
+          onClick={()=>execute(command)} className="studio-command-result">
           <span className="studio-command-result-icon" aria-hidden="true">↗</span>
           <span className="studio-command-result-label"><strong>{command.title}</strong>
             <small>{command.description}</small></span>
           {command.shortcut&&<kbd>{command.shortcut}</kbd>}
         </button>):<p className="studio-command-empty">一致する操作がありません。別のキーワードを試してみてね。</p>}
       </div>
-      <div className="studio-command-footer"><span>Enter で実行</span><span>Esc で閉じる</span></div>
+      <div className="studio-command-footer"><span>↑↓ で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
     </section>
   </div>;
 }
