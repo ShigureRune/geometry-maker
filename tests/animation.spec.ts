@@ -209,7 +209,7 @@ test('timeline quick-jump buttons seek precisely and pause playback',async({page
     const jump=page.getByRole('button',{name:`再生位置を${percent}%に移動`});
     await jump.click();
     await expect(jump).toHaveAttribute('aria-pressed','true');
-    await expect(page.getByTestId('playback-position')).toContainText(`(${percent}%)`);
+    await expect(page.getByTestId('playback-position')).toContainText(`（${percent}%）`);
   }
   await expect(page.getByRole('button',{name:'再生',exact:true})).toBeEnabled();
 });
