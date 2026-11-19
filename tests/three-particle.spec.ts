@@ -78,6 +78,7 @@ test('changing the seed morphs the visible cloud, pauses smoothly, then settles'
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:10000});
   await category(page,'拡張');
   await page.getByLabel('シード変更時に粒子を再集合').uncheck();
+  await category(page,'図形');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
   expect(errors).toEqual([]);
