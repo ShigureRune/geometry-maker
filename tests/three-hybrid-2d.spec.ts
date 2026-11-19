@@ -29,6 +29,7 @@ test('native 2D SVG composites as a depth-aware textured plane with editable 3D 
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-hybrid-2d','off');
   expect(await planeState(page)).toBeNull();
@@ -64,7 +65,7 @@ test('hybrid scene exports and restores its native 2D source and transform',asyn
   await category(page,'図形');
   await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.getByLabel('3D空間に2D図形を合成').check();
   await page.locator('#hybrid-2d-z').fill('-3');
   await category(page,'書き出し');
@@ -74,7 +75,7 @@ test('hybrid scene exports and restores its native 2D source and transform',asyn
   const data=JSON.parse(saved.toString('utf8'));
   expect(data.settings.hybrid2D).toMatchObject({enabled:true,z:-3});
   expect(data.hybridSource.algorithmVersion).toBe('2d-v4');
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.getByLabel('3D空間に2D図形を合成').uncheck();
   await page.getByRole('button',{name:'2Dモード',exact:true}).click();
   await category(page,'図形');
@@ -84,7 +85,7 @@ test('hybrid scene exports and restores its native 2D source and transform',asyn
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'hybrid-2d.json',mimeType:'application/json',buffer:saved,
   });
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(page.getByLabel('3D空間に2D図形を合成')).toBeChecked();
   await expect(page.locator('#hybrid-2d-z')).toHaveValue('-3');
   await page.getByRole('button',{name:'2Dモード',exact:true}).click();
@@ -119,6 +120,7 @@ test('summons multiple distinct native 2D seeds, rearranges without rerendering,
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
+  await category(page,'拡張');
   await page.getByLabel('3D空間に2D図形を合成').check();
   await page.locator('#hybrid-2d-count').fill('8');
   const preview=page.getByTestId('three-preview');
@@ -152,6 +154,7 @@ test('large summon counts are capped on low quality and preserved in settings JS
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
+  await category(page,'拡張');
   await page.getByLabel('3D空間に2D図形を合成').check();
   await page.locator('#hybrid-2d-count').fill('32');
   await page.locator('#hybrid-2d-layout').selectOption('spiral');
@@ -163,7 +166,7 @@ test('large summon counts are capped on low quality and preserved in settings JS
   await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();
   const data=JSON.parse((await readFile((await (await waiting).path())!)).toString('utf8'));
   expect(data.settings.hybrid2D).toMatchObject({enabled:true,count:32,layout:'spiral',spread:15});
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.locator('#hybrid-2d-count').fill('1');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-hybrid-2d-count','1');
   await category(page,'書き出し');
@@ -171,7 +174,7 @@ test('large summon counts are capped on low quality and preserved in settings JS
     name:'summons.json',mimeType:'application/json',
     buffer:Buffer.from(JSON.stringify(data)),
   });
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(page.locator('#hybrid-2d-count')).toHaveValue('32');
   await expect(page.locator('#hybrid-2d-layout')).toHaveValue('spiral');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-hybrid-2d-count','12');
