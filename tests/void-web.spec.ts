@@ -54,7 +54,7 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   await expect(preview).toHaveAttribute('data-object-count','640');
   const before=await preview.locator('canvas').screenshot();
   const nodeCount=await preview.getAttribute('data-object-count');
-  await category(page,'図形');
+  await category(page,'拡張');
   const toggle=page.getByLabel('PARTICLE MODEを有効化');
   await expect(toggle).toBeEnabled();
   await toggle.check();
@@ -113,16 +113,16 @@ test('PARTICLE MODE can render the real cosmic web in one bounded GPU draw call'
   expect(result.settings.particle).toMatchObject({enabled:true,count:4000});
   expect(result.settings.voidMode?.particleCount).toBe(500000);
   expect(result.settings.voidMode?.nodeShare).toBe(100);
-  await category(page,'図形');
+  await category(page,'拡張');
   await toggle.uncheck();
   await expect(preview).toHaveAttribute('data-particle-mode','off');
   expect((await inspect(page)).bodies).toBeGreaterThan(0);
   // Switching to the legacy VOID version never activates its old geometry
   // sampler; the toggle is disabled until the full cosmic web is selected.
-  await category(page,'背景');
+  await category(page,'拡張');
   await page.locator('#void-version').selectOption('void-filaments-v1');
   await expect(preview).toHaveAttribute('data-void-mode','prototype');
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(toggle).toBeDisabled();
   await expect(preview).toHaveAttribute('data-particle-mode','off');
   expect(errors).toEqual([]);
@@ -138,7 +138,7 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   await open(page,project);
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
   // The random seed button belongs to the figure category. Switch tabs
   // only AFTER clicking it, then pause before costly WebGL inspection.
@@ -201,7 +201,7 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
       'void-web-network-lines') as any)?.geometry.instanceCount??0;
   });
   expect(settledWires).toBeGreaterThan(100);
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.getByLabel('シード変更時に粒子を再集合').uncheck();
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
@@ -248,7 +248,7 @@ test('3D quality, not mobile device type, determines cosmic-web particle budget'
 
 test('a new VOID session defaults to a large web and explicitly retains the old version',async({page})=>{
   const errors=errorsOn(page),normal=fixture();delete normal.settings.voidMode;await open(page,normal);
-  const original=hash(await png(page));await category(page,'背景');await page.getByLabel('VOID MODEを有効化').check();
+  const original=hash(await png(page));await category(page,'拡張');await page.getByLabel('VOID MODEを有効化').check();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-void-mode','web');
   await expect(page.locator('#void-version')).toHaveValue('void-web-v2');
   expect(Number(await page.getByTestId('three-preview').getAttribute('data-object-count'))).toBeGreaterThan(600);
@@ -259,7 +259,7 @@ test('a new VOID session defaults to a large web and explicitly retains the old 
   await expect.poll(async()=>(await inspect(page)).matrices[key]?.[12]).not.toBe(start.matrices[key][12]);
   await spacing.fill('100');
   await expect.poll(async()=>(await inspect(page)).matrices[key]?.[12]).toBe(start.matrices[key][12]);
-  await category(page,'背景');
+  await category(page,'拡張');
   await page.locator('#void-version').selectOption('void-filaments-v1');await expect(page.getByTestId('three-preview')).toHaveAttribute('data-void-mode','prototype');
   expect(Number(await page.getByTestId('three-preview').getAttribute('data-object-count'))).toBeLessThanOrEqual(35);
   await page.getByLabel('VOID MODEを有効化').uncheck();expect(hash(await png(page))).toBe(original);
@@ -276,12 +276,12 @@ test('2800 real solids use bounded GPU batches and restore PNG, limits, density,
   expect(Number(await preview.getAttribute('data-void-filaments'))).toBeGreaterThan(70);
   const first=await inspect(page);expect(first.bodies).toBe(2800);expect(first.outlines).toBe(2800);expect(first.bodyBatches).toBe(13);expect(first.outlineBatches).toBe(13);expect(first.individual).toBe(0);expect(first.fog).toBe(true);
   const image=await png(page),json=await saved(page);await restore(page,json);expect(hash(await png(page))).toBe(hash(image));
-  await category(page,'背景');await page.locator('#void-object-limit').fill('600');await expect(preview).toHaveAttribute('data-object-count','600');
+  await category(page,'拡張');await page.locator('#void-object-limit').fill('600');await expect(preview).toHaveAttribute('data-object-count','600');
   await page.locator('#void-object-limit').fill('2800');const restored=await inspect(page);expect(restored.matrices).toEqual(first.matrices);
   await category(page,'図形');await page.getByLabel('クイック密度').fill('0');await expect(preview).toHaveAttribute('data-object-count','0');
   await page.getByLabel('クイック密度').fill('100');expect((await inspect(page)).matrices).toEqual(first.matrices);
-  await category(page,'背景');await page.locator('#void-depth-fade').fill('0');expect((await inspect(page)).fog).toBe(false);expect(hash(await png(page))).not.toBe(hash(image));
-  await category(page,'背景');await page.locator('#void-depth-fade').fill('80');expect(hash(await png(page))).toBe(hash(image));
+  await category(page,'拡張');await page.locator('#void-depth-fade').fill('0');expect((await inspect(page)).fog).toBe(false);expect(hash(await png(page))).not.toBe(hash(image));
+  await category(page,'拡張');await page.locator('#void-depth-fade').fill('80');expect(hash(await png(page))).toBe(hash(image));
   await mkdir('test-results/void-web',{recursive:true});await page.getByTestId('three-preview').screenshot({path:'test-results/void-web/large-web.png'});expect(errors).toEqual([]);
   const canvas=preview.locator('canvas');await canvas.scrollIntoViewIfNeeded();await canvas.hover();await page.mouse.wheel(0,-3000);
   await expect.poll(async()=>(await inspect(page)).sphereVertices,{timeout:30_000}).toBeGreaterThan(first.sphereVertices);
@@ -302,7 +302,7 @@ test('mobile lightweight web grows, preserves paused frames and completes standb
     project.elapsedSeconds=2.5;await restore(page,project);const middle=await inspect(page);expect(middle.bodies).toBeGreaterThan(0);expect(middle.bodies).toBeLessThan(640);
     project.elapsedSeconds=12;await restore(page,project);expect((await inspect(page)).bodies).toBe(640);
     const first=hash(await png(page));await page.waitForTimeout(150);expect(hash(await png(page))).toBe(first);
-    await category(page,'背景');const slider=page.locator('#void-object-limit');await slider.scrollIntoViewIfNeeded();const box=(await slider.boundingBox())!;await page.touchscreen.tap(box.x+box.width*.75,box.y+box.height/2);
+    await category(page,'拡張');const slider=page.locator('#void-object-limit');await slider.scrollIntoViewIfNeeded();const box=(await slider.boundingBox())!;await page.touchscreen.tap(box.x+box.width*.75,box.y+box.height/2);
     expect(Number(await slider.inputValue())).toBeGreaterThan(600);await expect(preview).toHaveAttribute('data-object-count','640');
     await category(page,'アニメーション');await page.getByRole('button',{name:'3Dを再生',exact:true}).click();await page.getByLabel('3D待機画面モードを有効化').check();await page.getByRole('button',{name:'今すぐ次の3Dシードへ',exact:true}).click();
     await expect(preview).toHaveAttribute('data-standby-active','true');await expect(preview).toHaveAttribute('data-standby-active','false',{timeout:30_000});
