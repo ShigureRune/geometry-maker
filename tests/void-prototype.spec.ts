@@ -39,7 +39,7 @@ async function exportDetail(page:Page,section:'image'|'settings'){
 async function png(page:Page){await exportDetail(page,'image');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3D PNGを書き出す',exact:true}).click();const file=await pending;expect(await file.failure()).toBeNull();return readFile((await file.path())!);}
 async function json(page:Page){await exportDetail(page,'settings');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();return readFile((await(await pending).path())!,'utf8');}
 async function toggle(page:Page,enabled:boolean){
-  await category(page,'背景');await page.getByLabel('VOID MODEを有効化').setChecked(enabled);
+  await category(page,'拡張');await page.getByLabel('VOID MODEを有効化').setChecked(enabled);
   // These regressions intentionally exercise the saved v1 prototype. New
   // VOID sessions default to the separately tested large web.
   if(enabled&&await page.locator('#void-version').count())await page.locator('#void-version').selectOption('void-filaments-v1');
