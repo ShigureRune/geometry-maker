@@ -1,4 +1,5 @@
 import {Fragment,useEffect,useRef,useState,type ReactNode} from 'react';
+import {StudioFinePortal,useStudioFine} from './StudioFinePages';
 
 export type FineSectionItem = {
   id:string;
@@ -15,6 +16,8 @@ export function FineSections({id,items,enabled=false,label}:{
   enabled?:boolean;
   label?:string;
 }){
+  const studioFine=useStudioFine();
+  const pageKey='fine:'+id;
   const [active,setActive]=useState<string|null>(null);
   const lastVisited=useRef<string|null>(null);
   const didNavigate=useRef(false);
@@ -23,11 +26,14 @@ export function FineSections({id,items,enabled=false,label}:{
     if(active&&!itemIds.split('|').includes(active))setActive(null);
   },[itemIds,active]);
   useEffect(()=>{
+    if(studioFine&&active&&studioFine.activeKey!==pageKey)setActive(null);
+  },[studioFine?.activeKey,active,pageKey]);
+  useEffect(()=>{
     if(!enabled||!didNavigate.current)return;
     const selector=active?'.fine-sections-back-button':
       lastVisited.current?`#fine-${id}-${lastVisited.current}`:null;
     if(selector){
-      document.querySelector<HTMLElement>(`#fine-sections-${id} ${selector}`)
+      document.querySelector<HTMLElement>(active?`#fine-sections-${id}-detail ${selector}`:`#fine-sections-${id} ${selector}`)
         ?.focus({preventScroll:true});
     }
   },[active,enabled,id]);
@@ -42,7 +48,7 @@ export function FineSections({id,items,enabled=false,label}:{
         event.preventDefault();
         event.stopPropagation();
         didNavigate.current=true;
-        setActive(null);
+        setActive(null);studioFine?.close();
       }
     }}>
     <div className="fine-sections-viewport">
@@ -58,7 +64,7 @@ export function FineSections({id,items,enabled=false,label}:{
             onClick={()=>{
               didNavigate.current=true;
               lastVisited.current=item.id;
-              setActive(item.id);
+              setActive(item.id);studioFine?.open(pageKey);
             }}>
             <span className="fine-settings-choice-copy">
               <strong>{item.label}</strong><small>{item.detail}</small>
@@ -66,10 +72,12 @@ export function FineSections({id,items,enabled=false,label}:{
             <span className="fine-settings-chevron" aria-hidden="true">›</span>
           </button>)}
         </nav>
-        <div className="fine-sections-detail-view" aria-hidden={active===null} inert={active===null}>
+        <StudioFinePortal enabled={enabled}>
+        <div className="fine-sections-detail-view studio-global-fine-page" id={`fine-sections-${id}-detail`}
+          hidden={active===null} aria-hidden={active===null} inert={active===null}>
           <div className="fine-sections-back">
             <button type="button" className="fine-sections-back-button"
-              onClick={()=>{didNavigate.current=true;setActive(null);}}>
+              onClick={()=>{didNavigate.current=true;setActive(null);studioFine?.close();}}>
               ← 細かい設定一覧へ
             </button>
             <strong>{items.find(item=>item.id===active)?.label}</strong>
@@ -83,6 +91,7 @@ export function FineSections({id,items,enabled=false,label}:{
             {item.content}
           </div>)}
         </div>
+        </StudioFinePortal>
       </div>
     </div>
   </section>;

@@ -1,5 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {HelpInfo} from '../HelpInfo';
+import {StudioFinePortal,useStudioFine} from '../StudioFinePages';
 import type {ThreeSettings} from './settings';
 import {visibilityDefaults,type ThreeVisibilitySettings} from './visibility';
 import {entranceDefaults,threeEntranceStyle,type ThreeEntranceSettings} from './entrance';
@@ -46,14 +47,18 @@ export function ThreeShapeControls({settings, onChange}: Props) {
   // Fine-settings navigation moves whole settings pages horizontally,
   // while feature enable/disable controls stay inside each detail page.
   const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
+  const studioFine=useStudioFine();
   const [fineDetail,setFineDetail]=useState<FineShapeItem|null>(null);
   const lastFineItem=useRef<FineShapeItem|null>(null);
   const fineNavReady=useRef(false);
   useEffect(()=>{
+    if(finePreview&&fineDetail&&studioFine&&studioFine.activeKey!=='three-shapes')setFineDetail(null);
+  },[studioFine?.activeKey,fineDetail,finePreview]);
+  useEffect(()=>{
     if(!finePreview)return;
     if(!fineNavReady.current){fineNavReady.current=true;return;}
     const selector=fineDetail
-      ? '.fine-settings-back button'
+      ? '#three-shapes-fullscreen-detail .fine-settings-back button'
       : lastFineItem.current?'#fine-open-'+lastFineItem.current:null;
     if(selector)document.querySelector<HTMLElement>(selector)?.focus({preventScroll:true});
   },[fineDetail,finePreview]);
@@ -62,7 +67,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     data-fine-selected={fineDetail??undefined}
     onKeyDown={event=>{
       if(finePreview&&fineDetail&&event.key==='Escape'){
-        event.preventDefault();event.stopPropagation();setFineDetail(null);
+        event.preventDefault();event.stopPropagation();setFineDetail(null);studioFine?.close();
       }
     }}>
     <div className="fine-shape-viewport"><div className="fine-shape-track">
@@ -77,7 +82,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
             id={'fine-open-'+item.id}
             aria-label={item.label+'の詳細設定を開く'}
             aria-expanded={fineDetail===item.id}
-            onClick={()=>{lastFineItem.current=item.id;setFineDetail(item.id);}}>
+            onClick={()=>{lastFineItem.current=item.id;setFineDetail(item.id);studioFine?.open('three-shapes');}}>
             <span className="fine-settings-choice-copy">
               <strong>{item.label}</strong>
               <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
@@ -87,10 +92,13 @@ export function ThreeShapeControls({settings, onChange}: Props) {
           </button>)}
         </nav>}
       </div>
-      <div className="fine-shape-detail-pane" aria-hidden={finePreview&&fineDetail===null}
-        inert={finePreview&&fineDetail===null}>
+      <StudioFinePortal enabled={finePreview}>
+      <div className="fine-shape-detail-pane studio-global-fine-page" id="three-shapes-fullscreen-detail"
+        data-fine-selected={fineDetail??undefined}
+        hidden={finePreview&&fineDetail===null}
+        aria-hidden={finePreview&&fineDetail===null} inert={finePreview&&fineDetail===null}>
         {finePreview&&<div className="fine-settings-back">
-          <button type="button" onClick={()=>setFineDetail(null)}>← 細かい設定一覧へ</button>
+          <button type="button" onClick={()=>{setFineDetail(null);studioFine?.close();}}>← 細かい設定一覧へ</button>
           <span>{FINE_SHAPE_ITEMS.find(item=>item.id===fineDetail)?.label??''}</span>
         </div>}
         <div className="fine-shape-detail-fields">
@@ -381,6 +389,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     </div>
         </div>
       </div>
+      </StudioFinePortal>
     </div></div>
   </section>;
 }

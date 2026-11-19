@@ -18,7 +18,7 @@ async function celestialControls(page: Page) {
   const controls = page.locator('.three-shape-controls');
   const overview = controls.getByRole('button', {name: '星や惑星の詳細設定を開く'});
   if (await overview.count() && await controls.getAttribute('data-fine-selected') !== 'celestial') {
-    const back = controls.getByRole('button', {name: '細かい設定一覧へ'});
+    const back = page.locator('#three-shapes-fullscreen-detail').getByRole('button', {name: '細かい設定一覧へ'});
     if (await back.isVisible()) await back.click();
     await overview.click();
   }
@@ -30,7 +30,7 @@ async function exportControls(page: Page, section: 'image' | 'settings') {
   if (await fine.count()) {
     const choice = fine.locator('#fine-export-3d-' + section);
     if ((await choice.getAttribute('aria-expanded')) !== 'true') {
-      const back = fine.locator('.fine-sections-back-button');
+      const back = page.locator('#fine-sections-export-3d-detail .fine-sections-back-button');
       if (await back.isVisible()) await back.click();
       await choice.click();
     }
@@ -68,6 +68,8 @@ test('celestial-only preset draws six bodies, updates PNG and keeps the original
   await page.getByRole('button', {name: '図形＋天体'}).click();
   expect(Number(await preview.getAttribute('data-object-count'))).toBeGreaterThan(0);
   await expect(preview).toHaveAttribute('data-celestial-count', '6');
+  const backToOverview = page.locator('.studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-sections-back-button, .studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-settings-back button');
+  if (await backToOverview.count()) await backToOverview.first().click();
   await page.getByRole('button', {name: '2Dモード', exact: true}).click();
   await expect(page.getByTestId('preview')).toBeVisible();
   expect(errors).toEqual([]);

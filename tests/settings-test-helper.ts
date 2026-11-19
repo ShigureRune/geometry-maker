@@ -3,6 +3,13 @@ import type {Page} from '@playwright/test';
 /** Open a settings detail screen using the current category navigation. */
 export async function openSettingsCategory(page:Page,name:string){
   const screen=page.locator('.settings-screen');
+  // A whole-app detail page covers even the preview and category bar.
+  // Navigate back to the real overview before trying a category tab.
+  const fullscreen=page.locator('.studio-fullscreen-track.is-detail');
+  if(await fullscreen.count()){
+    const back=page.locator('.studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-sections-back-button, .studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-settings-back button');
+    if(await back.count())await back.first().click();
+  }
   // Modern category tabs slide out while a fine detail page is active.
   const tabs=page.locator('.settings-tabs-navigation');
   if((await screen.count())>0&&(await tabs.count())>0){
