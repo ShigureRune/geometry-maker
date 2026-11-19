@@ -23,8 +23,21 @@ async function celestialControls(page: Page) {
     await overview.check();
   }
 }
-async function png(page: Page) {
+/** Select the nested export inspector, including when another export detail is open. */
+async function exportControls(page: Page, section: 'image' | 'settings') {
   await category(page, '書き出し');
+  const fine = page.locator('#fine-sections-export-3d');
+  if (await fine.count()) {
+    const checkbox = fine.locator('#fine-export-3d-' + section);
+    if (!(await checkbox.isChecked())) {
+      const back = fine.locator('.fine-sections-back-button');
+      if (await back.isVisible()) await back.click();
+      await checkbox.check();
+    }
+  }
+}
+async function png(page: Page) {
+  await exportControls(page, 'image');
   await page.getByLabel('3D 幅 (px)').fill('512');
   await page.getByLabel('3D 高さ (px)').fill('512');
   const waiting = page.waitForEvent('download');
@@ -68,6 +81,7 @@ test('celestial settings are saved, restored and render identically while paused
   await page.getByLabel('3Dアニメーションを有効化').uncheck();
   const before = await png(page);
   expect(hash(await png(page))).toBe(hash(before));
+  await exportControls(page, 'settings');
   const waiting = page.waitForEvent('download');
   await page.getByRole('button', {name: '3Dの設定を保存'}).click();
   const download = await waiting;
@@ -78,7 +92,7 @@ test('celestial settings are saved, restored and render identically while paused
   await category(page, '図形');
   await page.getByLabel('3D天体を表示').uncheck();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-celestial-count', '0');
-  await category(page, '書き出し');
+  await exportControls(page, 'settings');
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({name: 'celestial.json', mimeType: 'application/json', buffer: bytes});
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-celestial-count', '6');
   expect(hash(await png(page))).toBe(hash(before));
