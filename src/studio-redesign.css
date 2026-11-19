@@ -1765,3 +1765,30 @@
   .studio-app .seed-vault-history-tools>span{grid-column:1}
   .studio-app .seed-vault-history-entry .seed-vault-history-save{min-width:54px}
 }
+
+/* Batch candidate selection remains a real, accessible checkbox on mobile. */
+.seed-explorer-card .seed-explorer-select-favorite{
+  display:flex;align-items:center;gap:7px;
+  min-height:38px;padding:5px 7px;
+  border:1px solid #69627f;border-radius:8px;
+  color:#ded9ee;font-size:11px;cursor:pointer;
+}
+.seed-explorer-card .seed-explorer-select-favorite:has(input:checked){
+  background:#373051;border-color:#bda2ff;
+}
+.seed-explorer-card .seed-explorer-select-favorite:has(input:disabled){
+  opacity:.65;cursor:default;
+}
+.seed-explorer-card .seed-explorer-select-favorite input{
+  flex:none;width:18px;height:18px;accent-color:#bda2ff;
+}
+.seed-explorer-card .seed-explorer-select-favorite input:focus-visible{
+  outline:2px solid #d4bfff;outline-offset:2px;
+}
+.seed-explorer-batch-actions button:disabled{opacity:.5;cursor:not-allowed}
+[data-theme=light] .seed-explorer-card .seed-explorer-select-favorite{
+  color:#413554;border-color:#bcb4d0;
+}
+[data-theme=light] .seed-explorer-card .seed-explorer-select-favorite:has(input:checked){
+  background:#ece4fb;border-color:#9275c3;
+}
