@@ -68,6 +68,8 @@ test('celestial-only preset draws six bodies, updates PNG and keeps the original
   await page.getByRole('button', {name: '図形＋天体'}).click();
   expect(Number(await preview.getAttribute('data-object-count'))).toBeGreaterThan(0);
   await expect(preview).toHaveAttribute('data-celestial-count', '6');
+  const backToOverview = page.locator('.studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-sections-back-button, .studio-fullscreen-detail .studio-global-fine-page:not([hidden]) .fine-settings-back button');
+  if (await backToOverview.count()) await backToOverview.first().click();
   await page.getByRole('button', {name: '2Dモード', exact: true}).click();
   await expect(page.getByTestId('preview')).toBeVisible();
   expect(errors).toEqual([]);
