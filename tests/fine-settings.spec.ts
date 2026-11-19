@@ -312,7 +312,8 @@ test('2D background, colors, and decoration use small settings screens',async({p
   await openSettingsCategory(page,'カラー');
   const colors=page.locator('#fine-sections-colors');
   const palette=colors.getByRole('navigation',{name:'細かい設定項目一覧'});
-  await expect(palette.getByRole('button')).toHaveCount(3);
+  await expect(palette.getByRole('button')).toHaveCount(4);
+  await expect(palette.getByRole('button',{name:'配色を持ち出すの詳細設定を開く'})).toBeVisible();
   await palette.getByRole('button',{name:'ビジュアルテーマの詳細設定を開く'}).click();
   await expect(page.locator('#visual-theme')).toBeVisible();
   await page.locator('#fine-sections-colors-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
