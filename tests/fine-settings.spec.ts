@@ -444,6 +444,8 @@ test('mobile fullscreen detail opens at top and restores overview scroll without
   await expect(page.getByLabel('シード値',{exact:true})).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeHidden();
   await expect(page.locator('.studio-back-to-top')).toBeHidden();
+  await mkdir('test-results',{recursive:true});
+  await page.screenshot({path:'test-results/fine-default-2d-mobile-detail.png'});
 
   await page.getByRole('button',{name:'編集画面に戻る'}).click();
   await expect(full).not.toHaveClass(/is-detail/);
