@@ -7,7 +7,7 @@ import {MAGIC_ALGORITHM_VERSION,type MagicCircleSettings} from './magic-circle';
 import {magicPaletteById,magicPaletteFromSeed,backgroundForMagic} from './magic-colors';
 import {coloredBackground,reseedColors,type ColorSettings} from './colors';
 import type {ShapeKind} from './shape-controls';
-import {generateExplorerSet,withCurrentSeed,formatExplorerSeeds,explorerSelection,planExplorerFavorites,type ExplorerSet,type ExplorerMode} from './seed-explorer';
+import {generateExplorerSet,withCurrentSeed,formatExplorerSeeds,explorerSelection,planExplorerFavorites,type ExplorerMode} from './seed-explorer';
 import {SEED_VAULT_LIMIT} from './seed-vault';
 import {startExplorerTimeline,pushExplorerTimeline,undoExplorerTimeline,redoExplorerTimeline} from './explorer-timeline';
 import {seedShareUrl} from './seed-vault';
