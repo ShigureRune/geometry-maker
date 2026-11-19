@@ -293,7 +293,7 @@ test('2D text, animation and export preserve their original controls behind fine
   await expect(page.locator('#overlay-text')).toHaveValue('小項目テスト');
 
   await openSettingsCategory(page,'アニメーション');
-  const animation=page.locator('#fine-sections-animation');
+  const animation=page.locator('#fine-sections-animation-2d');
   const aList=animation.getByRole('navigation',{name:'細かい設定項目一覧'});
   await expect(aList.getByRole('checkbox')).toHaveCount(2);
   await aList.getByRole('checkbox',{name:'成長アニメーションの詳細設定を開く'}).check();
@@ -315,7 +315,7 @@ test('3D export has separate PNG, video, and project settings inspectors',async(
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'書き出し');
-  const root=page.locator('#fine-sections-export');
+  const root=page.locator('#fine-sections-export-3d');
   const nav=root.getByRole('navigation',{name:'細かい設定項目一覧'});
   await expect(nav.getByRole('checkbox')).toHaveCount(3);
   const image=nav.getByRole('checkbox',{name:'3D画像の保存の詳細設定を開く'});
