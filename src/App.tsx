@@ -776,7 +776,7 @@ export default function App() {
         </>},
         ...(renderMode==='3d'?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
             sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}]:[])
-        ].filter(item=>renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
+        ].filter(item=>!finePreview||renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
