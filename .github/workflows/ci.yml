@@ -61,3 +61,23 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Test checkbox settings navigation, responsive layout and text editing
         run: npx playwright test tests/categories.spec.ts tests/layout.spec.ts tests/text.spec.ts
+
+  export-resolution-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test proportional export sizing and mobile PNG-safe controls
+        run: npx playwright test tests/export-resolution.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: export-resolution-failures
+          path: test-results/
+          retention-days: 7

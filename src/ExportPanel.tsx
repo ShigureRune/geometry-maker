@@ -1,5 +1,5 @@
 import {FineSections} from './FineSections';
-import {exportMegapixels,resizeLockedResolution,rotateExportResolution,type ResolutionAxis} from './export-resolution';
+import {exportMegapixels,fitExportToPngLimit,resizeLockedResolution,rotateExportResolution,scaleExportResolution,type ResolutionAxis} from './export-resolution';
 import {HelpInfo} from './HelpInfo';
 import { VideoPanel } from './VideoPanel';
 import { videoDefaults, videoSettings, type VideoSettings } from './video-settings';
@@ -29,6 +29,13 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
   const w = Number(width), h = Number(height), invalid = resolutionError(w, h);
   const tooLarge = w * h > MAX_PNG_PIXELS;
   const megapixels=exportMegapixels(w,h);
+  const half=scaleExportResolution({width:w,height:h},.5);
+  const double=scaleExportResolution({width:w,height:h},2);
+  const pngFit=tooLarge?fitExportToPngLimit({width:w,height:h},MAX_PNG_PIXELS):null;
+  function applyResolution(next:{width:number;height:number},hint:string){
+    setCustom(true);setLockMismatch(false);
+    setWidth(String(next.width));setHeight(String(next.height));setDimensionHint(hint);
+  }
   function changeDimension(axis:ResolutionAxis,value:string){
     setCustom(true);setDimensionHint('');setLockMismatch(false);
     const setEdited=axis==='width'?setWidth:setHeight;
@@ -105,6 +112,11 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
         setCustom(true);setDimensionHint('');setLockMismatch(false);
         setWidth(String(next.width));setHeight(String(next.height));
       }}>↔ 縦横を入れ替え</button>
+    </div>
+    <div className="export-resolution-scale" role="group" aria-label="書き出し解像度の一括調整">
+      <button type="button" disabled={busy||!half} onClick={()=>half&&applyResolution(half,'解像度を50%に縮小しました。')}>½ サイズ</button>
+      <button type="button" disabled={busy||!double} onClick={()=>double&&applyResolution(double,'解像度を200%に拡大しました。')}>2倍サイズ</button>
+      {tooLarge&&<button type="button" disabled={busy||!pngFit} onClick={()=>pngFit&&applyResolution(pngFit,'PNG保存可能な最大画素数に収めました。')}>PNG上限に合わせる</button>}
     </div>
     <div className="export-dimensions">
       <label htmlFor="export-width">幅 (px)<input id="export-width" type="number" min="256" max="8192" step="1" inputMode="numeric" value={width} disabled={busy} aria-invalid={!!invalid} aria-describedby="resolution-feedback" onChange={e=>changeDimension('width',e.target.value)} /></label>
