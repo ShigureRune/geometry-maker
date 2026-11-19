@@ -19,7 +19,7 @@ test('fine settings preview opens individual particle and galaxy inspectors with
   const particleChoice=nav.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   const galaxyChoice=nav.getByRole('button',{name:'GALAXY MODE · 巨大銀河の詳細設定を開く'});
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole('button')).toHaveCount(4);
+  await expect(nav.getByRole('button')).toHaveCount(5);
   await expect(particleChoice).toHaveAttribute('aria-expanded','false');
   await expect(galaxyChoice).toHaveAttribute('aria-expanded','false');
   await expect(particleDetail).toBeHidden();
@@ -105,7 +105,7 @@ test('the four ordinary 3D shape sections open separately and retain values',asy
 });
 
 
-test('3D extensions collect VOID, PARTICLE, GALAXY and 2D hybrid in one detail navigator',async({page})=>{
+test('3D extensions collect VOID, PARTICLE, GALAXY, NEBULA and 2D hybrid in one detail navigator',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -115,6 +115,7 @@ test('3D extensions collect VOID, PARTICLE, GALAXY and 2D hybrid in one detail n
     {id:'void',name:'VOID MODE · コズミックウェブ'},
     {id:'particle',name:'PARTICLE MODE · 渦巻き集合'},
     {id:'galaxy',name:'GALAXY MODE · 巨大銀河'},
+    {id:'nebula',name:'NEBULA MODE · 星雲空間'},
     {id:'hybrid',name:'2D×3D ハイブリッド'}
   ] as const;
   await expect(nav.getByRole('button')).toHaveCount(groups.length);
@@ -134,6 +135,8 @@ test('3D extensions collect VOID, PARTICLE, GALAXY and 2D hybrid in one detail n
       await expect(page.getByRole('checkbox',{name:'PARTICLE MODEを有効化'})).toBeVisible();
     }else if(item.id==='galaxy'){
       await expect(page.getByRole('checkbox',{name:'GALAXY MODEを有効化'})).toBeVisible();
+    }else if(item.id==='nebula'){
+      await expect(page.getByRole('checkbox',{name:'NEBULA MODEを有効化'})).toBeVisible();
     }else{
       await expect(page.getByRole('checkbox',{name:'3D空間に2D図形を合成'})).toBeVisible();
     }
@@ -180,7 +183,7 @@ test('fine preview keeps eight main categories as tabs with 3D-only extensions',
   await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button')).toHaveCount(4);
   await expect(tabs.getByRole('button',{name:'拡張',exact:true})).toBeEnabled();
   await openSettingsCategory(page,'拡張');
-  await expect(page.getByRole('navigation',{name:'拡張モードの細かい設定'}).getByRole('button')).toHaveCount(4);
+  await expect(page.getByRole('navigation',{name:'拡張モードの細かい設定'}).getByRole('button')).toHaveCount(5);
 });
 
 
