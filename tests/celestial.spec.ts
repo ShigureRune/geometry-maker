@@ -12,6 +12,17 @@ async function start(page: Page) {
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await category(page, '図形');
 }
+/** Open the nested celestial inspector in the checkbox-based fine settings UI. */
+async function celestialControls(page: Page) {
+  await category(page, '図形');
+  const controls = page.locator('.three-shape-controls');
+  const overview = controls.getByRole('checkbox', {name: '星や惑星の詳細設定を開く'});
+  if (await overview.count() && await controls.getAttribute('data-fine-selected') !== 'celestial') {
+    const back = controls.getByRole('button', {name: '細かい設定一覧へ'});
+    if (await back.isVisible()) await back.click();
+    await overview.check();
+  }
+}
 async function png(page: Page) {
   await category(page, '書き出し');
   await page.getByLabel('3D 幅 (px)').fill('512');
@@ -30,17 +41,17 @@ test('celestial-only preset draws six bodies, updates PNG and keeps the original
   const preview = page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-celestial-count', '0');
   const original = await png(page);
-  await category(page, '図形');
+  await celestialControls(page);
   await page.getByRole('button', {name: '天体のみ表示'}).click();
   await expect(preview).toHaveAttribute('data-object-count', '0');
   await expect(preview).toHaveAttribute('data-celestial-count', '6');
   const withStars = await png(page);
   expect(hash(withStars)).not.toBe(hash(original));
-  await category(page, '図形');
+  await celestialControls(page);
   await page.getByLabel('ブラックホールを生成').uncheck();
   await expect(preview).toHaveAttribute('data-celestial-count', '5');
   expect(hash(await png(page))).not.toBe(hash(withStars));
-  await category(page, '図形');
+  await celestialControls(page);
   await page.getByRole('button', {name: '図形＋天体'}).click();
   expect(Number(await preview.getAttribute('data-object-count'))).toBeGreaterThan(0);
   await expect(preview).toHaveAttribute('data-celestial-count', '6');
@@ -51,6 +62,7 @@ test('celestial-only preset draws six bodies, updates PNG and keeps the original
 
 test('celestial settings are saved, restored and render identically while paused', async ({page}) => {
   await start(page);
+  await celestialControls(page);
   await page.getByRole('button', {name: '天体のみ表示'}).click();
   await category(page, 'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').uncheck();
