@@ -1401,3 +1401,46 @@
 @media(prefers-reduced-motion:reduce){
   .studio-app .studio-fullscreen-track{transition:none!important;will-change:auto}
 }
+
+/* Mobile full-screen navigation: opening a detail should never show the empty
+   lower portion left behind by the tall, scrolled editor overview. */
+.studio-app .studio-fullscreen-track{overflow-anchor:none}
+.studio-app .studio-fullscreen-track.is-detail .studio-fullscreen-overview{
+  height:100dvh;min-height:100dvh;overflow:hidden;
+}
+/* Fixed controls in a transformed ancestor are positioned relative to that
+   ancestor (especially in iOS Safari). Hide them on the destination page
+   instead of leaving a clipped dock and floating TOP button on its left edge. */
+.studio-app .studio-fullscreen-track.is-detail .studio-mobile-dock,
+.studio-app .studio-fullscreen-track.is-detail .studio-back-to-top{
+  display:none!important;
+}
+.studio-app .studio-global-detail-head{
+  position:sticky;top:0;z-index:9;
+  min-height:58px;
+  flex-wrap:wrap;
+  padding:12px 4px 14px;
+  background:var(--st-bg);
+  box-shadow:0 8px 19px #0b101a55;
+}
+.studio-app .studio-global-back{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;min-width:130px;
+  border:1px solid #a58dcf;border-radius:11px;
+  background:#302b49;color:#f5efff;
+  font:inherit;font-size:13px;font-weight:700;cursor:pointer;
+  padding:10px 14px;
+}
+.studio-app .studio-global-back:focus-visible{
+  outline:2px solid #cdb8ff;outline-offset:3px;
+}
+[data-theme=light] .studio-app .studio-global-detail-head{
+  background:#f7f8fc;box-shadow:0 8px 19px #5b5d7a1c;
+}
+[data-theme=light] .studio-app .studio-global-back{
+  background:#eae1f8;color:#513975;border-color:#b49dd7;
+}
+@media(max-width:720px){
+  .studio-app .studio-global-detail-head{gap:8px;margin-bottom:16px}
+  .studio-app .studio-global-detail-head>span{margin-left:auto}
+}
