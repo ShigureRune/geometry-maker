@@ -426,7 +426,7 @@ test('the entire desktop overview moves away, including header and live preview'
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','false');
 });
 
-test('mobile fullscreen detail opens at top and restores overview scroll without stray fixed controls',async({page})=>{
+test('mobile fullscreen detail starts at top and returns to a visible inspector list',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto('./');
   const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
@@ -453,8 +453,8 @@ test('mobile fullscreen detail opens at top and restores overview scroll without
 
   await page.getByRole('button',{name:'編集画面に戻る'}).click();
   await expect(full).not.toHaveClass(/is-detail/);
-  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThanOrEqual(previousScroll-2);
-  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeLessThanOrEqual(previousScroll+2);
-  await expect(choice).toBeVisible();
+  // Return directly to the inspector, with its selected item on-screen.
+  await expect(choice).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(100);
 });
