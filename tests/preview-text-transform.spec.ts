@@ -3,7 +3,7 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('single click selects text; corners resize; rotation handle drags; double click edits; exports stay clean',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  const seed=await page.getByTestId('current-seed').textContent();
  await page.getByRole('button',{name:'プレビューに文字を追加'}).click();
  const quick=page.getByRole('group',{name:'プレビュー上で文字を編集'});
@@ -69,7 +69,7 @@ test('single click selects text; corners resize; rotation handle drags; double c
 });
 
 test('hold-to-rotate continues only while pressed; arrows move and delete hides a selected title',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  await page.getByRole('button',{name:'プレビューに文字を追加'}).click();
  await page.getByRole('group',{name:'プレビュー上で文字を編集'}).getByRole('button',{name:'編集を終了'}).click();
  const title=page.getByTestId('preview').getByTestId('text-overlay').locator('text').last();
@@ -99,7 +99,7 @@ test('mobile touch can select, resize a corner and double-tap to edit',async({br
  const context=await browser.newContext({hasTouch:true,isMobile:true,viewport:{width:390,height:844},deviceScaleFactor:1});
  try{
   const page=await context.newPage();
-  await page.goto('http://127.0.0.1:5173/');
+  await page.goto('http://127.0.0.1:5173/?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
   await page.getByRole('button',{name:'プレビューに文字を追加'}).click();

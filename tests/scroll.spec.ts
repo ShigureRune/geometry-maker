@@ -39,7 +39,7 @@ for t in [0,1,3,10]:
  for(const format of ['webm','mp4']){const data=await page.evaluate(format=>(window as any).scrollExport(format),format);const path=`test-results/scroll/infinite.${format}`;await writeFile(path,Buffer.from(data,'base64'));const probe=JSON.parse(execFileSync('ffprobe',['-v','quiet','-count_frames','-show_streams','-of','json',path],{encoding:'utf8'}));expect(probe.streams[0].nb_read_frames).toBe('48');}
 });
 test('phone sliders retain settings, camera position, playback, and JSON',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.goto('./');await page.getByLabel('自動待機画面を有効化').check();await page.getByLabel('待機アニメーション').selectOption('scroll');await page.getByText('待機画面の詳細設定',{exact:true}).click();
+ await page.setViewportSize({width:390,height:844});await page.goto('./?legacy-ui=1');await page.getByLabel('自動待機画面を有効化').check();await page.getByLabel('待機アニメーション').selectOption('scroll');await page.getByText('待機画面の詳細設定',{exact:true}).click();
  await expect(page.locator('.ambient-controls input[type=number]')).toHaveCount(0);await expect(page.locator('.ambient-range input[type=range]')).toHaveCount(14);
  await page.getByRole('button',{name:'待機画面を一時停止',exact:true}).click();const before=await page.getByTestId('ambient-preview').getAttribute('data-scroll-world');expect(before).toBe('v3');
  for(const slider of await page.locator('.ambient-range input').all()){await slider.fill(await slider.getAttribute('max')||'1');await expect(slider).toHaveValue(await slider.getAttribute('max')||'1');const box=(await slider.boundingBox())!;expect(box.height).toBeGreaterThanOrEqual(44);}
