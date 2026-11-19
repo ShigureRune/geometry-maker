@@ -1793,6 +1793,40 @@
   background:#ece4fb;border-color:#9275c3;
 }
 
+/* Bookmark library: compact on phones, keyboard/touch-friendly selection. */
+.studio-app .seed-vault-library-tools{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  margin:10px 0;padding:10px;
+  border:1px solid var(--studio-border,#68718b55);border-radius:12px;
+}
+.studio-app .seed-vault-library-tools select{
+  min-height:40px;min-width:130px;max-width:100%;
+}
+.studio-app .seed-vault-library-tools button{
+  min-height:40px;
+}
+.studio-app .seed-vault-library-tools [role="status"]{
+  margin-inline-end:auto;font-size:.85em;
+}
+.studio-app .seed-vault-bookmarks>li:has(.seed-vault-batch-select){
+  display:flex;align-items:center;gap:8px;
+}
+.studio-app .seed-vault-batch-select{
+  display:grid;place-items:center;flex:0 0 40px;min-height:44px;
+  cursor:pointer;
+}
+.studio-app .seed-vault-batch-select input{
+  width:19px;height:19px;accent-color:#aa8bef;cursor:pointer;
+}
+.studio-app .seed-vault-bookmarks>li:has(.seed-vault-batch-select)>.seed-vault-entry,
+.studio-app .seed-vault-bookmarks>li:has(.seed-vault-batch-select)>.seed-vault-rename{
+  flex:1;min-width:0;
+}
+@media(max-width:520px){
+  .studio-app .seed-vault-library-tools select{flex:1}
+  .studio-app .seed-vault-library-tools button{flex:1 1 44%}
+}
+
 /* Export resolution actions: touch-friendly, wrapping without horizontal overflow. */
 .studio-app .export-resolution-scale{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
