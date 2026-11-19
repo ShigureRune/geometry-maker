@@ -1,10 +1,11 @@
 import {test,expect} from '@playwright/test';
+import {openSettingsCategory} from './settings-test-helper';
 
 test('live palette export offers CSS, GIMP and SVG without modifying the seed',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('./');
+  await page.goto('./?fine-preview=1');
   const original=await page.getByTestId('current-seed').textContent();
-  await page.getByRole('checkbox',{name:'カラーの設定を開く'}).check();
+  await openSettingsCategory(page,'カラー');
   await page.getByRole('button',{name:'配色を持ち出すの詳細設定を開く'}).click();
   const panel=page.getByRole('region',{name:'配色の持ち出し'});
   await expect(panel).toBeVisible();
