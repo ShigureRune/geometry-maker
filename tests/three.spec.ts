@@ -7,7 +7,7 @@ test.setTimeout(90_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page: Page) {
   await page.emulateMedia({reducedMotion: 'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await category(page,'図形');
   await page.getByLabel('シード値', {exact: true}).fill('geometry-3d');
   await page.getByLabel('シード値', {exact: true}).press('Enter');
@@ -30,7 +30,7 @@ const digest = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex
 test('3D is lazy, returns to the unchanged 2D geometry, text, locks and timeline', async ({page}) => {
   const loaded: string[] = [];
   page.on('request', request => loaded.push(request.url()));
-  await page.emulateMedia({reducedMotion: 'reduce'}); await page.goto('./');
+  await page.emulateMedia({reducedMotion: 'reduce'}); await page.goto('./?legacy-ui=1');
   expect(loaded.some(url => /ThreePreview|three\.module|react-three_fiber/.test(url))).toBe(false);
   await category(page, 'アニメーション');
   await page.getByRole('button', {name: '完成状態を表示', exact: true}).click();
@@ -80,7 +80,7 @@ test('3D PNG preserves reproducible geometry and view; mouse and zoom change the
 });
 
 test('switching modes suspends and resumes existing growth and ambient clocks', async ({page}) => {
-  await page.emulateMedia({reducedMotion: 'reduce'}); await page.goto('./'); await category(page, 'アニメーション');
+  await page.emulateMedia({reducedMotion: 'reduce'}); await page.goto('./?legacy-ui=1'); await category(page, 'アニメーション');
   await page.getByLabel('成長時間（秒）').fill('30'); await page.getByRole('button', {name: '最初から再生', exact: true}).click();
   await page.waitForTimeout(100); await page.getByRole('button', {name: '3Dモード', exact: true}).click();
   await expect(page.getByRole('button', {name: '視点をリセット', exact: true})).toBeEnabled();
@@ -145,7 +145,7 @@ test('WebGL unavailable gives a clear fallback and keeps 2D usable', async ({pag
       return type === 'webgl2' ? null : (original as Function).apply(this, [type, ...args]);
     } as typeof original;
   });
-  await page.goto('./'); await page.getByRole('button', {name: '3Dモード', exact: true}).click();
+  await page.goto('./?legacy-ui=1'); await page.getByRole('button', {name: '3Dモード', exact: true}).click();
   await expect(page.getByRole('alert')).toContainText('この環境では3Dを表示できません');
   await category(page, '書き出し'); await expect(page.getByRole('button', {name: '3D PNGを書き出す', exact: true})).toBeDisabled();
   await page.getByRole('button', {name: '2Dモード', exact: true}).click(); await expect(page.getByTestId('preview')).toBeVisible();
@@ -166,7 +166,7 @@ test('lost WebGL context is recoverable without breaking 2D', async ({page}) => 
 
 test('failed lazy library loading leaves an explicit way back to 2D', async ({page}) => {
   await page.route(/\/ThreePreview[^/]*\.(?:tsx|js)(?:\?|$)/, route => route.abort());
-  await page.goto('./'); await page.getByRole('button', {name: '3Dモード', exact: true}).click();
+  await page.goto('./?legacy-ui=1'); await page.getByRole('button', {name: '3Dモード', exact: true}).click();
   await expect(page.getByRole('alert')).toContainText('3D表示を開始できませんでした');
   await expect(page.getByRole('alert')).toHaveAttribute('data-three-error-kind','module');
   await expect(page.getByRole('button',{name:'最新版を再読み込み'})).toBeVisible();

@@ -51,7 +51,7 @@ test('fine settings preview opens individual particle and galaxy inspectors with
 });
 
 test('ordinary 3D settings keep the pre-existing checkbox workflow until fine settings are adopted',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await openSettingsCategory(page,'図形');
@@ -205,7 +205,7 @@ test('3D decoration and animation have independent fine lists without changing t
 });
 
 test('non-preview 3D background, decoration and animation retain existing direct controls',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'背景');
   await expect(page.getByRole('heading',{name:'VOID MODE · コズミックウェブ'})).toBeVisible();

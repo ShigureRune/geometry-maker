@@ -14,7 +14,7 @@ const fixture=(enabled=false,seed='filament-prototype-01')=>({kind:'geometry-mak
     entrance:{...threeDefaults.entrance,enabled:false},network:{...threeDefaults.network,enabled:true,mode:'neural',animation:'signal'},
     neon:{...threeDefaults.neon,enabled:true,display:'surface'},...(enabled?{voidMode:{...voidDefaults,enabled:true}}:{})},
   view:{position:[1.5,1,20],target:[0,0,0]},elapsedSeconds:12,floorElapsedSeconds:12,exportWidth:640,exportHeight:360});
-async function open(page:Page,project=fixture(),url='./'){
+async function open(page:Page,project=fixture(),url='./?legacy-ui=1'){
   await page.emulateMedia({reducedMotion:'reduce'});await page.goto(url);
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();await category(page,'書き出し');
   await page.getByLabel('保存した3D設定ファイル',{exact:true}).setInputFiles({name:'scene.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
