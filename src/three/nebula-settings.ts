@@ -1,6 +1,6 @@
 import {booleanField,enumField,hexField,numberField,record} from './style-settings';
 
-/** A single low-cost, camera-space gas layer that can coexist with all 3D modes. */
+/** World-space 3D gas cloudlets, compatible with every existing 3D mode. */
 export const NEBULA_PRESET_IDS=[
   'violet_dream','deep_blue','pink_bloom','emerald_mist','golden_dust',
 ] as const;
