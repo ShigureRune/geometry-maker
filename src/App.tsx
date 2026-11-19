@@ -46,6 +46,7 @@ import {hybrid2DDefaults,hybrid2DSeed} from './three/hybrid-2d';
 import {FloorGridControls} from './three/FloorGridControls';
 import {SkyControls} from './three/SkyControls';
 import {VoidModeControls} from './three/VoidModeControls';
+import {NebulaModeControls} from './three/NebulaModeControls';
 import {StudioResetControls} from './StudioResetControls';
 import {generateVoidComposition,isVoidComposition,spaceVoidComposition} from './three/void-graph';
 import {generateVoidWeb} from './three/void-web';
@@ -877,6 +878,8 @@ export default function App() {
           }
           setThreeSettings(settings=>({...settings,voidMode}));
         }}/>}
+            nebulaControls={<NebulaModeControls value={threeSettings.nebula}
+              onChange={nebula=>setThreeSettings(settings=>({...settings,nebula}))}/>}
             hybridControls={<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
               sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}
           />}
