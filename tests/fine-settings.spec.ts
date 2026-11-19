@@ -11,15 +11,15 @@ test('fine settings preview opens individual particle and galaxy inspectors with
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
-  await openSettingsCategory(page,'図形');
+  await openSettingsCategory(page,'拡張');
 
-  const nav=page.getByRole('navigation',{name:'3D図形の細かい設定'});
+  const nav=page.getByRole('navigation',{name:'拡張モードの細かい設定'});
   const particleDetail=page.getByTestId('particle-mode-controls');
   const galaxyDetail=page.getByTestId('galaxy-mode-controls');
   const particleChoice=nav.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   const galaxyChoice=nav.getByRole('button',{name:'GALAXY MODE · 巨大銀河の詳細設定を開く'});
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole('button')).toHaveCount(6);
+  await expect(nav.getByRole('button')).toHaveCount(4);
   await expect(particleChoice).toHaveAttribute('aria-expanded','false');
   await expect(galaxyChoice).toHaveAttribute('aria-expanded','false');
   await expect(particleDetail).toBeHidden();
@@ -56,12 +56,14 @@ test('ordinary 3D settings keep the pre-existing checkbox workflow until fine se
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await openSettingsCategory(page,'図形');
+  await expect(page.getByTestId('particle-mode-controls')).toBeHidden();
+  await openSettingsCategory(page,'拡張');
   await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
   await expect(page.getByTestId('galaxy-mode-controls')).toBeVisible();
   await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'})).toHaveCount(0);
 });
 
-test('all six fine-grained shape sections open separately and retain values',async({page})=>{
+test('the four ordinary 3D shape sections open separately and retain values',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -72,8 +74,6 @@ test('all six fine-grained shape sections open separately and retain values',asy
     {id:'spacing',name:'図形の間隔'},
     {id:'kinds',name:'図形の種類'},
     {id:'celestial',name:'星や惑星'},
-    {id:'particle',name:'PARTICLE MODE · 渦巻き集合'},
-    {id:'galaxy',name:'GALAXY MODE · 巨大銀河'},
     {id:'quality',name:'3D描画品質'},
   ] as const;
   for(const {id,name} of groups){
@@ -104,6 +104,49 @@ test('all six fine-grained shape sections open separately and retain values',asy
   await expect(page.getByLabel('3D描画品質',{exact:true})).toHaveValue('low');
 });
 
+
+test('3D extensions collect VOID, PARTICLE, GALAXY and 2D hybrid in one detail navigator',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('./');
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'拡張');
+  const nav=page.getByRole('navigation',{name:'拡張モードの細かい設定'});
+  const groups=[
+    {id:'void',name:'VOID MODE · コズミックウェブ'},
+    {id:'particle',name:'PARTICLE MODE · 渦巻き集合'},
+    {id:'galaxy',name:'GALAXY MODE · 巨大銀河'},
+    {id:'hybrid',name:'2D×3D ハイブリッド'}
+  ] as const;
+  await expect(nav.getByRole('button')).toHaveCount(groups.length);
+  const back=page.locator('#three-extensions-fullscreen-detail .fine-settings-back button');
+  for(const item of groups){
+    const choice=nav.getByRole('button',{name:item.name+'の詳細設定を開く'});
+    await choice.click();
+    await expect(back).toBeVisible();
+    const panel=page.locator('#three-extensions-fullscreen-detail .fine-shape-detail-fields > [data-fine-item="'+item.id+'"]');
+    await expect(panel).toBeVisible();
+    for(const other of groups.filter(other=>other.id!==item.id)){
+      await expect(page.locator('#three-extensions-fullscreen-detail .fine-shape-detail-fields > [data-fine-item="'+other.id+'"]')).toBeHidden();
+    }
+    if(item.id==='void'){
+      await expect(page.getByRole('checkbox',{name:'VOID MODEを有効化'})).toBeVisible();
+    }else if(item.id==='particle'){
+      await expect(page.getByRole('checkbox',{name:'PARTICLE MODEを有効化'})).toBeVisible();
+    }else if(item.id==='galaxy'){
+      await expect(page.getByRole('checkbox',{name:'GALAXY MODEを有効化'})).toBeVisible();
+    }else{
+      await expect(page.getByRole('checkbox',{name:'3D空間に2D図形を合成'})).toBeVisible();
+    }
+    await back.click();
+    await expect(choice).toBeFocused();
+  }
+  // Ordinary background and shapes no longer contain extension features.
+  await openSettingsCategory(page,'背景');
+  await expect(page.locator('#fine-sections-background').getByRole('button',{name:'VOID MODEの詳細設定を開く'})).toHaveCount(0);
+  await openSettingsCategory(page,'図形');
+  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button',{name:/GALAXY MODE/})).toHaveCount(0);
+});
+
 test('fine inspector is usable on a mobile viewport and responds to Escape',async({page})=>{
   await page.setViewportSize({width:390,height:720});
   await page.emulateMedia({reducedMotion:'reduce'});
@@ -120,12 +163,13 @@ test('fine inspector is usable on a mobile viewport and responds to Escape',asyn
 });
 
 
-test('fine preview keeps main categories as seven tabs and reserves checkboxes for small items',async({page})=>{
+test('fine preview keeps eight main categories as tabs with 3D-only extensions',async({page})=>{
   await page.goto('./?fine-preview=1');
   const tabs=page.getByRole('navigation',{name:'設定カテゴリー'});
-  await expect(tabs.getByRole('button')).toHaveCount(7);
+  await expect(tabs.getByRole('button')).toHaveCount(8);
   await expect(tabs.getByRole('checkbox')).toHaveCount(0);
   await expect(tabs.getByRole('button',{name:'図形',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(tabs.getByRole('button',{name:'拡張',exact:true})).toBeDisabled();
   await tabs.getByRole('button',{name:'背景',exact:true}).click();
   await expect(page.locator('#panel-background')).toBeVisible();
   await expect(tabs.getByRole('button',{name:'背景',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -133,18 +177,21 @@ test('fine preview keeps main categories as seven tabs and reserves checkboxes f
   await expect(page.locator('#panel-shapes')).toBeVisible();
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'図形');
-  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button')).toHaveCount(6);
+  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button')).toHaveCount(4);
+  await expect(tabs.getByRole('button',{name:'拡張',exact:true})).toBeEnabled();
+  await openSettingsCategory(page,'拡張');
+  await expect(page.getByRole('navigation',{name:'拡張モードの細かい設定'}).getByRole('button')).toHaveCount(4);
 });
 
 
-test('3D background fine inspector drills into its four sections and retains settings',async({page})=>{
+test('3D background fine inspector drills into three sections and retains settings',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'背景');
   const nav=page.locator('#fine-sections-background').getByRole('navigation',{name:'細かい設定項目一覧'});
   const groups=[
-    ['base','背景の種類'],['void','VOID MODE'],['sky','空と景色'],['floor','床の模様']
+    ['base','背景の種類'],['sky','空と景色'],['floor','床の模様']
   ] as const;
   await expect(nav.getByRole('button')).toHaveCount(groups.length);
   const back=page.locator('#fine-sections-background-detail').getByRole('button',{name:'細かい設定一覧へ'});
@@ -209,6 +256,8 @@ test('non-preview 3D background, decoration and animation retain existing direct
   await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'背景');
+  await expect(page.getByRole('heading',{name:'VOID MODE · コズミックウェブ'})).toBeHidden();
+  await openSettingsCategory(page,'拡張');
   await expect(page.getByRole('heading',{name:'VOID MODE · コズミックウェブ'})).toBeVisible();
   await expect(page.locator('.fine-sections')).toHaveCount(0);
   await openSettingsCategory(page,'装飾');
@@ -340,7 +389,7 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./');
   const categories=page.getByRole('navigation',{name:'設定カテゴリー'});
-  await expect(categories.getByRole('button')).toHaveCount(7);
+  await expect(categories.getByRole('button')).toHaveCount(8);
   await expect(categories.getByRole('checkbox')).toHaveCount(0);
   await expect(page.locator('#fine-sections-shapes').getByRole('button')).toHaveCount(7);
   await mkdir('test-results',{recursive:true});
@@ -355,7 +404,7 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await openSettingsCategory(page,'図形');
   const fine=page.getByRole('navigation',{name:'3D図形の細かい設定'});
   const common=page.locator('#fine-sections-shapes');
-  await expect(fine.getByRole('button')).toHaveCount(6);
+  await expect(fine.getByRole('button')).toHaveCount(4);
   await expect(common.getByRole('button')).toHaveCount(6);
   await expect(page.getByLabel('シード値',{exact:true})).toBeHidden();
   await common.getByRole('button',{name:'シードと生成方式の詳細設定を開く'}).click();
@@ -363,7 +412,9 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
   await page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await expect(fine).toBeVisible();
-  const particle=fine.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
+  await openSettingsCategory(page,'拡張');
+  const extensions=page.getByRole('navigation',{name:'拡張モードの細かい設定'});
+  const particle=extensions.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   await particle.click();
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
   await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
