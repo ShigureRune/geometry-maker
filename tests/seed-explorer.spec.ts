@@ -92,3 +92,31 @@ test('copy share links, export candidate TXT and close the mobile gallery with E
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
+
+test('batch bookmark selected gallery candidates without changing active seed',async({page})=>{
+  test.setTimeout(75_000);
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./?legacy-ui=1');
+  await openSettingsCategory(page,'図形');
+  const input=page.getByLabel('シード値',{exact:true});
+  await input.fill('batch-gallery-source');await input.press('Enter');
+  await page.getByRole('button',{name:'構図探索ボードを開く'}).click();
+  const dialog=page.getByRole('dialog',{name:'構図探索ボード'});
+  const seeds=await dialog.locator('.seed-explorer-card code').allTextContents();
+  await dialog.getByRole('checkbox',{name:'候補 1 をまとめて保存する対象に選択'}).check();
+  await dialog.getByRole('checkbox',{name:'候補 3 をまとめて保存する対象に選択'}).check();
+  await dialog.getByRole('button',{name:'選択した2件をまとめて保存'}).click();
+  await expect(dialog.getByRole('status').last()).toContainText('2件をお気に入り保存');
+  await expect(dialog.getByRole('checkbox',{name:'候補 1 をまとめて保存する対象に選択'})).toBeDisabled();
+  await expect(dialog.getByRole('checkbox',{name:'候補 3 をまとめて保存する対象に選択'})).toBeDisabled();
+  await dialog.getByRole('button',{name:'未保存をすべて選択'}).click();
+  await expect(dialog.getByRole('button',{name:'選択した2件をまとめて保存'})).toBeEnabled();
+  await dialog.getByRole('button',{name:'選択を解除'}).click();
+  await dialog.getByRole('button',{name:'探索ボードを閉じる'}).click();
+  await expect(input).toHaveValue('batch-gallery-source');
+  await expect(page.getByRole('button',{name:'探索案 1を呼び出す'})).toBeVisible();
+  await expect(page.getByRole('button',{name:'探索案 3を呼び出す'})).toBeVisible();
+  expect(seeds[0]).not.toBe(seeds[2]);
+  expect(errors).toEqual([]);
+});
