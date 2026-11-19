@@ -9,6 +9,7 @@ import {coloredBackground,reseedColors,type ColorSettings} from './colors';
 import type {ShapeKind} from './shape-controls';
 import {generateExplorerSet,withCurrentSeed,formatExplorerSeeds,explorerSelection,planExplorerFavorites,type ExplorerSet,type ExplorerMode} from './seed-explorer';
 import {SEED_VAULT_LIMIT} from './seed-vault';
+import {startExplorerTimeline,pushExplorerTimeline,undoExplorerTimeline,redoExplorerTimeline} from './explorer-timeline';
 import {seedShareUrl} from './seed-vault';
 
 type Props={
@@ -52,8 +53,8 @@ function ExplorerThumbnail(props:ThumbnailProps){
 export function SeedExplorerBoard(props:Props){
   const {activeSeed,ratio,version,shapeKinds,magicSettings,density,visualTheme,
     background,colors,favoriteSeeds,onClose,onSelect,onSave}=props;
-  const [set,setSet]=useState<ExplorerSet>(()=>generateExplorerSet(activeSeed,4,'related'));
-  const [previous,setPrevious]=useState<ExplorerSet|null>(null);
+  const [timeline,setTimeline]=useState(()=>startExplorerTimeline(generateExplorerSet(activeSeed,4,'related')));
+  const set=timeline.present;
   const [compareA,setCompareA]=useState<number|null>(0);
   const [compareB,setCompareB]=useState<number|null>(1);
   const [message,setMessage]=useState('');
@@ -81,19 +82,19 @@ export function SeedExplorerBoard(props:Props){
 
   function generate(count:4|8,mode:ExplorerMode){
     setSelectedFavorites([]);
-    setPrevious(set);
-    setSet(generateExplorerSet(activeSeed,count,mode,createRandomSeed));
+    setTimeline(current=>pushExplorerTimeline(current,generateExplorerSet(activeSeed,count,mode,createRandomSeed)));
     setCompareA(0);setCompareB(1);
     setMessage(mode==='related'?count+'件の派生案を生成しました。':count+'件のランダム案を生成しました。');
   }
-  function restorePrevious(){
-    if(!previous)return;
+  function navigateTimeline(direction:-1|1){
     setSelectedFavorites([]);
-    const current=set;setSet(previous);setPrevious(current);
-    setCompareA(0);setCompareB(1);setMessage('前の候補セットに戻りました。');
+    setTimeline(current=>direction===-1?undoExplorerTimeline(current):redoExplorerTimeline(current));
+    setCompareA(0);setCompareB(1);
+    setMessage(direction===-1?'前の候補セットに戻りました。':'次の候補セットに進みました。');
   }
   function addActive(){
-    setSet(current=>({...current,seeds:withCurrentSeed(current.seeds,activeSeed)}));
+    setTimeline(current=>pushExplorerTimeline(current,{...current.present,
+      seeds:withCurrentSeed(current.present.seeds,activeSeed)}));
     setCompareA(0);setCompareB(1);
     setMessage('現在のシードを候補に追加しました。');
   }
@@ -147,10 +148,12 @@ export function SeedExplorerBoard(props:Props){
         <button type="button" onClick={()=>generate(4,'random')}>ランダム案を4件</button>
         <button type="button" onClick={()=>generate(8,'random')}>ランダム案を8件</button>
         <button type="button" onClick={addActive}>現在のシードを追加</button>
-        <button type="button" onClick={restorePrevious} disabled={!previous}>前の候補セット</button>
+        <button type="button" onClick={()=>navigateTimeline(-1)} disabled={!timeline.past.length}>前の候補セット</button>
+        <button type="button" onClick={()=>navigateTimeline(1)} disabled={!timeline.future.length}>次の候補セット</button>
       </div>
       <p className="seed-explorer-caption" aria-live="polite">
         {set.seeds.length}件の候補 / {set.mode==='related'?'現在のシードから派生':'独立したランダム案'}
+        <span>・探索履歴 {timeline.past.length+1} / {timeline.past.length+timeline.future.length+1}</span>
         <span>・比率 {ratio}・密度 {density}%・生成 {version}</span>
       </p>
       <div className="seed-explorer-compare" aria-label="選択した2案の拡大比較">
