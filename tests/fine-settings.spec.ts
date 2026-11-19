@@ -80,10 +80,10 @@ test('all six fine-grained shape sections open separately and retain values',asy
     const choice=nav.getByRole('button',{name:name+'の詳細設定を開く'});
     await choice.click();
     await expect(back).toBeFocused();
-    const section=page.locator(`.three-shape-controls .fine-shape-detail-fields > [data-fine-item="${id}"]`);
+    const section=page.locator(`#three-shapes-fullscreen-detail .fine-shape-detail-fields > [data-fine-item="${id}"]`);
     await expect(section).toBeVisible();
     for(const other of groups.filter(other=>other.id!==id)){
-      await expect(page.locator(`.three-shape-controls .fine-shape-detail-fields > [data-fine-item="${other.id}"]`)).toBeHidden();
+      await expect(page.locator(`#three-shapes-fullscreen-detail .fine-shape-detail-fields > [data-fine-item="${other.id}"]`)).toBeHidden();
     }
     if(id==='spacing'){
       await page.locator('#three-spacing').fill('135');
@@ -147,7 +147,7 @@ test('3D background fine inspector drills into its four sections and retains set
     ['base','背景の種類'],['void','VOID MODE'],['sky','空と景色'],['floor','床の模様']
   ] as const;
   await expect(nav.getByRole('button')).toHaveCount(groups.length);
-  const back=page.locator('#fine-sections-background').getByRole('button',{name:'細かい設定一覧へ'});
+  const back=page.locator('#fine-sections-background-detail').getByRole('button',{name:'細かい設定一覧へ'});
   for(const [id,name] of groups){
     const choice=nav.getByRole('button',{name:name+'の詳細設定を開く'});
     await choice.click();
@@ -179,15 +179,15 @@ test('3D decoration and animation have independent fine lists without changing t
   for(const [id,name] of decos){
     const choice=decorList.getByRole('button',{name:name+'の詳細設定を開く'});
     await choice.click();
-    await expect(decoration.locator('[data-fine-panel="'+id+'"]')).toBeVisible();
+    await expect(page.locator('#fine-sections-decoration-detail').locator('[data-fine-panel="'+id+'"]')).toBeVisible();
     for(const [other] of decos.filter(([other])=>other!==id)){
-      await expect(decoration.locator('[data-fine-panel="'+other+'"]')).toBeHidden();
+      await expect(page.locator('#fine-sections-decoration-detail').locator('[data-fine-panel="'+other+'"]')).toBeHidden();
     }
     if(id==='glow'){
       await page.locator('#glow-intensity').fill('80');
       await expect(page.locator('#glow-intensity')).toHaveValue('80');
     }
-    await decoration.getByRole('button',{name:'細かい設定一覧へ'}).click();
+    await page.locator('#fine-sections-decoration-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
     await expect(choice).toBeFocused();
   }
   await decorList.getByRole('button',{name:'発光と線の太さの詳細設定を開く'}).click();
@@ -202,7 +202,7 @@ test('3D decoration and animation have independent fine lists without changing t
   await page.keyboard.press('Escape');
   await expect(motion).toBeFocused();
   await animList.getByRole('button',{name:'自動切り替えの詳細設定を開く'}).click();
-  await expect(animation.locator('[data-fine-panel="standby"]')).toBeVisible();
+  await expect(page.locator('#fine-sections-animation-detail').locator('[data-fine-panel="standby"]')).toBeVisible();
 });
 
 test('non-preview 3D background, decoration and animation retain existing direct controls',async({page})=>{
@@ -230,7 +230,7 @@ test('2D shape details allow switching between seed, density and ratio without l
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
   await page.getByLabel('シード値',{exact:true}).fill('fine-2d-regression');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
-  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   const density=list.getByRole('button',{name:'図形密度の詳細設定を開く'});
   await density.click();
   await page.locator('#density').fill('65');
@@ -239,7 +239,7 @@ test('2D shape details allow switching between seed, density and ratio without l
   await expect(density).toBeFocused();
   await list.getByRole('button',{name:'縦横比の詳細設定を開く'}).click();
   await expect(page.locator('#ratio')).toBeVisible();
-  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await seed.click();
   await expect(page.getByLabel('シード値',{exact:true})).toHaveValue('fine-2d-regression');
   await expect(page.locator('#density')).toBeHidden();
@@ -253,7 +253,7 @@ test('2D background, colors, and decoration use small settings screens',async({p
   await expect(bg.getByRole('button')).toHaveCount(2);
   await bg.getByRole('button',{name:'背景の種類の詳細設定を開く'}).click();
   await page.getByRole('button',{name:'グラデーション',exact:true}).click();
-  await background.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-background-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await bg.getByRole('button',{name:'2Dグリッド背景の詳細設定を開く'}).click();
   await expect(page.getByRole('heading',{name:'2Dグリッド背景'})).toBeVisible();
 
@@ -263,7 +263,7 @@ test('2D background, colors, and decoration use small settings screens',async({p
   await expect(palette.getByRole('button')).toHaveCount(3);
   await palette.getByRole('button',{name:'ビジュアルテーマの詳細設定を開く'}).click();
   await expect(page.locator('#visual-theme')).toBeVisible();
-  await colors.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-colors-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await palette.getByRole('button',{name:'背景と図形の配色の詳細設定を開く'}).click();
   await expect(page.locator('#color-mode')).toBeVisible();
 
@@ -273,7 +273,7 @@ test('2D background, colors, and decoration use small settings screens',async({p
   await expect(list.getByRole('button')).toHaveCount(2);
   await list.getByRole('button',{name:'線の太さの詳細設定を開く'}).click();
   await page.locator('#line-width').fill('150');
-  await decor.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-decoration-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await list.getByRole('button',{name:'発光の強さの詳細設定を開く'}).click();
   await expect(page.locator('#glow-intensity')).toBeVisible();
 });
@@ -286,10 +286,10 @@ test('2D text, animation and export preserve their original controls behind fine
   await expect(tnav.getByRole('button')).toHaveCount(4);
   await tnav.getByRole('button',{name:'文字とフォントの詳細設定を開く'}).click();
   await page.locator('#overlay-text').fill('小項目テスト');
-  await text.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-text-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await tnav.getByRole('button',{name:'位置と重なり順の詳細設定を開く'}).click();
   await expect(page.locator('#text-align')).toBeVisible();
-  await text.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-text-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await tnav.getByRole('button',{name:'文字とフォントの詳細設定を開く'}).click();
   await expect(page.locator('#overlay-text')).toHaveValue('小項目テスト');
 
@@ -298,7 +298,7 @@ test('2D text, animation and export preserve their original controls behind fine
   const aList=animation.getByRole('navigation',{name:'細かい設定項目一覧'});
   await expect(aList.getByRole('button')).toHaveCount(2);
   await aList.getByRole('button',{name:'成長アニメーションの詳細設定を開く'}).click();
-  await expect(animation.locator('[data-fine-panel="growth"]')).toBeVisible();
+  await expect(page.locator('#fine-sections-animation-detail').locator('[data-fine-panel="growth"]')).toBeVisible();
 
   await openSettingsCategory(page,'書き出し');
   const exp=page.locator('#fine-sections-export');
@@ -306,9 +306,9 @@ test('2D text, animation and export preserve their original controls behind fine
   await expect(eList.getByRole('button')).toHaveCount(2);
   await eList.getByRole('button',{name:'画像と設定ファイルの保存の詳細設定を開く'}).click();
   await expect(page.getByRole('button',{name:'PNGを書き出す'})).toBeVisible();
-  await exp.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-export-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await eList.getByRole('button',{name:'動画の書き出しの詳細設定を開く'}).click();
-  await expect(exp.locator('[data-fine-panel="video"]')).toBeVisible();
+  await expect(page.locator('#fine-sections-export-detail').locator('[data-fine-panel="video"]')).toBeVisible();
 });
 
 
@@ -323,12 +323,12 @@ test('3D export has separate PNG, video, and project settings inspectors',async(
   await image.click();
   await expect(page.getByRole('button',{name:'3D PNGを書き出す'})).toBeVisible();
   await page.locator('#three-export-width').fill('1600');
-  await root.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-export-3d-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await nav.getByRole('button',{name:'3D設定の保存・復元の詳細設定を開く'}).click();
   await expect(page.getByRole('button',{name:'3Dの設定を保存'})).toBeVisible();
-  await root.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-export-3d-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await nav.getByRole('button',{name:'3D動画の保存の詳細設定を開く'}).click();
-  await expect(root.locator('[data-fine-panel="video"]')).toBeVisible();
+  await expect(page.locator('#fine-sections-export-3d-detail').locator('[data-fine-panel="video"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(image).toHaveAttribute('aria-expanded','false');
   await image.click();
@@ -349,7 +349,7 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await seedChoice.click();
   await page.getByLabel('シード値',{exact:true}).fill('new-default-ui-smoke');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
-  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await expect(seedChoice).toBeFocused();
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'図形');
@@ -360,12 +360,12 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await expect(page.getByLabel('シード値',{exact:true})).toBeHidden();
   await common.getByRole('button',{name:'シードと生成方式の詳細設定を開く'}).click();
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
-  await expect(fine).toBeHidden();
+  await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
   await common.getByRole('button',{name:'細かい設定一覧へ'}).click();
   await expect(fine).toBeVisible();
   const particle=fine.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   await particle.click();
-  await expect(common).toBeHidden();
+  await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
   await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(particle).toBeFocused();
@@ -388,11 +388,15 @@ test('fine navigation uses full-width sliding pages with no navigation checkboxe
   const choice=list.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
   await choice.click();
   await expect(fine).toHaveClass(/is-detail/);
-  const distance=await fine.locator('.fine-sections-track').evaluate(element=>{
+  const wholeScreen=page.locator('.studio-fullscreen-track');
+  await expect(wholeScreen).toHaveClass(/is-detail/);
+  await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
+  await expect(page.locator('.studio-fullscreen-overview .studio-preview-panel')).toHaveCount(1);
+  const distance=await wholeScreen.evaluate(element=>{
     const transform=getComputedStyle(element).transform;
     return transform==='none'?0:Number(new DOMMatrixReadOnly(transform).m41);
   });
-  expect(distance).toBeLessThan(-200);
+  expect(distance).toBeLessThan(-300);
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(fine).not.toHaveClass(/is-detail/);
