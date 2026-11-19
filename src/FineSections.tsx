@@ -21,12 +21,23 @@ export function FineSections({id,items,enabled=false,label}:{
   const [active,setActive]=useState<string|null>(null);
   const lastVisited=useRef<string|null>(null);
   const didNavigate=useRef(false);
+  const closeTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(closeTimer.current!==null)clearTimeout(closeTimer.current);},[]);
+  const closeDetail=()=>{
+    didNavigate.current=true;
+    studioFine?.close();
+    // Keep the departing inspector visible while its page slides out.
+    if(window.matchMedia('(max-width:720px) and (prefers-reduced-motion: no-preference)').matches){
+      if(closeTimer.current!==null)clearTimeout(closeTimer.current);
+      closeTimer.current=setTimeout(()=>{setActive(null);closeTimer.current=null;},440);
+    }else setActive(null);
+  };
   const itemIds=items.map(item=>item.id).join('|');
   useEffect(()=>{
     if(active&&!itemIds.split('|').includes(active))setActive(null);
   },[itemIds,active]);
   useEffect(()=>{
-    if(studioFine&&active&&studioFine.activeKey!==pageKey)setActive(null);
+    if(studioFine&&active&&studioFine.activeKey!==null&&studioFine.activeKey!==pageKey)setActive(null);
   },[studioFine?.activeKey,active,pageKey]);
   useEffect(()=>{
     if(!enabled||!didNavigate.current)return;
@@ -47,8 +58,7 @@ export function FineSections({id,items,enabled=false,label}:{
       if(active&&event.key==='Escape'){
         event.preventDefault();
         event.stopPropagation();
-        didNavigate.current=true;
-        setActive(null);studioFine?.close();
+        closeDetail();
       }
     }}>
     <div className="fine-sections-viewport">
@@ -62,6 +72,7 @@ export function FineSections({id,items,enabled=false,label}:{
             aria-controls={`fine-${id}-panel-${item.id}`}
             aria-expanded={active===item.id}
             onClick={()=>{
+              if(closeTimer.current!==null){clearTimeout(closeTimer.current);closeTimer.current=null;}
               didNavigate.current=true;
               lastVisited.current=item.id;
               setActive(item.id);studioFine?.open(pageKey);
@@ -77,7 +88,7 @@ export function FineSections({id,items,enabled=false,label}:{
           hidden={active===null} aria-hidden={active===null} inert={active===null}>
           <div className="fine-sections-back">
             <button type="button" className="fine-sections-back-button"
-              onClick={()=>{didNavigate.current=true;setActive(null);studioFine?.close();}}>
+              onClick={closeDetail}>
               ← 細かい設定一覧へ
             </button>
             <strong>{items.find(item=>item.id===active)?.label}</strong>
