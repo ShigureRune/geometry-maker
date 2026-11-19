@@ -40,6 +40,10 @@ on:
       - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/ui-tactile.spec.ts'
+      - 'tests/palette-export.spec.ts'
+      - 'src/PaletteExportControls.tsx'
+      - 'src/palette-export.ts'
+      - 'src/palette-export.test.ts'
       - 'tests/export-resolution.spec.ts'
       - 'src/export-resolution.ts'
       - 'src/export-resolution.test.ts'
@@ -82,6 +86,10 @@ on:
       - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/ui-tactile.spec.ts'
+      - 'tests/palette-export.spec.ts'
+      - 'src/PaletteExportControls.tsx'
+      - 'src/palette-export.ts'
+      - 'src/palette-export.test.ts'
       - 'tests/export-resolution.spec.ts'
       - 'src/export-resolution.ts'
       - 'src/export-resolution.test.ts'
@@ -196,5 +204,27 @@ jobs:
         if: failure()
         with:
           name: export-resolution-failures
+          path: test-results/
+          retention-days: 7
+
+  palette-export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run src/palette-export.test.ts
+      - run: npx playwright install --with-deps chromium
+      - name: Test palette portability in the live editor
+        run: npx playwright test tests/palette-export.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: palette-export-failures
           path: test-results/
           retention-days: 7
