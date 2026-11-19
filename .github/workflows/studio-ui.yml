@@ -20,6 +20,15 @@ on:
       - 'src/seed-vault.ts'
       - 'src/studio-reset.ts'
       - 'src/SettingsCategories.tsx'
+      - 'src/three/settings.ts'
+      - 'src/three/ThreePreview.tsx'
+      - 'src/three/ThreeControls.tsx'
+      - 'src/three/NebulaLayer.tsx'
+      - 'src/three/NebulaModeControls.tsx'
+      - 'src/three/nebula-settings.ts'
+      - 'src/three/nebula-settings.test.ts'
+      - 'tests/nebula-mode.spec.ts'
+      - 'tests/fine-settings.spec.ts'
       - 'src/three/ThreeControls.tsx'
       - 'src/three/VoidModeControls.tsx'
       - 'src/three/extension-presets.ts'
@@ -45,6 +54,15 @@ on:
       - 'src/seed-vault.ts'
       - 'src/studio-reset.ts'
       - 'src/SettingsCategories.tsx'
+      - 'src/three/settings.ts'
+      - 'src/three/ThreePreview.tsx'
+      - 'src/three/ThreeControls.tsx'
+      - 'src/three/NebulaLayer.tsx'
+      - 'src/three/NebulaModeControls.tsx'
+      - 'src/three/nebula-settings.ts'
+      - 'src/three/nebula-settings.test.ts'
+      - 'tests/nebula-mode.spec.ts'
+      - 'tests/fine-settings.spec.ts'
       - 'src/three/ThreeControls.tsx'
       - 'src/three/VoidModeControls.tsx'
       - 'src/three/extension-presets.ts'
@@ -100,5 +118,25 @@ jobs:
         if: failure()
         with:
           name: extension-presets-failures
+          path: test-results/
+          retention-days: 7
+
+  nebula-mode:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test NEBULA presets, live 3D, saved settings and iPhone inspector
+        run: npx playwright test tests/nebula-mode.spec.ts tests/fine-settings.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: nebula-browser-failures
           path: test-results/
           retention-days: 7
