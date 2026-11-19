@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
 import {openSettingsCategory} from './settings-test-helper';
 
 test.setTimeout(120_000);
@@ -342,6 +343,8 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await expect(categories.getByRole('button')).toHaveCount(7);
   await expect(categories.getByRole('checkbox')).toHaveCount(0);
   await expect(page.locator('#fine-sections-shapes').getByRole('checkbox')).toHaveCount(7);
+  await mkdir('test-results',{recursive:true});
+  await page.screenshot({path:'test-results/fine-default-2d-desktop.png',fullPage:true});
   const seedChoice=page.getByRole('checkbox',{name:'シードと生成方式の詳細設定を開く'});
   await seedChoice.check();
   await page.getByLabel('シード値',{exact:true}).fill('new-default-ui-smoke');
@@ -357,6 +360,8 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(particle).toBeFocused();
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'test-results/fine-default-3d-mobile.png',fullPage:true});
 
   await page.goto('./?legacy-ui=1');
   const legacy=page.getByRole('navigation',{name:'設定カテゴリー'});
