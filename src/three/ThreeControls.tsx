@@ -43,8 +43,8 @@ export function ThreeShapeControls({settings, onChange}: Props) {
   const galaxy=settings.galaxy??galaxyDefaults;
   const cosmicWeb=!!settings.voidMode?.enabled&&settings.voidMode.version===VOID_WEB_VERSION;
   const legacyVoid=!!settings.voidMode?.enabled&&!cosmicWeb;
-  // Opt-in prototype: individual settings navigate to a dedicated inspector,
-  // while generation enable/disable remains inside each inspector.
+  // Fine-settings navigation moves whole settings pages horizontally,
+  // while feature enable/disable controls stay inside each detail page.
   const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
   const [fineDetail,setFineDetail]=useState<FineShapeItem|null>(null);
   const lastFineItem=useRef<FineShapeItem|null>(null);
@@ -62,35 +62,38 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     data-fine-selected={fineDetail??undefined}
     onKeyDown={event=>{
       if(finePreview&&fineDetail&&event.key==='Escape'){
-        event.stopPropagation();setFineDetail(null);
+        event.preventDefault();event.stopPropagation();setFineDetail(null);
       }
     }}>
-    <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
-      <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
-    </div>
-    {finePreview&&<>
-      <nav className="fine-settings-overview" aria-label="3D図形の細かい設定"
-        hidden={fineDetail!==null} inert={fineDetail!==null}>
-        <p className="fine-settings-caption">項目を選んで専用の設定画面を開きます。粒子や銀河のON/OFFは詳細画面内で変更できます。</p>
-        {FINE_SHAPE_ITEMS.map(item=><label key={item.id} className="fine-settings-choice"
-          htmlFor={'fine-open-'+item.id}>
-          <span className="fine-settings-choice-copy">
-            <strong>{item.label}</strong>
-            <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
-              item.id==='galaxy'?' · 現在'+(galaxy.enabled?'ON':'OFF'):''}</small>
-          </span>
-          <input id={'fine-open-'+item.id} type="checkbox" checked={fineDetail===item.id}
+    <div className="fine-shape-viewport"><div className="fine-shape-track">
+      <div className="fine-shape-index-pane" aria-hidden={finePreview&&fineDetail!==null}
+        inert={finePreview&&fineDetail!==null}>
+        <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
+          <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
+        </div>
+        {finePreview&&<nav className="fine-settings-overview" aria-label="3D図形の細かい設定">
+          <p className="fine-settings-caption">項目を押すと画面が横にスライドします。粒子・銀河などのON/OFFは移動先で変更できます。</p>
+          {FINE_SHAPE_ITEMS.map(item=><button type="button" key={item.id} className="fine-settings-choice"
+            id={'fine-open-'+item.id}
             aria-label={item.label+'の詳細設定を開く'}
-            onChange={event=>{
-              if(event.target.checked){lastFineItem.current=item.id;setFineDetail(item.id);}
-            }}/>
-        </label>)}
-      </nav>
-      <div className="fine-settings-back" hidden={fineDetail===null}>
-        <button type="button" onClick={()=>setFineDetail(null)}>← 細かい設定一覧へ</button>
-        <span>{FINE_SHAPE_ITEMS.find(item=>item.id===fineDetail)?.label??''}</span>
+            aria-expanded={fineDetail===item.id}
+            onClick={()=>{lastFineItem.current=item.id;setFineDetail(item.id);}}>
+            <span className="fine-settings-choice-copy">
+              <strong>{item.label}</strong>
+              <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
+                item.id==='galaxy'?' · 現在'+(galaxy.enabled?'ON':'OFF'):''}</small>
+            </span>
+            <span className="fine-settings-chevron" aria-hidden="true">›</span>
+          </button>)}
+        </nav>}
       </div>
-    </>}
+      <div className="fine-shape-detail-pane" aria-hidden={finePreview&&fineDetail===null}
+        inert={finePreview&&fineDetail===null}>
+        {finePreview&&<div className="fine-settings-back">
+          <button type="button" onClick={()=>setFineDetail(null)}>← 細かい設定一覧へ</button>
+          <span>{FINE_SHAPE_ITEMS.find(item=>item.id===fineDetail)?.label??''}</span>
+        </div>}
+        <div className="fine-shape-detail-fields">
     <div className="fine-settings-structural" data-fine-item="spacing">
     <ThreeRange id="three-spacing" label="図形の間隔" value={settings.spacingPercent??THREE_SPACING_DEFAULT}
       min={50} max={200} step={5} unit="%" onChange={spacingPercent=>onChange({...settings,spacingPercent})}/>
@@ -376,6 +379,9 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     </select>
     <HelpInfo>軽量設定では解像度・曲面の分割数を抑え、影とブルームを省略します。図形の配置と色は維持します。</HelpInfo>
     </div>
+        </div>
+      </div>
+    </div></div>
   </section>;
 }
 export function ThreeMaterialControls({settings, onChange}: Props) {
