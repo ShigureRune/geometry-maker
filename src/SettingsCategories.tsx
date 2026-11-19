@@ -1,5 +1,6 @@
 export const categories = [
   {id:'shapes',label:'図形',detail:'シード・構図・図形の密度',icon:'M12 2 22 12 12 22 2 12Z'},
+  {id:'extensions',label:'拡張',detail:'VOID・銀河・粒子・2D×3D',icon:'M12 2V6 M12 18V22 M4.93 4.93L7.76 7.76 M16.24 16.24L19.07 19.07 M2 12H6 M18 12H22 M4.93 19.07L7.76 16.24 M16.24 7.76L19.07 4.93 M12 7L15 12L12 17L9 12Z'},
   {id:'background',label:'背景',detail:'背景色・グラデーション・空間',icon:'M3 4H21V20H3Z M3 15 8 10 13 15 17 11 21 15'},
   {id:'colors',label:'カラー',detail:'配色・パレット・テーマ',icon:'M17 8A5 5 0 1 1 7 8A5 5 0 1 1 17 8Z M11 16A5 5 0 1 1 1 16A5 5 0 1 1 11 16Z M23 16A5 5 0 1 1 13 16A5 5 0 1 1 23 16Z'},
   {id:'text',label:'文字',detail:'文字・レイアウト・登場演出',icon:'M4 5H20 M12 5V20 M7 20H17'},
