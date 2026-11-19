@@ -10,7 +10,7 @@ test('big → medium → small → neural wires is selectable and keeps saved pr
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
@@ -74,7 +74,7 @@ test('big → medium → small → neural wires is selectable and keeps saved pr
 test('new entrance animation remains stable with seed auto-switch and repeating visibility',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
@@ -107,7 +107,7 @@ test('new entrance animation remains stable with seed auto-switch and repeating 
 
 test('electrical packets stay off until standby wiring is fully connected',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');

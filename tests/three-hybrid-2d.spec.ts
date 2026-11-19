@@ -25,7 +25,7 @@ async function planeState(page:Page){
 test('native 2D SVG composites as a depth-aware textured plane with editable 3D transforms',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
@@ -60,7 +60,7 @@ test('native 2D SVG composites as a depth-aware textured plane with editable 3D 
 
 test('hybrid scene exports and restores its native 2D source and transform',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await category(page,'図形');
   await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -115,7 +115,7 @@ async function summonedPlanes(page:Page){
 test('summons multiple distinct native 2D seeds, rearranges without rerendering, and rerolls',async({page})=>{
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
@@ -148,7 +148,7 @@ test('summons multiple distinct native 2D seeds, rearranges without rerendering,
 
 test('large summon counts are capped on low quality and preserved in settings JSON',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');

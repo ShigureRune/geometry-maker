@@ -10,7 +10,7 @@ for(const style of ['grid','circuit'] as const){
     async({page})=>{
       const errors:string[]=[];
       page.on('pageerror',e=>errors.push(e.message));
-      await page.goto('./');
+      await page.goto('./?legacy-ui=1');
       await page.getByRole('button',{name:'3Dモード',exact:true}).click();
       await category(page,'図形');
       await page.getByLabel('3D描画品質').selectOption('low');
