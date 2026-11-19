@@ -23,13 +23,14 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
   const [custom, setCustom] = useState(false);
   const [lockRatio,setLockRatio]=useState(false);
   const [dimensionHint,setDimensionHint]=useState('');
+  const [lockMismatch,setLockMismatch]=useState(false);
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const w = Number(width), h = Number(height), invalid = resolutionError(w, h);
   const tooLarge = w * h > MAX_PNG_PIXELS;
   const megapixels=exportMegapixels(w,h);
   function changeDimension(axis:ResolutionAxis,value:string){
-    setCustom(true);setDimensionHint('');
+    setCustom(true);setDimensionHint('');setLockMismatch(false);
     const setEdited=axis==='width'?setWidth:setHeight;
     setEdited(value);
     if(!lockRatio)return;
@@ -37,6 +38,7 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     if(resized){
       setWidth(String(resized.width));setHeight(String(resized.height));
     }else if(value!==''){
+      setLockMismatch(true);
       setDimensionHint('縦横比を保ったまま256〜8192pxに収められません。値を調整してください。');
     }
   }
@@ -53,6 +55,7 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     try {
       const current = snapshot();
       if (invalid) throw new Error(invalid);
+      if(lockMismatch)throw new Error('縦横比を固定したまま有効な解像度を指定してください。');
       const stem = fileStem(current.seed,version);
       if (format === 'json') {
         downloadBlob(new Blob([settingsText(current)], { type: 'application/json;charset=utf-8' }), `${stem}_settings.json`);
@@ -74,7 +77,7 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
       if (file.size > MAX_SETTINGS_BYTES) throw new Error('設定ファイルは64KB以下にしてください。');
       const settings = parseSettings(await file.text());
       onRestore(settings); setVideo(videoSettings(settings)); setCustom(true); setWidth(String(settings.exportWidth)); setHeight(String(settings.exportHeight));
-      setDimensionHint('');setLockRatio(false);
+      setDimensionHint('');setLockRatio(false);setLockMismatch(false);
       setMessage(settings.algorithmVersion==='2d-v4'?'旧v4設定を読み込み、元の構図を保持しました。新版への変更は生成アルゴリズムから選べます。':'設定を読み込み、プレビューを更新しました。');
     } catch (e) { setError(e instanceof Error ? e.message : '設定を読み込めませんでした。'); }
     finally { setBusy(false); if (fileInput.current) fileInput.current.value = ''; }
@@ -87,19 +90,19 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     <select id="export-preset" value={!custom && EXPORT_PRESETS.some(p => p.width === w && p.height === h) ? `${w}x${h}` : 'custom'} disabled={busy}
       onChange={e => { const preset = EXPORT_PRESETS.find(p => `${p.width}x${p.height}` === e.target.value);
         if (!preset) { setCustom(true); return; }
-        if (preset) { setCustom(false);setDimensionHint('');setWidth(String(preset.width));setHeight(String(preset.height));onRatio(preset.ratio); } }}>
+        if (preset) { setCustom(false);setDimensionHint('');setLockMismatch(false);setWidth(String(preset.width));setHeight(String(preset.height));onRatio(preset.ratio); } }}>
       {EXPORT_PRESETS.map(p => <option key={p.width} value={`${p.width}x${p.height}`}>{p.width} × {p.height}</option>)}
       <option value="custom">カスタム（下の幅・高さを入力）</option>
     </select>
     <div className="export-resolution-tools" role="group" aria-label="解像度の編集補助">
       <label className="export-ratio-lock">
         <input type="checkbox" checked={lockRatio} disabled={busy||!!invalid}
-          onChange={event=>{setLockRatio(event.target.checked);setDimensionHint('');}}/>
+          onChange={event=>{setLockRatio(event.target.checked);setDimensionHint('');setLockMismatch(false);}}/>
         <span>{lockRatio?'🔒 縦横比を固定':'🔓 縦横比を固定しない'}</span>
       </label>
       <button type="button" disabled={busy||!!invalid} onClick={()=>{
         const next=rotateExportResolution({width:w,height:h});
-        setCustom(true);setDimensionHint('');
+        setCustom(true);setDimensionHint('');setLockMismatch(false);
         setWidth(String(next.width));setHeight(String(next.height));
       }}>↔ 縦横を入れ替え</button>
     </div>
@@ -114,9 +117,9 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     {margins && <HelpInfo>構図と書き出しの比率が異なるため、中央配置して{magicTransparent?'透明な':'背景色の'}余白を追加します。図形は変形・切り取りしません。</HelpInfo>}
     {version===MAGIC_ALGORITHM_VERSION&&<p className="help" data-testid="magic-export-info">{magicTransparent?'透過保存ON：魔法陣の線だけをアルファ付きPNG / 背景なしSVGで保存します。':'背景付き保存：魔法陣の設定から透過PNG / SVGに切り替えられます。'}</p>}
     <div className="export-actions">
-      <button type="button" disabled={busy || !!invalid || tooLarge} onClick={() => void save('png')}>{busy ? '処理中…' : 'PNGを書き出す'}</button>
-      <button type="button" disabled={busy || !!invalid} onClick={() => void save('svg')}>SVGを書き出す</button>
-      <button type="button" disabled={busy || !!invalid} onClick={() => void save('json')}>作品の設定を保存</button>
+      <button type="button" disabled={busy || !!invalid || lockMismatch || tooLarge} onClick={() => void save('png')}>{busy ? '処理中…' : 'PNGを書き出す'}</button>
+      <button type="button" disabled={busy || !!invalid || lockMismatch} onClick={() => void save('svg')}>SVGを書き出す</button>
+      <button type="button" disabled={busy || !!invalid || lockMismatch} onClick={() => void save('json')}>作品の設定を保存</button>
       <button type="button" disabled={busy} onClick={() => fileInput.current?.click()}>保存した設定を読み込む</button>
     </div>
     <div className="studio-setting-label"><span>設定ファイルについて</span>
