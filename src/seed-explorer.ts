@@ -57,11 +57,13 @@ export function planExplorerFavorites(
   existing:readonly string[],capacity:number,
 ):{seeds:string[];alreadySaved:number;skippedFull:number}{
   const known=new Set(existing);
+  const seen=new Set<string>();
   const seeds:string[]=[];
   let alreadySaved=0,skippedFull=0;
   const remaining=Math.max(0,Math.floor(Number.isFinite(capacity)?capacity:0)-known.size);
   for(const seed of candidates){
-    if(!selected.has(seed)||!isUsableSeed(seed))continue;
+    if(!selected.has(seed)||!isUsableSeed(seed)||seen.has(seed))continue;
+    seen.add(seed);
     if(known.has(seed)){alreadySaved++;continue;}
     known.add(seed);
     if(seeds.length<remaining)seeds.push(seed);
