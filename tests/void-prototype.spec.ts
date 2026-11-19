@@ -21,8 +21,23 @@ async function open(page:Page,project=fixture(),url='./?legacy-ui=1'){
   await expect(page.getByText('3D設定を読み込みました。',{exact:true})).toBeVisible();
   await expect(page.getByRole('button',{name:'視点をリセット',exact:true})).toBeEnabled({timeout:30_000});
 }
-async function png(page:Page){await category(page,'書き出し');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3D PNGを書き出す',exact:true}).click();const file=await pending;expect(await file.failure()).toBeNull();return readFile((await file.path())!);}
-async function json(page:Page){await category(page,'書き出し');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();return readFile((await(await pending).path())!,'utf8');}
+/** Supports the released checkbox navigator, the new button navigator and legacy UI.
+ * The read-only reference checkout may run an older version of the app. */
+async function exportDetail(page:Page,section:'image'|'settings'){
+  await category(page,'書き出し');
+  const inspector=page.locator('#fine-sections-export-3d');
+  if(!(await inspector.count()))return;
+  const choice=inspector.locator('#fine-export-3d-'+section);
+  const isCheckbox=(await choice.getAttribute('type'))==='checkbox';
+  const selected=isCheckbox?await choice.isChecked():(await choice.getAttribute('aria-expanded'))==='true';
+  if(selected)return;
+  const back=inspector.locator('.fine-sections-back-button');
+  if(await back.isVisible())await back.click();
+  if(isCheckbox)await choice.check();
+  else await choice.click();
+}
+async function png(page:Page){await exportDetail(page,'image');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3D PNGを書き出す',exact:true}).click();const file=await pending;expect(await file.failure()).toBeNull();return readFile((await file.path())!);}
+async function json(page:Page){await exportDetail(page,'settings');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();return readFile((await(await pending).path())!,'utf8');}
 async function toggle(page:Page,enabled:boolean){
   await category(page,'背景');await page.getByLabel('VOID MODEを有効化').setChecked(enabled);
   // These regressions intentionally exercise the saved v1 prototype. New
