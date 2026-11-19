@@ -11,15 +11,15 @@ test('fine settings preview opens individual particle and galaxy inspectors with
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
-  await openSettingsCategory(page,'図形');
+  await openSettingsCategory(page,'拡張');
 
-  const nav=page.getByRole('navigation',{name:'3D図形の細かい設定'});
+  const nav=page.getByRole('navigation',{name:'拡張の細かい設定'});
   const particleDetail=page.getByTestId('particle-mode-controls');
   const galaxyDetail=page.getByTestId('galaxy-mode-controls');
   const particleChoice=nav.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   const galaxyChoice=nav.getByRole('button',{name:'GALAXY MODE · 巨大銀河の詳細設定を開く'});
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole('button')).toHaveCount(6);
+  await expect(nav.getByRole('button')).toHaveCount(4);
   await expect(particleChoice).toHaveAttribute('aria-expanded','false');
   await expect(galaxyChoice).toHaveAttribute('aria-expanded','false');
   await expect(particleDetail).toBeHidden();
@@ -61,7 +61,7 @@ test('ordinary 3D settings keep the pre-existing checkbox workflow until fine se
   await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'})).toHaveCount(0);
 });
 
-test('all six fine-grained shape sections open separately and retain values',async({page})=>{
+test('all four ordinary 3D shape sections open separately and retain values',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -72,8 +72,6 @@ test('all six fine-grained shape sections open separately and retain values',asy
     {id:'spacing',name:'図形の間隔'},
     {id:'kinds',name:'図形の種類'},
     {id:'celestial',name:'星や惑星'},
-    {id:'particle',name:'PARTICLE MODE · 渦巻き集合'},
-    {id:'galaxy',name:'GALAXY MODE · 巨大銀河'},
     {id:'quality',name:'3D描画品質'},
   ] as const;
   for(const {id,name} of groups){
@@ -120,7 +118,7 @@ test('fine inspector is usable on a mobile viewport and responds to Escape',asyn
 });
 
 
-test('fine preview keeps main categories as seven tabs and reserves checkboxes for small items',async({page})=>{
+test('fine preview shows seven 2D tabs and eight 3D tabs without main checkboxes',async({page})=>{
   await page.goto('./?fine-preview=1');
   const tabs=page.getByRole('navigation',{name:'設定カテゴリー'});
   await expect(tabs.getByRole('button')).toHaveCount(7);
@@ -132,19 +130,23 @@ test('fine preview keeps main categories as seven tabs and reserves checkboxes f
   await tabs.getByRole('button',{name:'図形',exact:true}).click();
   await expect(page.locator('#panel-shapes')).toBeVisible();
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await expect(tabs.getByRole('button')).toHaveCount(8);
+  await expect(tabs.getByRole('button',{name:'拡張',exact:true})).toBeVisible();
   await openSettingsCategory(page,'図形');
-  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button')).toHaveCount(6);
+  await expect(page.getByRole('navigation',{name:'3D図形の細かい設定'}).getByRole('button')).toHaveCount(4);
+  await openSettingsCategory(page,'拡張');
+  await expect(page.getByRole('navigation',{name:'拡張の細かい設定'}).getByRole('button')).toHaveCount(4);
 });
 
 
-test('3D background fine inspector drills into its four sections and retains settings',async({page})=>{
+test('3D background fine inspector drills into its three ordinary sections and retains settings',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./?fine-preview=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'背景');
   const nav=page.locator('#fine-sections-background').getByRole('navigation',{name:'細かい設定項目一覧'});
   const groups=[
-    ['base','背景の種類'],['void','VOID MODE'],['sky','空と景色'],['floor','床の模様']
+    ['base','背景の種類'],['sky','空と景色'],['floor','床の模様']
   ] as const;
   await expect(nav.getByRole('button')).toHaveCount(groups.length);
   const back=page.locator('#fine-sections-background-detail').getByRole('button',{name:'細かい設定一覧へ'});
@@ -165,6 +167,60 @@ test('3D background fine inspector drills into its four sections and retains set
   }
   await nav.getByRole('button',{name:'背景の種類の詳細設定を開く'}).click();
   await expect(page.getByRole('button',{name:'グラデーション',exact:true})).toHaveAttribute('aria-pressed','true');
+});
+
+
+test('modern 3D extension inspector contains VOID and hybrid without duplicating legacy controls',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('./');
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'図形');
+  const ordinary=page.getByRole('navigation',{name:'3D図形の細かい設定'});
+  await expect(ordinary.getByRole('button')).toHaveCount(4);
+  await expect(ordinary.getByRole('button',{name:/GALAXY MODE/})).toHaveCount(0);
+  await expect(page.locator('#panel-background #fine-background-void')).toHaveCount(0);
+  await openSettingsCategory(page,'拡張');
+  const nav=page.getByRole('navigation',{name:'拡張の細かい設定'});
+  await expect(nav.getByRole('button')).toHaveCount(4);
+  const voidChoice=nav.getByRole('button',{name:'VOID MODEの詳細設定を開く'});
+  await voidChoice.click();
+  await expect(page.getByRole('checkbox',{name:'VOID MODEを有効化'})).toBeVisible();
+  await page.getByRole('checkbox',{name:'VOID MODEを有効化'}).check();
+  await expect(page.getByTestId('three-preview')).toHaveAttribute('data-void-mode','web');
+  await page.locator('#three-extensions-fullscreen-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(voidChoice).toBeFocused();
+  const hybrid=nav.getByRole('button',{name:'2D × 3D ハイブリッドの詳細設定を開く'});
+  await hybrid.click();
+  await expect(page.getByRole('checkbox',{name:'3D空間に2D図形を合成'})).toBeVisible();
+  await page.getByRole('checkbox',{name:'3D空間に2D図形を合成'}).check();
+  await expect(page.getByTestId('three-preview')).toHaveAttribute('data-hybrid-2d','on');
+  await page.keyboard.press('Escape');
+  await expect(hybrid).toBeFocused();
+  await expect(page.locator('#three-extensions-fullscreen-detail')).toBeHidden();
+});
+
+test('mobile extensions return without moving fixed dock or document scroll',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('./');
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'拡張');
+  const choice=page.getByRole('button',{name:'VOID MODEの詳細設定を開く'});
+  await choice.scrollIntoViewIfNeeded();
+  const y=await page.evaluate(()=>window.scrollY);
+  const dock=page.locator('.studio-app > .studio-mobile-dock');
+  const dockBefore=await dock.boundingBox();
+  await choice.click();
+  await expect(page.locator('.studio-fullscreen-track')).toHaveClass(/is-detail/);
+  await expect(dock).toBeHidden();
+  await expect(page.getByRole('checkbox',{name:'VOID MODEを有効化'})).toBeVisible();
+  await page.locator('#three-extensions-fullscreen-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(page.locator('.studio-fullscreen-track')).not.toHaveClass(/is-detail/);
+  await expect(dock).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(y);
+  const dockAfter=await dock.boundingBox();
+  expect(Math.abs(dockAfter!.x-dockBefore!.x)).toBeLessThan(1);
+  expect(Math.abs(dockAfter!.y-dockBefore!.y)).toBeLessThan(1);
 });
 
 test('3D decoration and animation have independent fine lists without changing toggle states',async({page})=>{
