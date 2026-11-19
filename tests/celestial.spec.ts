@@ -16,11 +16,11 @@ async function start(page: Page) {
 async function celestialControls(page: Page) {
   await category(page, '図形');
   const controls = page.locator('.three-shape-controls');
-  const overview = controls.getByRole('checkbox', {name: '星や惑星の詳細設定を開く'});
+  const overview = controls.getByRole('button', {name: '星や惑星の詳細設定を開く'});
   if (await overview.count() && await controls.getAttribute('data-fine-selected') !== 'celestial') {
     const back = controls.getByRole('button', {name: '細かい設定一覧へ'});
     if (await back.isVisible()) await back.click();
-    await overview.check();
+    await overview.click();
   }
 }
 /** Select the nested export inspector, including when another export detail is open. */
@@ -28,11 +28,11 @@ async function exportControls(page: Page, section: 'image' | 'settings') {
   await category(page, '書き出し');
   const fine = page.locator('#fine-sections-export-3d');
   if (await fine.count()) {
-    const checkbox = fine.locator('#fine-export-3d-' + section);
-    if (!(await checkbox.isChecked())) {
+    const choice = fine.locator('#fine-export-3d-' + section);
+    if ((await choice.getAttribute('aria-expanded')) !== 'true') {
       const back = fine.locator('.fine-sections-back-button');
       if (await back.isVisible()) await back.click();
-      await checkbox.check();
+      await choice.click();
     }
   }
 }
