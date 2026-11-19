@@ -1444,3 +1444,60 @@
   .studio-app .studio-global-detail-head{gap:8px;margin-bottom:16px}
   .studio-app .studio-global-detail-head>span{margin-left:auto}
 }
+
+/* Mobile viewport slides: keep the tall overview at its exact scroll offset.
+   A separately scrolling fixed detail enters from the right. Unlike the old
+   200%-wide transformed track, this never scrolls the document on return. */
+@media(max-width:720px){
+  .studio-app .studio-fullscreen-track,
+  .studio-app .studio-fullscreen-track.is-detail{
+    position:relative;
+    display:block;width:100%;min-width:0;
+    transform:none!important;will-change:auto;
+    transition:none!important;
+  }
+  .studio-app .studio-fullscreen-overview{
+    display:block;min-height:100dvh;height:auto;
+    width:100%;max-width:100%;overflow:visible;
+    transform:none;
+    transition:transform .43s cubic-bezier(.22,1,.36,1);
+  }
+  .studio-app .studio-fullscreen-track.is-detail .studio-fullscreen-overview{
+    min-height:100dvh;height:auto;overflow:visible;
+    transform:translateX(-100%);
+    pointer-events:none;
+  }
+  .studio-app .studio-fullscreen-detail{
+    position:fixed;inset:0;z-index:70;
+    width:100%;max-width:100%;height:100dvh;min-height:0;
+    overflow-x:hidden;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    transform:translateX(100%);
+    transition:transform .43s cubic-bezier(.22,1,.36,1),visibility 0s .43s;
+    visibility:hidden;pointer-events:none;
+    padding:16px 16px calc(28px + env(safe-area-inset-bottom,0px));
+  }
+  .studio-app .studio-fullscreen-track.is-detail .studio-fullscreen-detail{
+    transform:none;visibility:visible;pointer-events:auto;
+    transition:transform .43s cubic-bezier(.22,1,.36,1),visibility 0s;
+  }
+  .studio-app .studio-global-detail-head{
+    position:relative;top:auto;min-height:0;
+    padding:5px 2px 12px;margin-bottom:10px;box-shadow:none;
+  }
+  /* The only actionable back button sits inside each inspector. */
+  .studio-app .studio-fullscreen-detail .fine-sections-back,
+  .studio-app .studio-fullscreen-detail .fine-settings-back{
+    position:sticky;top:0;z-index:12;
+    padding:8px 0 12px;
+    background:var(--st-bg);
+  }
+}
+@media(max-width:720px) and (prefers-reduced-motion:reduce){
+  .studio-app .studio-fullscreen-overview,
+  .studio-app .studio-fullscreen-detail,
+  .studio-app .studio-fullscreen-track.is-detail .studio-fullscreen-detail{
+    transition:none!important;
+  }
+}
