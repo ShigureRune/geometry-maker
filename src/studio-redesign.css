@@ -1274,6 +1274,24 @@
 .studio-app #panel-shapes:has(#fine-sections-shapes.is-detail) > .fine-settings-group-heading{
   display:none!important;
 }
+/* The category navigation itself exits with the settings index, so the
+   detail occupies the entire settings screen rather than a tiny inner card. */
+.studio-app .studio-controls .settings-tabs-navigation{
+  max-height:260px;opacity:1;transform:translateX(0);
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
+    max-height .38s ease,margin .38s ease,visibility 0s;
+}
+.studio-app .studio-controls:has(.fine-sections.is-detail) .settings-tabs-navigation,
+.studio-app .studio-controls:has(.three-shape-controls.fine-detail-open) .settings-tabs-navigation{
+  max-height:0;opacity:0;transform:translateX(-100%);margin:0;
+  pointer-events:none;visibility:hidden;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
+    max-height .38s ease,margin .38s ease,visibility 0s .38s;
+}
+.studio-app .studio-controls:has(.fine-sections.is-detail) .panel-intro,
+.studio-app .studio-controls:has(.three-shape-controls.fine-detail-open) .panel-intro{
+  display:none;
+}
 /* A selected detail page occupies the settings panel instead of sitting
    below a permanent section heading. */
 .studio-app .category-panel:has(.fine-sections.is-detail) > .category-title,
