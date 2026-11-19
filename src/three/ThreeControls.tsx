@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {useEffect,useRef,useState,type CSSProperties,type ReactNode} from 'react';
 import {HelpInfo} from '../HelpInfo';
 import {StudioFinePortal,useStudioFine} from '../StudioFinePages';
 import type {ThreeSettings} from './settings';
@@ -42,7 +42,10 @@ export function ThreeRange({id, label, value, min, max, step = .05, unit = '', o
 }) {
   return <div className="three-range">
     <label htmlFor={id}>{label}</label><output htmlFor={id}>{value.toFixed(step < 1 ? 2 : 0)}{unit}</output>
-    <input id={id} type="range" min={min} max={max} step={step} value={value} aria-valuetext={`${value}${unit}`} onChange={event => onChange(Number(event.target.value))}/>
+    <input id={id} type="range" className="studio-progress-range" min={min} max={max} step={step}
+      value={value} aria-valuetext={`${value}${unit}`}
+      style={{'--studio-range-fill':`${Math.max(0,Math.min(100,(value-min)/(max-min)*100))}%`} as CSSProperties}
+      onChange={event => onChange(Number(event.target.value))}/>
   </div>;
 }
 export function ThreeShapeControls({settings,onChange,scope='shapes',voidControls,hybridControls,nebulaControls}: GroupProps) {
