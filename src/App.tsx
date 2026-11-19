@@ -1063,7 +1063,9 @@ export default function App() {
     <footer><span>GENERATIVE DESIGN, DETERMINISTIC BY NATURE.</span><span>2D / 3D 背景スタジオ</span></footer>
       </div>
       <section ref={setFullFineHost} className="studio-fullscreen-detail" aria-label="設定の詳細画面"
-        inert={!fullFineKey} aria-hidden={!fullFineKey}/>
+        inert={!fullFineKey} aria-hidden={!fullFineKey}>
+        <div className="studio-global-detail-head"><strong>◇ 幾何学メーカー</strong><span>詳細設定</span></div>
+      </section>
     </div>
   </div>
   </StudioFineContext.Provider>;
