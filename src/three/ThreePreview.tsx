@@ -40,6 +40,7 @@ import {VoidParticleCloud} from './VoidParticleCloud';
 import {VOID_PARTICLE_DEFAULT,effectiveVoidParticleCount} from './void-particle';
 import {GalaxyCloud} from './GalaxyCloud';
 import {NebulaLayer} from './NebulaLayer';
+import {NEBULA_LOW_CLOUDLETS,NEBULA_HIGH_CLOUDLETS} from './nebula-volume';
 import {galaxyDefaults,GALAXY_LOW_STAR_LIMIT} from './galaxy';
 import {hybrid2DDefaults,hybrid2DInstances} from './hybrid-2d';
 
@@ -780,6 +781,7 @@ export default function ThreePreview(input: Props) {
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
     data-nebula-mode={props.settings.nebula?.enabled?'on':'off'}
     data-nebula-renderer={props.settings.nebula?.enabled?'3d-worldspace-cloud':'off'}
+    data-nebula-cloudlets={props.settings.nebula?.enabled?(low?NEBULA_LOW_CLOUDLETS:NEBULA_HIGH_CLOUDLETS):0}
     data-nebula-preset={props.settings.nebula?.enabled?props.settings.nebula.preset:'off'}
     data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-camera-near={galaxyEnabled?'0.025':'0.1'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
