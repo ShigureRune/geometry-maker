@@ -145,6 +145,15 @@ test('favorite library sorting, search selection and selected JSON export leave 
   const parsed=JSON.parse((await readFile((await file.path())!)).toString());
   expect(parsed).toEqual({format:'geometry-maker-seed-collection',version:1,
     bookmarks:[{seed:'vault-a',name:'Alpha'},{seed:'vault-z',name:'Zebra'}]});
+  // The original full-library button must never inherit a click event as
+  // a truthy "selectedOnly" argument (regression for #204).
+  const fullDownload=page.waitForEvent('download');
+  await page.getByRole('button',{name:'一覧をJSON保存'}).click();
+  const fullFile=await fullDownload;
+  expect(fullFile.suggestedFilename()).toBe('geometry-maker-seeds.json');
+  const fullData=JSON.parse((await readFile((await fullFile.path())!)).toString());
+  expect(fullData.bookmarks.map((item:{seed:string})=>item.seed))
+    .toEqual(['vault-b','vault-a','vault-z']);
   expect(await seed.inputValue()).toBe(current);
   expect(await page.evaluate(()=>localStorage.getItem('geometry-studio-seed-vault-v1'))).toBe(original);
   expect(errors).toEqual([]);
