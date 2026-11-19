@@ -73,7 +73,7 @@ describe('seed vault and shareable seed URLs',()=>{
     expect(browseBookmarks(vault,'','recent').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
     expect(browseBookmarks(vault,'','name').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
     expect(browseBookmarks(vault,'','seed').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
-    expect(browseBookmarks(vault,'SEED-2','name')).toEqual([{seed:'seed-2',name:'あお'}]);
+    expect(browseBookmarks(vault,'SEED-2','name')).toEqual([{seed:'seed-2',name:'Beta'}]);
     expect(JSON.stringify(vault)).toBe(before);
   });
   it('exports only selected known bookmarks in compatible original order',()=>{
