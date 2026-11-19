@@ -20,6 +20,13 @@ on:
       - 'src/seed-vault.ts'
       - 'src/studio-reset.ts'
       - 'src/SettingsCategories.tsx'
+      - 'src/three/ThreeControls.tsx'
+      - 'src/three/VoidModeControls.tsx'
+      - 'src/three/extension-presets.ts'
+      - 'src/three/extension-presets.test.ts'
+      - 'src/three/galaxy-presets.ts'
+      - 'tests/extension-presets.spec.ts'
+      - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/studio-autosave.spec.ts'
       - 'tests/seed-vault.spec.ts'
@@ -38,6 +45,13 @@ on:
       - 'src/seed-vault.ts'
       - 'src/studio-reset.ts'
       - 'src/SettingsCategories.tsx'
+      - 'src/three/ThreeControls.tsx'
+      - 'src/three/VoidModeControls.tsx'
+      - 'src/three/extension-presets.ts'
+      - 'src/three/extension-presets.test.ts'
+      - 'src/three/galaxy-presets.ts'
+      - 'tests/extension-presets.spec.ts'
+      - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/studio-autosave.spec.ts'
       - 'tests/seed-vault.spec.ts'
@@ -66,5 +80,25 @@ jobs:
         if: failure()
         with:
           name: studio-ui-failures
+          path: test-results/
+          retention-days: 7
+
+  extension-presets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test creative presets, fullscreen settings, autosave and mobile dock
+        run: npx playwright test tests/extension-presets.spec.ts tests/fine-settings.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: extension-presets-failures
           path: test-results/
           retention-days: 7
