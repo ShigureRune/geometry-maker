@@ -37,7 +37,7 @@ describe('seed vault and shareable seed URLs',()=>{
     expect(all.at(-1)).toEqual({seed:'初期',index:0});
     expect(searchSeedHistory(vault,'star-1').map(item=>item.seed)).toEqual(
       ['Star-19','Star-18','Star-17','Star-16','Star-15','Star-14','Star-13','Star-12','Star-11','Star-10','Star-1']);
-    expect(searchSeedHistory(vault,'STAR 38')).toHaveLength(0);
+    expect(searchSeedHistory(vault,'STAR 38')).toEqual([{seed:'Star-38',index:39}]);
     expect(searchSeedHistory(vault,'  初期  ')).toEqual([{seed:'初期',index:0}]);
     expect(searchSeedHistory(vault,'not found')).toEqual([]);
     expect(JSON.stringify(vault)).toBe(original);
