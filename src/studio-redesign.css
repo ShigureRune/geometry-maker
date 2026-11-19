@@ -1501,3 +1501,25 @@
     transition:none!important;
   }
 }
+
+
+/* Mobile: the whole overview slides sideways. Do not collapse its categories
+   or hide its heading while the separately scrolling fine page is open.
+   FineSections delays clearing its selection until the 430ms exit ends, so
+   the previous max-height transition made the tabs descend from above after
+   the overview had already slid back into place (iOS Safari recording). */
+@media(max-width:720px){
+  .studio-app .studio-fullscreen-overview .studio-controls .settings-tabs-navigation{
+    max-height:none;
+    opacity:1;
+    transform:none;
+    margin:0 0 16px;
+    pointer-events:auto;
+    visibility:visible;
+    transition:none;
+  }
+  .studio-app .studio-fullscreen-overview .category-panel:has(.fine-sections.is-detail) > .category-title,
+  .studio-app .studio-fullscreen-overview .category-panel:has(.three-shape-controls.fine-detail-open) > .category-title{
+    display:block;
+  }
+}
