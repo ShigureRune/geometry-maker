@@ -1244,3 +1244,25 @@
 @media(prefers-reduced-motion:reduce){
   .studio-app .fine-sections-panel{animation:none}
 }
+
+
+/* Fine setting choices mirror the reference layout: checkbox to the LEFT. */
+.studio-app .fine-settings-choice input[type="checkbox"]{
+  order:-1;width:28px;height:28px;min-width:28px;flex:none;
+}
+.studio-app .fine-settings-group-heading{
+  margin:17px 0 9px;color:var(--st-muted);
+  font-size:11px;letter-spacing:.1em;font-weight:750;
+}
+/* Both 3D lists share one category. Hide the other list while inspecting a
+   selected fine item, so an inspector is an isolated screen on mobile too. */
+.studio-app #panel-shapes:has(.three-shape-controls.fine-detail-open) > #fine-sections-shapes,
+.studio-app #panel-shapes:has(.three-shape-controls.fine-detail-open) > .fine-settings-group-heading{
+  display:none!important;
+}
+.studio-app #panel-shapes:has(#fine-sections-shapes .fine-sections-back:not([hidden]))
+  > .three-shape-controls,
+.studio-app #panel-shapes:has(#fine-sections-shapes .fine-sections-back:not([hidden]))
+  > .fine-settings-group-heading{
+  display:none!important;
+}
