@@ -51,8 +51,17 @@ export function ThreeShapeControls({settings, onChange}: Props) {
   const [fineDetail,setFineDetail]=useState<FineShapeItem|null>(null);
   const lastFineItem=useRef<FineShapeItem|null>(null);
   const fineNavReady=useRef(false);
+  const closeTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+  useEffect(()=>()=>{if(closeTimer.current!==null)clearTimeout(closeTimer.current);},[]);
+  const closeDetail=()=>{
+    studioFine?.close();
+    if(window.matchMedia('(max-width:720px) and (prefers-reduced-motion: no-preference)').matches){
+      if(closeTimer.current!==null)clearTimeout(closeTimer.current);
+      closeTimer.current=setTimeout(()=>{setFineDetail(null);closeTimer.current=null;},440);
+    }else setFineDetail(null);
+  };
   useEffect(()=>{
-    if(finePreview&&fineDetail&&studioFine&&studioFine.activeKey!=='three-shapes')setFineDetail(null);
+    if(finePreview&&fineDetail&&studioFine&&studioFine.activeKey!==null&&studioFine.activeKey!=='three-shapes')setFineDetail(null);
   },[studioFine?.activeKey,fineDetail,finePreview]);
   useEffect(()=>{
     if(!finePreview)return;
@@ -67,7 +76,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     data-fine-selected={fineDetail??undefined}
     onKeyDown={event=>{
       if(finePreview&&fineDetail&&event.key==='Escape'){
-        event.preventDefault();event.stopPropagation();setFineDetail(null);studioFine?.close();
+        event.preventDefault();event.stopPropagation();closeDetail();
       }
     }}>
     <div className="fine-shape-viewport"><div className="fine-shape-track">
@@ -82,7 +91,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
             id={'fine-open-'+item.id}
             aria-label={item.label+'の詳細設定を開く'}
             aria-expanded={fineDetail===item.id}
-            onClick={()=>{lastFineItem.current=item.id;setFineDetail(item.id);studioFine?.open('three-shapes');}}>
+            onClick={()=>{if(closeTimer.current!==null){clearTimeout(closeTimer.current);closeTimer.current=null;}lastFineItem.current=item.id;setFineDetail(item.id);studioFine?.open('three-shapes');}}>
             <span className="fine-settings-choice-copy">
               <strong>{item.label}</strong>
               <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
@@ -98,7 +107,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         hidden={finePreview&&fineDetail===null}
         aria-hidden={finePreview&&fineDetail===null} inert={finePreview&&fineDetail===null}>
         {finePreview&&<div className="fine-settings-back">
-          <button type="button" onClick={()=>{setFineDetail(null);studioFine?.close();}}>← 細かい設定一覧へ</button>
+          <button type="button" onClick={closeDetail}>← 細かい設定一覧へ</button>
           <span>{FINE_SHAPE_ITEMS.find(item=>item.id===fineDetail)?.label??''}</span>
         </div>}
         <div className="fine-shape-detail-fields">
