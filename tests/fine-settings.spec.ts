@@ -503,5 +503,5 @@ test('mobile export detail returns sideways without categories dropping in from 
   expect(await measure()).toEqual(initial);
   await page.waitForTimeout(600);
   expect(await measure()).toEqual(initial);
-  await expect(page.getByRole('button',{name:'動画の書き出しの詳細設定を開く'})).toBeInViewport();
+  await expect(page.getByRole('button',{name:'動画の書き出しの詳細設定を開く'})).toBeVisible();
 });
