@@ -431,6 +431,8 @@ test('mobile fullscreen detail opens at top and restores overview scroll without
   await page.goto('./');
   const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
   await choice.scrollIntoViewIfNeeded();
+  await page.evaluate(()=>window.scrollTo({top:350,behavior:'instant'}));
+  await choice.scrollIntoViewIfNeeded();
   const previousScroll=await page.evaluate(()=>window.scrollY);
   expect(previousScroll).toBeGreaterThan(100);
 
