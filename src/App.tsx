@@ -109,7 +109,13 @@ export default function App() {
     }else if(overviewScrollY.current!==null){
       const y=overviewScrollY.current;
       overviewScrollY.current=null;
+      // Restoring the overview also re-focuses the selected setting button.
+      // Reapply the offset after that focus/layout update (iOS Safari and
+      // Chromium may otherwise scroll toward the focused inspector).
       window.scrollTo({top:y,left:0,behavior:'instant'});
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
+      });
     }
   },[fullFineKey]);
   const settingsNavigationInitialized=useRef(false);
