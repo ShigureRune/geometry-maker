@@ -12,7 +12,7 @@ async function category(page:Page,label:string){
 }
 async function magic(page:Page,reducedMotion:'reduce'|'no-preference'='reduce'){
   await page.emulateMedia({reducedMotion});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await category(page,'図形');
   await page.getByLabel('生成アルゴリズム').selectOption('2d-magic-v1');
   await expect(page.getByTestId('magic-controls')).toBeVisible();
