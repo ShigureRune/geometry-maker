@@ -15,7 +15,7 @@ async function start(page: Page) {
 /** Open the nested celestial inspector in the checkbox-based fine settings UI. */
 async function celestialControls(page: Page) {
   await category(page, '図形');
-  const controls = page.locator('.three-shape-controls');
+  const controls = page.locator('#panel-shapes .three-shape-controls');
   const overview = controls.getByRole('button', {name: '星や惑星の詳細設定を開く'});
   if (await overview.count() && await controls.getAttribute('data-fine-selected') !== 'celestial') {
     const back = page.locator('#three-shapes-fullscreen-detail').getByRole('button', {name: '細かい設定一覧へ'});

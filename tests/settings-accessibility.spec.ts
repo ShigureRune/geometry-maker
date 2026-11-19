@@ -15,17 +15,19 @@ const categories=[
   ['文字','text'],['装飾','decoration'],['アニメーション','animation'],
   ['書き出し','export'],
 ] as const;
+const allCategories=[...categories,['拡張','extensions']] as const;
 
-test('all seven settings choices have unique accessible labels and valid panel targets',async({page})=>{
+test('all eight settings choices have unique accessible labels and valid panel targets',async({page})=>{
   const navigation=page.getByRole('navigation',{name:'設定カテゴリー'});
   const checkboxes=navigation.getByRole('checkbox');
-  await expect(checkboxes).toHaveCount(categories.length);
-  for(const [label,id] of categories){
+  await expect(checkboxes).toHaveCount(allCategories.length);
+  for(const [label,id] of allCategories){
     const choice=navigation.getByRole('checkbox',{name:`${label}の設定を開く`});
     await expect(choice).toHaveAttribute('id',`category-${id}`);
     await expect(choice).toHaveAttribute('aria-controls',`panel-${id}`);
     await expect(page.locator(`#panel-${id}`)).toHaveCount(1);
     await expect(choice).not.toBeChecked();
+    if(id==='extensions')await expect(choice).toBeDisabled();
   }
 });
 

@@ -1231,6 +1231,10 @@
   .fine-shape-detail-fields>[data-fine-item="particle"],
 .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
   .fine-shape-detail-fields>[data-fine-item="galaxy"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="void"]
+  .fine-shape-detail-fields>[data-fine-item="void"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="hybrid"]
+  .fine-shape-detail-fields>[data-fine-item="hybrid"],
 .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="quality"]
   .fine-shape-detail-fields>[data-fine-item="quality"]{
   display:block!important;
@@ -1389,6 +1393,8 @@
 .studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="celestial"] .fine-shape-detail-fields>[data-fine-item="celestial"],
 .studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="particle"] .fine-shape-detail-fields>[data-fine-item="particle"],
 .studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="galaxy"] .fine-shape-detail-fields>[data-fine-item="galaxy"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="void"] .fine-shape-detail-fields>[data-fine-item="void"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="hybrid"] .fine-shape-detail-fields>[data-fine-item="hybrid"],
 .studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="quality"] .fine-shape-detail-fields>[data-fine-item="quality"]{
   display:block!important;
 }

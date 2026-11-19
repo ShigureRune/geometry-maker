@@ -14,6 +14,7 @@ async function openGalaxy(page:Page,gasOnly=false,starsOnly=false,detailOnly=fal
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
+  await category(page,'拡張');
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await page.getByLabel('GALAXY MODEを有効化').check();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-galaxy-mode','on');
@@ -76,7 +77,7 @@ test('gravity mode numerically bends stellar and gas orbits with two mass center
   // clock, otherwise the physical integrator correctly remains paused.
   await category(page,'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').check();
-  await category(page,'図形');
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-gravity-mode','off');
   await page.getByLabel('銀河の重力シミュレーションを有効化').check();
@@ -118,7 +119,7 @@ test('Barnes-Hut stellar self-gravity uses bounded octree-style approximations i
   await openGalaxy(page);
   await category(page,'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').check();
-  await category(page,'図形');
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-nbody-mode','off');
   await page.getByLabel('銀河の重力シミュレーションを有効化').check();
@@ -153,7 +154,7 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
   await openGalaxy(page);
   await category(page,'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').check();
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.locator('#galaxy-type').selectOption('interacting');
   await page.getByLabel('銀河の重力シミュレーションを有効化').check();
   const preview=page.getByTestId('three-preview');
@@ -371,7 +372,7 @@ test('galaxy settings export as 3D JSON and restore',async({page})=>{
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'galaxy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project)),
   });
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(page.getByLabel('GALAXY MODEを有効化')).toBeChecked();
   await expect(page.locator('#galaxy-palette')).toHaveValue('gold');
   await expect(page.locator('#galaxy-type')).toHaveValue('ring');
@@ -631,7 +632,7 @@ test('gas and star spiral arms visibly rotate in the SAME screen direction',asyn
     await page.locator('#galaxy-inclination').fill('0');
     await category(page,'アニメーション');
     await page.getByLabel('3Dアニメーションを有効化').check();
-    await category(page,'図形');
+    await category(page,'拡張');
     const key=layer==='stars'?'data-galaxy-star-material-time':'data-galaxy-gas-material-time';
     await page.evaluate(()=>{
       (document.querySelector('[data-testid="three-preview"]') as HTMLDivElement)
@@ -787,7 +788,7 @@ test('stellar arm particles independently orbit, pause and stop at zero speed',a
   await page.getByLabel('3Dアニメーションを有効化').check();
   await page.waitForTimeout(2900);
   await page.getByRole('button',{name:'3Dを一時停止'}).click();
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.waitForTimeout(120);
   const t0=Number(await preview.getAttribute('data-galaxy-star-time'));
   const frozen=await preview.locator('canvas').screenshot();
@@ -797,7 +798,7 @@ test('stellar arm particles independently orbit, pause and stop at zero speed',a
   expect(Number(await preview.getAttribute('data-galaxy-star-time'))).toBe(t0);
   await category(page,'アニメーション');
   await page.getByRole('button',{name:'3Dを再生'}).click();
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.waitForTimeout(800);
   const t1=Number(await preview.getAttribute('data-galaxy-star-time'));
   expect(t1).toBeGreaterThan(t0+.1);
@@ -828,7 +829,7 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
   await category(page,'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').check();
   await page.waitForTimeout(3050); // allow initial formation to complete
-  await category(page,'図形');
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-gas-only-probe','true');
   for(const [index,type] of GALAXY_TYPES.entries()){
@@ -836,7 +837,7 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
     await expect(preview).toHaveAttribute('data-galaxy-type',type);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを一時停止'}).click();
-    await category(page,'図形');
+    await category(page,'拡張');
     const frozenTime=Number(await preview.getAttribute('data-galaxy-gas-time'));
     const frozen=await preview.locator('canvas').screenshot({path:`test-results/gas-probe-${type}-paused.png`});
     await page.waitForTimeout(260);
@@ -845,7 +846,7 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
     expect(Number(await preview.getAttribute('data-galaxy-gas-time'))).toBe(frozenTime);
     await category(page,'アニメーション');
     await page.getByRole('button',{name:'3Dを再生'}).click();
-    await category(page,'図形');
+    await category(page,'拡張');
     await page.waitForTimeout(200);
     const runningStart=await preview.locator('canvas').screenshot();
     await page.waitForTimeout(1250);
@@ -860,7 +861,7 @@ test('luminous gas itself moves in all seven galaxy types and freezes when pause
       await category(page,'アニメーション');
       await page.getByRole('button',{name:'3Dを一時停止'}).click();
       await page.getByRole('button',{name:'3Dを再生'}).click();
-      await category(page,'図形');
+      await category(page,'拡張');
     }
   }
   expect(errors).toEqual([]);
@@ -873,7 +874,7 @@ test('gas flow stops at zero rotation speed while the 3D clock keeps playing',as
   await page.locator('#galaxy-spin').fill('0');
   await category(page,'アニメーション');
   await page.getByLabel('3Dアニメーションを有効化').check();
-  await category(page,'図形');
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-gas-only-probe','true');
   await expect(preview).toHaveAttribute('data-galaxy-gas-speed','0.00');
@@ -895,6 +896,7 @@ test('galaxy morphs when the seed changes and pauses with the 3D clock',async({p
   await page.getByRole('button',{name:'銀河形成を最初から再生'}).click();
   await category(page,'図形');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
+  await category(page,'拡張');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-seed-phase','transition');
   await expect.poll(async()=>Number(await preview.getAttribute('data-galaxy-seed-progress'))).toBeGreaterThan(.02);
