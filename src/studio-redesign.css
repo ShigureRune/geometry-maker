@@ -1310,3 +1310,94 @@
     transition:none!important;
   }
 }
+
+/* Entire-application page transition: header, live preview, sidebar, dock and
+   footer move together. The destination is a second viewport-width page.
+   Keep the actual WebGL preview mounted off-screen for exporting and timing. */
+.studio-app{overflow-x:clip}
+.studio-app .studio-fullscreen-track{
+  display:flex;align-items:flex-start;width:200%;min-width:0;
+  transform:translateX(0);
+  transition:transform .43s cubic-bezier(.22,1,.36,1);
+  will-change:transform;
+}
+.studio-app .studio-fullscreen-track.is-detail{transform:translateX(-50%)}
+.studio-app .studio-fullscreen-overview,
+.studio-app .studio-fullscreen-detail{
+  flex:0 0 50%;width:50%;max-width:50%;min-width:0;
+  min-height:100dvh;
+}
+.studio-app .studio-fullscreen-detail{
+  padding:clamp(20px,4vw,48px) clamp(16px,5vw,80px) 72px;
+  background:radial-gradient(ellipse 850px 600px at 82% 0%,#27234d6e,transparent 70%),var(--st-bg);
+}
+.studio-app .studio-global-detail-head{
+  display:flex;align-items:center;gap:12px;
+  max-width:950px;margin:0 auto 24px;
+  padding:0 0 17px;border-bottom:1px solid var(--st-stroke);
+  color:var(--st-muted);font-size:12px;letter-spacing:.04em;
+}
+.studio-app .studio-global-detail-head strong{
+  color:var(--st-ink);font-size:15px;letter-spacing:.03em;
+}
+.studio-app .studio-fullscreen-detail>.studio-global-fine-page{
+  max-width:950px;width:100%;min-width:0;margin:0 auto;
+}
+.studio-app .studio-fullscreen-detail>.studio-global-fine-page[hidden]{
+  display:none!important;
+}
+.studio-app .studio-fullscreen-detail .fine-sections-detail-view,
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane{
+  width:100%;max-width:950px;min-width:0;flex:none;
+  position:relative;visibility:visible;opacity:1;
+  pointer-events:auto;padding:0;
+}
+.studio-app .studio-fullscreen-detail .fine-sections-panel:not([hidden]),
+.studio-app .studio-fullscreen-detail .fine-shape-detail-fields>[data-fine-item]{
+  min-width:0;
+}
+/* The sidebar now displays only a list. The real controls live in the
+   adjacent full-screen portal and are never duplicated or discarded. */
+.studio-app .fine-sections-viewport,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-viewport{
+  width:100%;min-width:0;overflow:visible;isolation:auto;
+}
+.studio-app .fine-sections-track,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-track{
+  display:block;width:100%;min-width:0;
+  transform:none!important;transition:none!important;will-change:auto;
+}
+.studio-app .fine-sections-list,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-index-pane{
+  display:grid;flex:none;width:100%;max-width:none;min-width:0;
+  visibility:visible;pointer-events:auto;transition:none;
+}
+.studio-app .fine-sections.is-detail .fine-sections-list,
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open .fine-shape-index-pane{
+  visibility:visible;
+}
+/* Correct visibility for all six dedicated 3D shape detail screens,
+   now rendered outside the sidebar's DOM hierarchy. */
+.studio-app .studio-fullscreen-detail .fine-shape-detail-fields>[data-fine-item]{
+  display:none!important;
+}
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="spacing"] .fine-shape-detail-fields>[data-fine-item="spacing"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="kinds"] .fine-shape-detail-fields>[data-fine-item="kinds"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="celestial"] .fine-shape-detail-fields>[data-fine-item="celestial"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="particle"] .fine-shape-detail-fields>[data-fine-item="particle"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="galaxy"] .fine-shape-detail-fields>[data-fine-item="galaxy"],
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="quality"] .fine-shape-detail-fields>[data-fine-item="quality"]{
+  display:block!important;
+}
+.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="kinds"] .fine-shape-detail-fields>fieldset{
+  display:block!important;
+}
+@media(max-width:720px){
+  .studio-app .studio-fullscreen-detail{padding:20px 16px 112px}
+  .studio-app .studio-global-detail-head{margin-bottom:18px}
+  .studio-app .studio-fullscreen-detail .fine-settings-back,
+  .studio-app .studio-fullscreen-detail .fine-sections-back{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .studio-fullscreen-track{transition:none!important;will-change:auto}
+}
