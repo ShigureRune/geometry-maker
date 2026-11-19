@@ -24,7 +24,7 @@ test('2D export locks the current dimensions, rotates orientation and keeps proj
   await lock.uncheck();
   await width.fill('1000');
   await expect(height).toHaveValue('1920');
-  await expect(page.getByText(/構図と書き出しの比率が異なるため/)).toBeVisible();
+  await expect(page.getByText(/幅と高さを個別に編集できます/)).toBeVisible();
   expect(errors).toEqual([]);
 });
 
