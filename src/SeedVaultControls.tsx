@@ -2,7 +2,8 @@ import {useRef,useState,type ChangeEvent} from 'react';
 import {
   SEED_HISTORY_LIMIT,SEED_LABEL_LIMIT,SEED_VAULT_LIMIT,
   deleteBookmark,exportSeedCollection,importSeedCollection,isUsableSeed,
-  renameBookmark,saveBookmark,searchBookmarks,searchSeedHistory,seedShareUrl,
+  renameBookmark,saveBookmark,browseBookmarks,exportSelectedSeedCollection,searchSeedHistory,seedShareUrl,
+  type BookmarkOrder,
   type SeedVault,
 } from './seed-vault';
 
@@ -20,12 +21,15 @@ export function SeedVaultControls({
 }:Props){
   const [name,setName]=useState('');
   const [query,setQuery]=useState('');
+  const [order,setOrder]=useState<BookmarkOrder>('recent');
+  const [selected,setSelected]=useState<string[]>([]);
   const [historyQuery,setHistoryQuery]=useState('');
   const [renaming,setRenaming]=useState<string|null>(null);
   const [renameText,setRenameText]=useState('');
   const [message,setMessage]=useState('');
   const fileInput=useRef<HTMLInputElement>(null);
-  const matches=searchBookmarks(vault,query);
+  const matches=browseBookmarks(vault,query,order);
+  const validSelection=selected.filter(value=>vault.bookmarks.some(item=>item.seed===value));
   const historyMatches=searchSeedHistory(vault,historyQuery);
   const bookmarked=vault.bookmarks.some(item=>item.seed===seed);
 
@@ -43,14 +47,15 @@ export function SeedVaultControls({
       setMessage('シード名を変更しました。');
     }catch(error){setMessage(error instanceof Error?error.message:'名前を変更できませんでした。');}
   }
-  function downloadCollection(){
-    const blob=new Blob([JSON.stringify(exportSeedCollection(vault),null,2)],{type:'application/json'});
+  function downloadCollection(selectedOnly=false){
+    const collection=selectedOnly?exportSelectedSeedCollection(vault,new Set(validSelection)):exportSeedCollection(vault);
+    const blob=new Blob([JSON.stringify(collection,null,2)],{type:'application/json'});
     const url=URL.createObjectURL(blob);
     const anchor=document.createElement('a');
-    anchor.href=url;anchor.download='geometry-maker-seeds.json';anchor.style.display='none';
+    anchor.href=url;anchor.download=selectedOnly?'geometry-maker-selected-seeds.json':'geometry-maker-seeds.json';anchor.style.display='none';
     document.body.appendChild(anchor);anchor.click();anchor.remove();
     window.setTimeout(()=>URL.revokeObjectURL(url),0);
-    setMessage(vault.bookmarks.length+'件のシードをJSONに保存しました。');
+    setMessage(collection.bookmarks.length+'件のシードをJSONに保存しました。');
   }
   async function importCollection(event:ChangeEvent<HTMLInputElement>){
     const file=event.currentTarget.files?.[0];
@@ -133,8 +138,31 @@ export function SeedVaultControls({
       <input id="seed-vault-search" type="search" placeholder="名前・シードで検索" value={query}
         onChange={event=>setQuery(event.target.value)} aria-label="保存済みシードを検索"/>
     </div>
+    <div className="seed-vault-library-tools">
+      <label htmlFor="seed-vault-sort">表示順</label>
+      <select id="seed-vault-sort" aria-label="お気に入りの表示順" value={order}
+        onChange={event=>setOrder(event.target.value as BookmarkOrder)}>
+        <option value="recent">保存した順</option>
+        <option value="name">名前順</option>
+        <option value="seed">シード順</option>
+      </select>
+      <span role="status">{matches.length}件表示 · {validSelection.length}件選択</span>
+      <button type="button" disabled={!matches.some(item=>!validSelection.includes(item.seed))}
+        onClick={()=>setSelected(current=>[...new Set([...current,...matches.map(item=>item.seed)])])}>表示中を選択</button>
+      <button type="button" disabled={!validSelection.length} onClick={()=>setSelected([])}>選択解除</button>
+      <button type="button" disabled={!validSelection.length}
+        onClick={()=>downloadCollection(true)}>選択したシードをJSON保存</button>
+    </div>
     <ul className="seed-vault-bookmarks">
       {matches.map(item=><li key={item.seed}>
+        <label className="seed-vault-batch-select">
+          <input type="checkbox" aria-label={item.name+'を一括書き出し対象に選択'}
+            checked={validSelection.includes(item.seed)}
+            onChange={event=>setSelected(current=>event.target.checked
+              ?[...new Set([...current,item.seed])]
+              :current.filter(value=>value!==item.seed))}/>
+          <span className="sr-only">書き出し対象</span>
+        </label>
         {renaming===item.seed?
           <div className="seed-vault-rename">
             <input aria-label="新しいシード名" maxLength={SEED_LABEL_LIMIT} value={renameText}
