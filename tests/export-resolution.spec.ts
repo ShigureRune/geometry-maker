@@ -7,8 +7,8 @@ test('2D export locks the current dimensions, rotates orientation and keeps proj
   await page.goto('./');
   await openSettingsCategory(page,'書き出し');
   await page.getByRole('button',{name:'画像と設定ファイルの保存の詳細設定を開く'}).click();
-  const width=page.getByLabel('幅 (px)');
-  const height=page.getByLabel('高さ (px)');
+  const width=page.locator('#export-width');
+  const height=page.locator('#export-height');
   await expect(width).toHaveValue('1920');
   await expect(height).toHaveValue('1080');
   const lock=page.getByRole('checkbox',{name:/縦横比を固定/});
@@ -33,7 +33,7 @@ test('2D export preset and invalid input remain safe with aspect lock',async({pa
   await page.goto('./');
   await openSettingsCategory(page,'書き出し');
   await page.getByRole('button',{name:'画像と設定ファイルの保存の詳細設定を開く'}).click();
-  const width=page.getByLabel('幅 (px)'),height=page.getByLabel('高さ (px)');
+  const width=page.locator('#export-width'),height=page.locator('#export-height');
   const lock=page.getByRole('checkbox',{name:/縦横比を固定/});
   await lock.check();
   await page.locator('#export-preset').selectOption('1080x1920');
