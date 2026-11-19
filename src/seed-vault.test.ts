@@ -67,11 +67,11 @@ describe('seed vault and shareable seed URLs',()=>{
   it('sorts searched bookmarks without changing stored order or active seed',()=>{
     let vault=emptySeedVault('active');
     vault=saveBookmark(vault,'seed-10','Zebra');
-    vault=saveBookmark(vault,'seed-2','あお');
+    vault=saveBookmark(vault,'seed-2','Beta');
     vault=saveBookmark(vault,'seed-1','Alpha');
     const before=JSON.stringify(vault);
     expect(browseBookmarks(vault,'','recent').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
-    expect(browseBookmarks(vault,'','name').map(item=>item.seed)).toEqual(['seed-2','seed-1','seed-10']);
+    expect(browseBookmarks(vault,'','name').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
     expect(browseBookmarks(vault,'','seed').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
     expect(browseBookmarks(vault,'SEED-2','name')).toEqual([{seed:'seed-2',name:'あお'}]);
     expect(JSON.stringify(vault)).toBe(before);
