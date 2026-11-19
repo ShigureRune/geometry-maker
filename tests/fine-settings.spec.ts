@@ -354,9 +354,18 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await openSettingsCategory(page,'図形');
   const fine=page.getByRole('navigation',{name:'3D図形の細かい設定'});
+  const common=page.locator('#fine-sections-shapes');
   await expect(fine.getByRole('checkbox')).toHaveCount(6);
+  await expect(common.getByRole('checkbox')).toHaveCount(6);
+  await expect(page.getByLabel('シード値',{exact:true})).toBeHidden();
+  await common.getByRole('checkbox',{name:'シードと生成方式の詳細設定を開く'}).check();
+  await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
+  await expect(fine).toBeHidden();
+  await common.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(fine).toBeVisible();
   const particle=fine.getByRole('checkbox',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   await particle.check();
+  await expect(common).toBeHidden();
   await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(particle).toBeFocused();
