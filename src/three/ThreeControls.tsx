@@ -1,4 +1,4 @@
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,type ReactNode} from 'react';
 import {HelpInfo} from '../HelpInfo';
 import {StudioFinePortal,useStudioFine} from '../StudioFinePages';
 import type {ThreeSettings} from './settings';
@@ -21,15 +21,20 @@ export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
 };
 
 type Props = {settings: ThreeSettings; onChange: (settings: ThreeSettings) => void};
+type ShapeScope = 'shapes'|'extensions';
+type GroupProps = Props & {scope?:ShapeScope;voidControls?:ReactNode;hybridControls?:ReactNode};
 const FINE_SHAPE_ITEMS = [
   {id:'spacing',label:'図形の間隔',detail:'立体の位置・距離の調整'},
   {id:'kinds',label:'図形の種類',detail:'13種類の立体を選択'},
   {id:'celestial',label:'星や惑星',detail:'6種類の天体と図形の組み合わせ'},
+  {id:'void',label:'VOID MODE · コズミックウェブ',detail:'無限空間・宇宙の大規模構造'},
   {id:'particle',label:'PARTICLE MODE · 渦巻き集合',detail:'立体を粒子で描く'},
   {id:'galaxy',label:'GALAXY MODE · 巨大銀河',detail:'巨大銀河を生成する'},
+  {id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成'},
   {id:'quality',label:'3D描画品質',detail:'自動・軽量・高品質'},
 ] as const;
 type FineShapeItem = typeof FINE_SHAPE_ITEMS[number]['id'];
+const SHAPE_FINE_ITEMS:readonly FineShapeItem[]=['spacing','kinds','celestial','quality'];
 export function ThreeRange({id, label, value, min, max, step = .05, unit = '', onChange}: {
   id: string; label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (n: number) => void;
 }) {
@@ -38,7 +43,11 @@ export function ThreeRange({id, label, value, min, max, step = .05, unit = '', o
     <input id={id} type="range" min={min} max={max} step={step} value={value} aria-valuetext={`${value}${unit}`} onChange={event => onChange(Number(event.target.value))}/>
   </div>;
 }
-export function ThreeShapeControls({settings, onChange}: Props) {
+export function ThreeShapeControls({settings,onChange,scope='shapes',voidControls,hybridControls}: GroupProps) {
+  const fineItems=FINE_SHAPE_ITEMS.filter(item=>
+    (scope==='shapes')===SHAPE_FINE_ITEMS.includes(item.id));
+  const pageKey=scope==='shapes'?'three-shapes':'three-extensions';
+  const detailId=scope==='shapes'?'three-shapes-fullscreen-detail':'three-extensions-fullscreen-detail';
   const celestial = settings.celestial ?? celestialDefaults;
   const particle = settings.particle ?? particleDefaults;
   const galaxy=settings.galaxy??galaxyDefaults;
@@ -61,16 +70,16 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     }else setFineDetail(null);
   };
   useEffect(()=>{
-    if(finePreview&&fineDetail&&studioFine&&studioFine.activeKey!==null&&studioFine.activeKey!=='three-shapes')setFineDetail(null);
+    if(finePreview&&fineDetail&&studioFine&&studioFine.activeKey!==null&&studioFine.activeKey!==pageKey)setFineDetail(null);
   },[studioFine?.activeKey,fineDetail,finePreview]);
   useEffect(()=>{
     if(!finePreview)return;
     if(!fineNavReady.current){fineNavReady.current=true;return;}
     const selector=fineDetail
-      ? '#three-shapes-fullscreen-detail .fine-settings-back button'
+      ? '#'+detailId+' .fine-settings-back button'
       : lastFineItem.current?'#fine-open-'+lastFineItem.current:null;
     if(selector)document.querySelector<HTMLElement>(selector)?.focus({preventScroll:true});
-  },[fineDetail,finePreview]);
+  },[fineDetail,finePreview,detailId]);
   return <section className={'control-section three-controls three-shape-controls'
     +(finePreview?' fine-detail-enabled':'')+(fineDetail?' fine-detail-open':'')}
     data-fine-selected={fineDetail??undefined}
@@ -82,16 +91,19 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     <div className="fine-shape-viewport"><div className="fine-shape-track">
       <div className="fine-shape-index-pane" aria-hidden={finePreview&&fineDetail!==null}
         inert={finePreview&&fineDetail!==null}>
-        <div className="studio-setting-label studio-setting-heading"><h3>3D図形</h3>
-          <HelpInfo>13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。</HelpInfo>
+        <div className="studio-setting-label studio-setting-heading"><h3>{scope==='shapes'?'3D図形':'拡張モード'}</h3>
+          <HelpInfo>{scope==='shapes'
+            ?'13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。'
+            :'VOID・粒子・銀河・2D×3Dの特殊モードをまとめています。各モードの切り替えは詳細画面で行えます。'}</HelpInfo>
         </div>
-        {finePreview&&<nav className="fine-settings-overview" aria-label="3D図形の細かい設定">
-          <p className="fine-settings-caption">項目を押すと画面が横にスライドします。粒子・銀河などのON/OFFは移動先で変更できます。</p>
-          {FINE_SHAPE_ITEMS.map(item=><button type="button" key={item.id} className="fine-settings-choice"
+        {finePreview&&<nav className="fine-settings-overview" aria-label={scope==='shapes'?'3D図形の細かい設定':'拡張モードの細かい設定'}>
+          <p className="fine-settings-caption">{scope==='extensions'
+            ?'拡張モードのON/OFFは移動先で変更できます。':'項目を押すと画面全体が横にスライドします。'}</p>
+          {fineItems.map(item=><button type="button" key={item.id} className="fine-settings-choice"
             id={'fine-open-'+item.id}
             aria-label={item.label+'の詳細設定を開く'}
             aria-expanded={fineDetail===item.id}
-            onClick={()=>{if(closeTimer.current!==null){clearTimeout(closeTimer.current);closeTimer.current=null;}lastFineItem.current=item.id;setFineDetail(item.id);studioFine?.open('three-shapes');}}>
+            onClick={()=>{if(closeTimer.current!==null){clearTimeout(closeTimer.current);closeTimer.current=null;}lastFineItem.current=item.id;setFineDetail(item.id);studioFine?.open(pageKey);}}>
             <span className="fine-settings-choice-copy">
               <strong>{item.label}</strong>
               <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
@@ -102,15 +114,16 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         </nav>}
       </div>
       <StudioFinePortal enabled={finePreview}>
-      <div className="fine-shape-detail-pane studio-global-fine-page" id="three-shapes-fullscreen-detail"
+      <div className="fine-shape-detail-pane studio-global-fine-page" id={detailId}
         data-fine-selected={fineDetail??undefined}
         hidden={finePreview&&fineDetail===null}
         aria-hidden={finePreview&&fineDetail===null} inert={finePreview&&fineDetail===null}>
         {finePreview&&<div className="fine-settings-back">
           <button type="button" onClick={closeDetail}>← 細かい設定一覧へ</button>
-          <span>{FINE_SHAPE_ITEMS.find(item=>item.id===fineDetail)?.label??''}</span>
+          <span>{fineItems.find(item=>item.id===fineDetail)?.label??''}</span>
         </div>}
         <div className="fine-shape-detail-fields">
+    {scope==='shapes'&&<>
     <div className="fine-settings-structural" data-fine-item="spacing">
     <ThreeRange id="three-spacing" label="図形の間隔" value={settings.spacingPercent??THREE_SPACING_DEFAULT}
       min={50} max={200} step={5} unit="%" onChange={spacingPercent=>onChange({...settings,spacingPercent})}/>
@@ -160,6 +173,11 @@ export function ThreeShapeControls({settings, onChange}: Props) {
       </div>
       <HelpInfo>5種類の主要天体はほぼ同じ直径、衛星は惑星の約1/4です。ブラックホールには軽量な疑似重力レンズ、中性子星には高速回転する2方向のビームを付けます。天体は既存の13種類と独立して表示されます。</HelpInfo>
     </fieldset>
+    </>}
+    {scope==='extensions'&&<>
+    <div className="fine-settings-structural" data-fine-item="void">
+      {voidControls}
+    </div>
     <fieldset className="three-kind-fieldset" data-fine-item="particle" data-testid="particle-mode-controls">
       <legend>PARTICLE MODE · 渦巻き集合</legend>
       <label className="three-checkbox">
@@ -389,6 +407,8 @@ export function ThreeShapeControls({settings, onChange}: Props) {
         <HelpInfo>7種類の銀河タイプで、星の3D配置と光るガスの形の両方を切り替えます。リング、楕円、フロキュレント、不規則、相互作用の専用設定とプリセットを用意しました。星と光るガスの2層を描き、暗い宇宙背景と組み合わせて銀河の濃淡を再現します。ハッブルの銀河写真を参考に、暖色の中心核・淡い星の円盤・広い螺旋腕・青い星団・ピンクの星形成域・暗いダスト筋を再現します。棒状銀河や円盤の傾きも選択できます。シードで恒星の分布が変わり、再生・停止・PNG・動画保存に対応。高品質は最大30,000個、軽量設定は最大3,600個。大きな銀河はカメラを引いて見ることができます。VOIDやPARTICLE MODEとは排他的です。</HelpInfo>
       </>}
     </fieldset>
+    </>}
+    {scope==='shapes'&&<>
     <div className="fine-settings-structural" data-fine-item="quality">
     <label htmlFor="three-quality">3D描画品質</label>
     <select id="three-quality" value={settings.quality} onChange={event => onChange({...settings, quality: event.target.value as ThreeSettings['quality']})}>
@@ -396,6 +416,10 @@ export function ThreeShapeControls({settings, onChange}: Props) {
     </select>
     <HelpInfo>軽量設定では解像度・曲面の分割数を抑え、影とブルームを省略します。図形の配置と色は維持します。</HelpInfo>
     </div>
+    </>}
+    {scope==='extensions'&&<div className="fine-settings-structural" data-fine-item="hybrid">
+      {hybridControls}
+    </div>}
         </div>
       </div>
       </StudioFinePortal>
