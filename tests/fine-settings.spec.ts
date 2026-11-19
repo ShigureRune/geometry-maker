@@ -402,3 +402,26 @@ test('fine navigation uses full-width sliding pages with no navigation checkboxe
   await expect(fine).not.toHaveClass(/is-detail/);
   await expect(choice).toBeFocused();
 });
+
+test('the entire desktop overview moves away, including header and live preview',async({page})=>{
+  await page.setViewportSize({width:1280,height:800});
+  await page.goto('./');
+  const track=page.locator('.studio-fullscreen-track');
+  const header=page.locator('.studio-fullscreen-overview .studio-topbar');
+  const preview=page.locator('.studio-fullscreen-overview .studio-preview-panel');
+  const canvas=page.getByTestId('preview');
+  await expect(canvas).toBeVisible();
+  const previewWidth=await preview.evaluate(node=>node.getBoundingClientRect().width);
+  await page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'}).click();
+  await expect(track).toHaveClass(/is-detail/);
+  await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
+  await expect.poll(async()=>header.evaluate(node=>node.getBoundingClientRect().right)).toBeLessThan(50);
+  await expect.poll(async()=>preview.evaluate(node=>node.getBoundingClientRect().right)).toBeLessThan(50);
+  await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
+  await expect(preview).toHaveCount(1);
+  await expect(preview.evaluate(node=>node.getBoundingClientRect().width)).resolves.toBe(previewWidth);
+  await page.locator('#fine-sections-shapes-detail .fine-sections-back-button').click();
+  await expect(track).not.toHaveClass(/is-detail/);
+  await expect.poll(async()=>header.evaluate(node=>node.getBoundingClientRect().left)).toBeGreaterThanOrEqual(-1);
+  await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','false');
+});
