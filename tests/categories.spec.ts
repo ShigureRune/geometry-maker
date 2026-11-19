@@ -2,8 +2,8 @@ import {openSettingsCategory} from './settings-test-helper';
 import {test,expect,type Page} from '@playwright/test';
 const names=['図形','背景','カラー','文字','装飾','アニメーション','書き出し'];
 async function open(page:Page,name:string){await openSettingsCategory(page,name);}
-test('seven categories classify controls and preserve every local setting',async({page})=>{
- await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./?legacy-ui=1');const nav=page.getByRole('navigation',{name:'設定カテゴリー'});await expect(nav.getByRole('checkbox')).toHaveCount(7);await expect(page.locator('.settings-screen')).not.toHaveClass(/is-detail/);await open(page,'図形');await expect(page.locator('#panel-shapes')).toBeVisible();
+test('eight categories classify controls and preserve every local setting',async({page})=>{
+ await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./?legacy-ui=1');const nav=page.getByRole('navigation',{name:'設定カテゴリー'});await expect(nav.getByRole('checkbox')).toHaveCount(8);await expect(page.locator('.settings-screen')).not.toHaveClass(/is-detail/);await open(page,'図形');await expect(page.locator('#panel-shapes')).toBeVisible();
  await open(page,'アニメーション');await page.getByLabel('アニメーションを有効化').uncheck();await open(page,'図形');await page.getByLabel('シード値',{exact:true}).fill('category-state');await page.getByLabel('図形密度').fill('75');await page.getByLabel('キャンバスの比率').selectOption('1:1');
  await open(page,'カラー');for(const label of ['背景色','グラデーション色1','グラデーション色2','グラデーション色3','主役色','補助色','アクセント色'])await expect(page.getByLabel(label,{exact:true})).toBeVisible();await page.getByLabel('主役色 HEX').fill('#44aa99');await page.getByRole('button',{name:'主役色を固定',exact:true}).click();
  await open(page,'背景');await expect(page.getByRole('button',{name:'グラデーション',exact:true})).toBeVisible();await page.getByLabel('方向').fill('90');
@@ -12,7 +12,7 @@ test('seven categories classify controls and preserve every local setting',async
  const image=await page.getByTestId('preview').evaluate(n=>n.outerHTML);
  for(const name of names){await open(page,name);await expect(page.locator('.settings-detail-current')).toHaveText(name);await expect(page.getByTestId('preview')).toBeVisible();expect(await page.getByTestId('preview').evaluate(n=>n.outerHTML)).toBe(image);}
  await expect(page.getByLabel('幅 (px)',{exact:true})).toHaveValue('512');await expect(page.getByLabel('動画FPS')).toHaveValue('60');await open(page,'カラー');await expect(page.getByLabel('主役色 HEX')).toHaveValue('#44aa99');await expect(page.getByRole('button',{name:'主役色を固定',exact:true})).toHaveAttribute('aria-pressed','true');await open(page,'図形');await expect(page.getByLabel('シード値',{exact:true})).toHaveValue('category-state');await expect(page.getByLabel('図形密度')).toHaveValue('75');
- await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();await expect(page.locator('.settings-screen')).not.toHaveClass(/is-detail/);await expect(nav.getByRole('checkbox')).toHaveCount(7);await nav.getByRole('checkbox',{name:'背景の設定を開く'}).focus();await page.keyboard.press('Space');await expect(page.locator('#panel-background')).toBeVisible();
+ await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();await expect(page.locator('.settings-screen')).not.toHaveClass(/is-detail/);await expect(nav.getByRole('checkbox')).toHaveCount(8);await nav.getByRole('checkbox',{name:'背景の設定を開く'}).focus();await page.keyboard.press('Space');await expect(page.locator('#panel-background')).toBeVisible();
 });
 test('switching categories preserves growth and ambient playback positions',async({page})=>{
  await page.goto('./?legacy-ui=1');await open(page,'アニメーション');await page.getByRole('button',{name:'完成状態を表示',exact:true}).click();await page.getByLabel('タイムライン',{exact:true}).fill('500');const paused=await page.getByTestId('playback-position').textContent();for(const name of names)await open(page,name);await open(page,'アニメーション');expect(await page.getByTestId('playback-position').textContent()).toBe(paused);
