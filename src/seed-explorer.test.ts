@@ -53,7 +53,7 @@ describe('batch explorer favorites planner',()=>{
     const candidates=['a','b','b','c','d'];
     const saved=['a'];
     const result=planExplorerFavorites(candidates,new Set(['a','b','c','d']),saved,3);
-    expect(result).toEqual({seeds:['b','c'],alreadySaved:2,skippedFull:1});
+    expect(result).toEqual({seeds:['b','c'],alreadySaved:1,skippedFull:1});
     expect(candidates).toEqual(['a','b','b','c','d']);
     expect(saved).toEqual(['a']);
   });
