@@ -1392,9 +1392,6 @@
 .studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="quality"] .fine-shape-detail-fields>[data-fine-item="quality"]{
   display:block!important;
 }
-.studio-app .studio-fullscreen-detail .fine-shape-detail-pane[data-fine-selected="kinds"] .fine-shape-detail-fields>fieldset{
-  display:block!important;
-}
 @media(max-width:720px){
   .studio-app .studio-fullscreen-detail{padding:20px 16px 112px}
   .studio-app .studio-global-detail-head{margin-bottom:18px}
