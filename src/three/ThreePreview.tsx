@@ -779,6 +779,7 @@ export default function ThreePreview(input: Props) {
     data-void-particle-filaments={web&&particleEnabled?voidParticleEdges.length:0}
     data-particle-seed-phase={particleEnabled?'settled':'off'} data-particle-seed-progress="1.000"
     data-nebula-mode={props.settings.nebula?.enabled?'on':'off'}
+    data-nebula-renderer={props.settings.nebula?.enabled?'3d-worldspace-cloud':'off'}
     data-nebula-preset={props.settings.nebula?.enabled?props.settings.nebula.preset:'off'}
     data-galaxy-mode={galaxyEnabled?'on':'off'} data-galaxy-camera-near={galaxyEnabled?'0.025':'0.1'} data-galaxy-type={galaxyEnabled?(props.settings.galaxy??galaxyDefaults).galaxyType:'off'} data-galaxy-space-background={galaxyDarkBackground?'on':'off'}
     data-galaxy-count={galaxyEnabled?Math.min((props.settings.galaxy??galaxyDefaults).count,low?GALAXY_LOW_STAR_LIMIT:30000):0}
@@ -812,7 +813,7 @@ export default function ThreePreview(input: Props) {
           const renderer=String(context.getParameter(debug?debug.UNMASKED_RENDERER_WEBGL:context.RENDERER));
           setSoftwareDevice(/swiftshader|llvmpipe|software|basic render/i.test(renderer));}
       }}>
-      {props.settings.nebula?.enabled&&<NebulaLayer settings={props.settings.nebula} seconds={seconds} low={low}/>}
+      {props.settings.nebula?.enabled&&<NebulaLayer settings={props.settings.nebula} seconds={seconds} low={low} seed={props.skySeed}/>}
       {web&&(props.settings.voidMode?.depthFade??80)>0&&<VoidDepth background={props.background} extent={Math.min(props.composition.width,props.composition.height)*.48} strength={props.settings.voidMode?.depthFade??80} seconds={seconds} transition={props.transition}/>}
       <SkyRenderer sky={props.settings.sky} seed={props.skySeed} seconds={seconds} low={low}
         sceneHeight={props.composition.height} floorGridEnabled={(props.settings.floorGrid??floorGridDefaults).enabled} view={props.view}/>
