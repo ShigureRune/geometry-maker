@@ -7,7 +7,8 @@ import {MAGIC_ALGORITHM_VERSION,type MagicCircleSettings} from './magic-circle';
 import {magicPaletteById,magicPaletteFromSeed,backgroundForMagic} from './magic-colors';
 import {coloredBackground,reseedColors,type ColorSettings} from './colors';
 import type {ShapeKind} from './shape-controls';
-import {generateExplorerSet,withCurrentSeed,formatExplorerSeeds,explorerSelection,type ExplorerSet,type ExplorerMode} from './seed-explorer';
+import {generateExplorerSet,withCurrentSeed,formatExplorerSeeds,explorerSelection,planExplorerFavorites,type ExplorerSet,type ExplorerMode} from './seed-explorer';
+import {SEED_VAULT_LIMIT} from './seed-vault';
 import {seedShareUrl} from './seed-vault';
 
 type Props={
@@ -56,6 +57,7 @@ export function SeedExplorerBoard(props:Props){
   const [compareA,setCompareA]=useState<number|null>(0);
   const [compareB,setCompareB]=useState<number|null>(1);
   const [message,setMessage]=useState('');
+  const [selectedFavorites,setSelectedFavorites]=useState<string[]>([]);
   const closeRef=useRef<HTMLButtonElement>(null);
   const selected=explorerSelection(set.seeds,compareA,compareB);
 
@@ -78,6 +80,7 @@ export function SeedExplorerBoard(props:Props){
   },[onClose]);
 
   function generate(count:4|8,mode:ExplorerMode){
+    setSelectedFavorites([]);
     setPrevious(set);
     setSet(generateExplorerSet(activeSeed,count,mode,createRandomSeed));
     setCompareA(0);setCompareB(1);
@@ -85,6 +88,7 @@ export function SeedExplorerBoard(props:Props){
   }
   function restorePrevious(){
     if(!previous)return;
+    setSelectedFavorites([]);
     const current=set;setSet(previous);setPrevious(current);
     setCompareA(0);setCompareB(1);setMessage('前の候補セットに戻りました。');
   }
@@ -92,6 +96,21 @@ export function SeedExplorerBoard(props:Props){
     setSet(current=>({...current,seeds:withCurrentSeed(current.seeds,activeSeed)}));
     setCompareA(0);setCompareB(1);
     setMessage('現在のシードを候補に追加しました。');
+  }
+  function saveSelectedFavorites(){
+    const planned=planExplorerFavorites(set.seeds,new Set(selectedFavorites),
+      favoriteSeeds,SEED_VAULT_LIMIT);
+    planned.seeds.forEach(seed=>onSave(seed,'探索案 '+(set.seeds.indexOf(seed)+1)));
+    setSelectedFavorites([]);
+    setMessage(planned.seeds.length+'件をお気に入り保存しました。'+
+      (planned.alreadySaved?' 保存済み'+planned.alreadySaved+'件を除外。':'')+
+      (planned.skippedFull?' 容量上限のため'+planned.skippedFull+'件を保存できませんでした。':'')+
+      ' 現在の作品は変更していません。');
+  }
+  function toggleFavoriteSelection(seed:string,checked:boolean){
+    setSelectedFavorites(current=>checked
+      ?current.includes(seed)?current:[...current,seed]
+      :current.filter(value=>value!==seed));
   }
   async function copyText(text:string,success:string){
     try{
@@ -158,6 +177,13 @@ export function SeedExplorerBoard(props:Props){
               shapeKinds={shapeKinds} magicSettings={magicSettings} density={density}
               visualTheme={visualTheme} background={background} colors={colors}/>
             <code title={candidate}>{candidate}</code>
+            <label className="seed-explorer-select-favorite">
+              <input type="checkbox" aria-label={`候補 ${index+1} をまとめて保存する対象に選択`}
+                checked={selectedFavorites.includes(candidate)}
+                disabled={favoriteSeeds.includes(candidate)}
+                onChange={event=>toggleFavoriteSelection(candidate,event.target.checked)}/>
+              {favoriteSeeds.includes(candidate)?'保存済み':'まとめて保存'}
+            </label>
             <div className="seed-explorer-card-compare">
               <button type="button" aria-pressed={compareA===index}
                 aria-label={`候補 ${index+1} を比較Aに指定`}
@@ -182,6 +208,13 @@ export function SeedExplorerBoard(props:Props){
       </div>
       <footer className="seed-explorer-footer">
         <div className="seed-explorer-batch-actions">
+          <button type="button" onClick={()=>setSelectedFavorites(
+            set.seeds.filter(seed=>!favoriteSeeds.includes(seed)))}
+            disabled={set.seeds.every(seed=>favoriteSeeds.includes(seed))}>未保存をすべて選択</button>
+          <button type="button" onClick={()=>setSelectedFavorites([])}
+            disabled={!selectedFavorites.length}>選択を解除</button>
+          <button type="button" disabled={!selectedFavorites.length}
+            onClick={saveSelectedFavorites}>選択した{selectedFavorites.length}件をまとめて保存</button>
           <button type="button" onClick={()=>void copyText(formatExplorerSeeds(set.seeds),
             set.seeds.length+'件のシードを一括コピーしました。')}>全候補のシードをコピー</button>
           <button type="button" onClick={exportText}>全候補をTXT保存</button>
