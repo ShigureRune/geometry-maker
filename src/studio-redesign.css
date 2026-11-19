@@ -1102,20 +1102,23 @@
 }
 
 
-/* Fine-grained 3D inspector prototype. Opt-in at ?fine-preview=1.
-   Keep the original enable/disable checkboxes inside the actual detail panels. */
-.studio-app .fine-settings-overview{
-  display:grid;gap:11px;margin:12px 0 16px;min-width:0;
-}
+/* Fine-setting pages: use full-width horizontal transitions instead of checkboxes.
+   Both pages occupy the complete settings-panel width, not a small floating card. */
 .studio-app .fine-settings-caption{
-  margin:0 0 4px;color:var(--st-muted);font-size:12px;line-height:1.6;
+  margin:0 0 5px;color:var(--st-muted);font-size:12px;line-height:1.6;
 }
 .studio-app .fine-settings-choice{
-  display:flex;align-items:center;gap:12px;cursor:pointer;min-width:0;
-  padding:15px 13px;border:1px solid var(--st-stroke);border-radius:13px;
-  background:linear-gradient(115deg,#242d41,#1b2636);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  width:100%;min-width:0;min-height:66px;cursor:pointer;
+  padding:15px 14px;border:1px solid var(--st-stroke);border-radius:13px;
+  color:#e9eaf7;background:linear-gradient(115deg,#242d41,#1b2636);
+  font:inherit;text-align:left;line-height:1.4;
+  transition:border-color .18s ease,background .18s ease;
 }
-.studio-app .fine-settings-choice:focus-within{
+.studio-app .fine-settings-choice:hover{
+  border-color:#ab96f6;background:#303550;
+}
+.studio-app .fine-settings-choice:focus-visible{
   outline:2px solid #b59bff;outline-offset:2px;
 }
 .studio-app .fine-settings-choice-copy{
@@ -1123,71 +1126,117 @@
 }
 .studio-app .fine-settings-choice-copy strong{font-size:12px;color:#e9eaf7}
 .studio-app .fine-settings-choice-copy small{font-size:11px;color:#adb9d4}
-.studio-app .fine-settings-choice input[type="checkbox"]{
-  width:24px;height:24px;min-width:24px;margin:0;cursor:pointer;
-}
-.studio-app .fine-settings-back{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  padding:0 0 13px;margin-bottom:14px;border-bottom:1px solid var(--st-stroke);
-}
-.studio-app .fine-settings-back button{
-  min-height:44px;padding:10px 13px;border-radius:10px;
-  background:#302b49;color:#f3ebff;border:1px solid #9981d3;
-}
-.studio-app .fine-settings-back span{
-  font-size:10px;color:var(--st-muted);overflow-wrap:anywhere;
-}
-.studio-app .fine-settings-overview[hidden],
-.studio-app .fine-settings-back[hidden]{display:none!important}
-/* Existing controls remain mounted; only the selected fine section becomes visible. */
-.studio-app .fine-settings-structural{display:contents}
-.studio-app .three-shape-controls.fine-detail-enabled > [data-fine-item]{
-  display:none!important;
-}
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-  > :not(.fine-settings-back):not([data-fine-item]){
-  display:none!important;
-}
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="spacing"]
-  > [data-fine-item="spacing"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="kinds"]
-  > [data-fine-item="kinds"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="celestial"]
-  > [data-fine-item="celestial"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="particle"]
-  > [data-fine-item="particle"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
-  > [data-fine-item="galaxy"],
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="quality"]
-  > [data-fine-item="quality"]{
-  display:block!important;
-  animation:fine-detail-enter .3s cubic-bezier(.22,1,.36,1);
-}
-.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-  > .fine-settings-structural{
-  min-width:0;
-}
-@keyframes fine-detail-enter{
-  from{transform:translateX(28px);opacity:.2}
-  to{transform:translateX(0);opacity:1}
+.studio-app .fine-settings-chevron{
+  flex:none;display:grid;place-items:center;width:24px;
+  font-size:28px;line-height:1;color:#bca4ff;
 }
 [data-theme=light] .studio-app .fine-settings-choice{
-  background:linear-gradient(115deg,#fff,#f2f1fc);border-color:#c6cce0;
+  background:linear-gradient(115deg,#fff,#f2f1fc);border-color:#c6cce0;color:#36415e;
+}
+[data-theme=light] .studio-app .fine-settings-choice:hover{
+  background:#eee7fb;border-color:#9a82c9;
 }
 [data-theme=light] .studio-app .fine-settings-choice-copy strong{color:#36415e}
 [data-theme=light] .studio-app .fine-settings-choice-copy small{color:#56657e}
+
+/* All detail pages share a two-screen carousel. Only one screen receives input. */
+.studio-app .fine-sections{min-width:0}
+.studio-app .fine-sections-viewport,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-viewport{
+  width:100%;min-width:0;overflow:hidden;isolation:isolate;
+}
+.studio-app .fine-sections-track,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-track{
+  display:flex;align-items:flex-start;width:200%;min-width:0;
+  transform:translateX(0);
+  transition:transform .38s cubic-bezier(.22,1,.36,1);
+  will-change:transform;
+}
+.studio-app .fine-sections.is-detail .fine-sections-track,
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open .fine-shape-track{
+  transform:translateX(-50%);
+}
+.studio-app .fine-sections-list,
+.studio-app .fine-sections-detail-view,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-index-pane,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-detail-pane{
+  flex:0 0 50%;width:50%;min-width:0;max-width:50%;
+}
+.studio-app .fine-sections-list,
+.studio-app .fine-settings-overview{
+  display:grid;gap:10px;min-width:0;
+}
+.studio-app .fine-sections-list{margin:0}
+.studio-app .fine-settings-overview{margin:12px 0 16px}
+.studio-app .fine-sections-detail-view,
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-detail-pane{
+  padding:0 1px;min-height:60px;
+}
+.studio-app .fine-sections:not(.is-detail) .fine-sections-detail-view,
+.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open) .fine-shape-detail-pane{
+  visibility:hidden;pointer-events:none;transition:visibility 0s .38s;
+}
+.studio-app .fine-sections.is-detail .fine-sections-list,
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open .fine-shape-index-pane{
+  visibility:hidden;pointer-events:none;transition:visibility 0s .38s;
+}
+.studio-app .fine-sections.is-detail .fine-sections-detail-view,
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open .fine-shape-detail-pane,
+.studio-app .fine-sections:not(.is-detail) .fine-sections-list,
+.studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open) .fine-shape-index-pane{
+  visibility:visible;
+}
+.studio-app .fine-sections-panel[hidden]{display:none!important}
+.studio-app .fine-sections-panel{min-width:0}
+.studio-app .fine-sections-panel>.control-section{margin-top:0}
+.studio-app .fine-sections-back,
+.studio-app .fine-settings-back{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:0 0 15px;padding-bottom:12px;border-bottom:1px solid var(--st-stroke);
+}
+.studio-app .fine-sections-back button,
+.studio-app .fine-settings-back button{
+  min-height:44px;padding:9px 13px;border:1px solid #9981d3;
+  border-radius:10px;background:#302b49;color:#f3ebff;
+  font:inherit;font-size:12px;cursor:pointer;
+}
+.studio-app .fine-sections-back button:focus-visible,
+.studio-app .fine-settings-back button:focus-visible{
+  outline:2px solid #cbb7ff;outline-offset:2px;
+}
+.studio-app .fine-sections-back strong,
+.studio-app .fine-settings-back span{
+  font-size:11px;text-align:right;color:var(--st-muted);
+}
+[data-theme=light] .studio-app .fine-sections-back button,
 [data-theme=light] .studio-app .fine-settings-back button{
   background:#eee7f9;color:#523777;border-color:#bcaada;
 }
-@media(prefers-reduced-motion:reduce){
-  .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open
-    > [data-fine-item]{
-    animation:none;
-  }
+
+/* 3D shape controls use the exact same two-page slide layout. */
+.studio-app .three-shape-controls:not(.fine-detail-enabled) .fine-shape-track,
+.studio-app .three-shape-controls:not(.fine-detail-enabled) .fine-shape-detail-fields{
+  display:block;
+}
+.studio-app .three-shape-controls.fine-detail-enabled .fine-shape-detail-fields>[data-fine-item]{
+  display:none!important;
+}
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="spacing"]
+  .fine-shape-detail-fields>[data-fine-item="spacing"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="kinds"]
+  .fine-shape-detail-fields>[data-fine-item="kinds"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="celestial"]
+  .fine-shape-detail-fields>[data-fine-item="celestial"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="particle"]
+  .fine-shape-detail-fields>[data-fine-item="particle"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="galaxy"]
+  .fine-shape-detail-fields>[data-fine-item="galaxy"],
+.studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open[data-fine-selected="quality"]
+  .fine-shape-detail-fields>[data-fine-item="quality"]{
+  display:block!important;
 }
 
-
-/* Main categories stay as conventional tabs in the fine-settings prototype. */
+/* Compact category tabs remain available above the sliding settings screen. */
 .studio-app .studio-controls .category-navigation.settings-tabs-navigation{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;
   margin:0 0 16px;padding:0;position:static;top:auto;overflow:visible;
@@ -1212,57 +1261,52 @@
 [data-theme=light] .studio-app .studio-controls .settings-tabs-navigation button[aria-pressed="true"]{
   color:#50357a;background:#e5daf7;border-color:#8f71c5;
 }
-
-
-/* Shared fine-settings inspector for 3D background, decoration and animation. */
-.studio-app .fine-sections{display:block;min-width:0}
-.studio-app .fine-sections-list{display:grid;gap:10px;margin:5px 0 15px;min-width:0}
-.studio-app .fine-sections-list[hidden],
-.studio-app .fine-sections-panel[hidden],
-.studio-app .fine-sections-back[hidden]{display:none!important}
-.studio-app .fine-sections-back{
-  display:flex;gap:12px;align-items:center;justify-content:space-between;
-  margin:0 0 15px;padding-bottom:12px;border-bottom:1px solid var(--st-stroke);
-}
-.studio-app .fine-sections-back button{
-  min-height:44px;padding:9px 13px;border:1px solid #9981d3;
-  border-radius:10px;background:#302b49;color:#f3ebff;
-}
-.studio-app .fine-sections-back button:focus-visible{
-  outline:2px solid #cbb7ff;outline-offset:2px;
-}
-.studio-app .fine-sections-back strong{
-  font-size:11px;text-align:right;color:var(--st-muted);
-}
-.studio-app .fine-sections-panel{
-  min-width:0;animation:fine-detail-enter .3s cubic-bezier(.22,1,.36,1);
-}
-.studio-app .fine-sections-panel > .control-section{margin-top:0}
-[data-theme=light] .studio-app .fine-sections-back button{
-  background:#eee7f9;color:#523777;border-color:#bcaada;
-}
-@media(prefers-reduced-motion:reduce){
-  .studio-app .fine-sections-panel{animation:none}
-}
-
-
-/* Fine setting choices mirror the reference layout: checkbox to the LEFT. */
-.studio-app .fine-settings-choice input[type="checkbox"]{
-  order:-1;width:28px;height:28px;min-width:28px;flex:none;
-}
 .studio-app .fine-settings-group-heading{
   margin:17px 0 9px;color:var(--st-muted);
   font-size:11px;letter-spacing:.1em;font-weight:750;
 }
-/* Both 3D lists share one category. Hide the other list while inspecting a
-   selected fine item, so an inspector is an isolated screen on mobile too. */
+/* Do not leave two independent 3D shape lists visible at once. */
 .studio-app #panel-shapes:has(.three-shape-controls.fine-detail-open) > #fine-sections-shapes,
 .studio-app #panel-shapes:has(.three-shape-controls.fine-detail-open) > .fine-settings-group-heading{
   display:none!important;
 }
-.studio-app #panel-shapes:has(#fine-sections-shapes .fine-sections-back:not([hidden]))
-  > .three-shape-controls,
-.studio-app #panel-shapes:has(#fine-sections-shapes .fine-sections-back:not([hidden]))
-  > .fine-settings-group-heading{
+.studio-app #panel-shapes:has(#fine-sections-shapes.is-detail) > .three-shape-controls,
+.studio-app #panel-shapes:has(#fine-sections-shapes.is-detail) > .fine-settings-group-heading{
   display:none!important;
+}
+/* The category navigation itself exits with the settings index, so the
+   detail occupies the entire settings screen rather than a tiny inner card. */
+.studio-app .studio-controls .settings-tabs-navigation{
+  max-height:260px;opacity:1;transform:translateX(0);
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
+    max-height .38s ease,margin .38s ease,visibility 0s;
+}
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .fine-sections.is-detail) .settings-tabs-navigation,
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .three-shape-controls.fine-detail-open) .settings-tabs-navigation{
+  max-height:0;opacity:0;transform:translateX(-100%);margin:0;
+  pointer-events:none;visibility:hidden;
+  transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
+    max-height .38s ease,margin .38s ease,visibility 0s .38s;
+}
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .fine-sections.is-detail) .panel-intro,
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .three-shape-controls.fine-detail-open) .panel-intro{
+  display:none;
+}
+/* A selected detail page occupies the settings panel instead of sitting
+   below a permanent section heading. */
+.studio-app .category-panel:has(.fine-sections.is-detail) > .category-title,
+.studio-app .category-panel:has(.three-shape-controls.fine-detail-open) > .category-title{
+  display:none;
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .fine-sections-track,
+  .studio-app .three-shape-controls.fine-detail-enabled .fine-shape-track{
+    transition:none!important;will-change:auto;
+  }
+  .studio-app .fine-sections:not(.is-detail) .fine-sections-detail-view,
+  .studio-app .three-shape-controls.fine-detail-enabled:not(.fine-detail-open) .fine-shape-detail-pane,
+  .studio-app .fine-sections.is-detail .fine-sections-list,
+  .studio-app .three-shape-controls.fine-detail-enabled.fine-detail-open .fine-shape-index-pane{
+    transition:none!important;
+  }
 }
