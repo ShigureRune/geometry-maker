@@ -405,7 +405,7 @@ test('the public default URL opens fine settings while legacy view remains an ex
   const fine=page.getByRole('navigation',{name:'3D図形の細かい設定'});
   const common=page.locator('#fine-sections-shapes');
   await expect(fine.getByRole('button')).toHaveCount(4);
-  await expect(common.getByRole('button')).toHaveCount(6);
+  await expect(common.getByRole('button')).toHaveCount(5);
   await expect(page.getByLabel('シード値',{exact:true})).toBeHidden();
   await common.getByRole('button',{name:'シードと生成方式の詳細設定を開く'}).click();
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
