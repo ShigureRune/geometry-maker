@@ -1,6 +1,6 @@
-import {useMemo,useRef,type RefObject} from 'react';
+import {useEffect,useMemo,type RefObject} from 'react';
 import {useFrame} from '@react-three/fiber';
-import {AdditiveBlending,Color,ShaderMaterial} from 'three';
+import {AdditiveBlending,Color,ShaderMaterial,Vector2} from 'three';
 import {nebulaDefaults,type NebulaSettings} from './nebula-settings';
 
 /** Fullscreen GPU gas layer: a single fixed-cost draw call, no textures or
@@ -73,14 +73,13 @@ export function NebulaLayer({settings,seconds,low}:{
       uLow:{value:0},
     },
   }),[]);
-  const materialRef=useRef(material);
+  const bufferSize=useMemo(()=>new Vector2(),[]);
+  useEffect(()=>()=>material.dispose(),[material]);
   // Update uniforms without recreating the shader or material while sliders
   // move. Captures use the shared playhead, so paused and exported frames match.
   useFrame(({gl},_delta)=>{
-    const m=materialRef.current.uniforms;
-    const size=gl.getDrawingBufferSize({
-      x:0,y:0,set(x:number,y:number){this.x=x;this.y=y;return this;},
-    } as any);
+    const m=material.uniforms;
+    const size=gl.getDrawingBufferSize(bufferSize);
     m.uAspect.value=Math.max(.1,size.x/Math.max(1,size.y));
     m.uTime.value=nebula.animation?seconds.current*nebula.driftSpeed:0;
     m.uLow.value=low?1:0;
