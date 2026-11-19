@@ -38,6 +38,23 @@ describe('local Studio drafts',()=>{
     });
     expect(restored?.threeD.settings.floorGrid).toBeDefined();
   });
+  it('persists the new Extensions panel and its preset-adjusted 3D settings',()=>{
+    const storage=fakeStorage();
+    const edited:StudioAutosave={
+      ...example,category:'extensions',threeCategory:'extensions',
+      threeD:{...example.threeD,settings:{
+        ...threeDefaults,
+        particle:{...threeDefaults.particle!,enabled:true,count:6000,swirl:2.7},
+      }},
+    };
+    expect(saveStudioAutosave(edited,storage)).toBe(true);
+    const loaded=loadStudioAutosave(storage);
+    expect(loaded?.category).toBe('extensions');
+    expect(loaded?.threeCategory).toBe('extensions');
+    expect(loaded?.threeD.settings.particle).toMatchObject({
+      enabled:true,count:6000,swirl:2.7,
+    });
+  });
   it('rejects invalid data without breaking startup or erasing another valid key',()=>{
     const storage=fakeStorage();
     storage.setItem(STUDIO_AUTOSAVE_KEY,'{broken');

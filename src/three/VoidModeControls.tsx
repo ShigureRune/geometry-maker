@@ -1,12 +1,23 @@
 import {HelpInfo} from '../HelpInfo';
 import {voidWebDefaults,VOID_ALGORITHM_VERSION,VOID_WEB_VERSION,VOID_WEB_MAX,VOID_WEB_LIMIT,VOID_MOBILE_LIMIT,type VoidSettings} from './void-settings';
 import {ThreeRange} from './ThreeControls';
+import {VOID_PRESETS,voidWithPreset,type VoidPreset} from './extension-presets';
 export function VoidModeControls({value,onChange,disabled}:{value?:VoidSettings;onChange:(value:VoidSettings)=>void;disabled:boolean}){
   const mode=value??voidWebDefaults,web=mode.version===VOID_WEB_VERSION;
   return <section className="control-section three-controls" aria-labelledby="void-prototype-heading">
     <h3 id="void-prototype-heading">VOID MODE · コズミックウェブ</h3>
     <label className="three-checkbox"><input type="checkbox" aria-label="VOID MODEを有効化" checked={mode.enabled} disabled={disabled} onChange={event=>onChange({...mode,enabled:event.target.checked})}/> VOID MODE</label>
     <HelpInfo>空洞の間を曲がるフィラメントのグラフを先に作り、既存13種類の図形を配置します。大規模版は多数の結節・環状経路・細い支流を3D空間に生成します。通常3Dの生成器や最近傍での張り直しは使用しません。</HelpInfo>
+    <label htmlFor="void-preset">VOIDの演出プリセット</label>
+    <select id="void-preset" aria-label="VOIDの演出プリセット" value="" disabled={disabled}
+      onChange={event=>{
+        if(event.target.value)onChange(voidWithPreset(mode,event.target.value as VoidPreset));
+      }}>
+      <option value="">演出を選ぶ</option>
+      {(Object.entries(VOID_PRESETS) as [VoidPreset,typeof VOID_PRESETS[VoidPreset]][]).map(([id,preset])=>
+        <option key={id} value={id}>{preset.label}</option>)}
+    </select>
+    <p className="help">選ぶと大規模VOIDを有効化し、網目・奥行き・発光をまとめて調整します。シード値とほかの3D設定は保持します。あとから個別に変更できます。</p>
     {mode.enabled&&<>
       <label htmlFor="void-version">VOIDの構造</label>
       <select id="void-version" disabled={disabled} value={mode.version} onChange={event=>{
