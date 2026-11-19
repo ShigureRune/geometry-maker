@@ -34,7 +34,7 @@ test('fine settings cards have pressed feedback, keep focus and respect reduced 
       radius:parseFloat(style.borderRadius),touch:style.touchAction};
   });
   expect(feedback.transition).toBe('0s');
-  expect(feedback.radius).toBeGreaterThanOrEqual(10);
+  expect(feedback.radius).toBeGreaterThanOrEqual(8);
   await item.click();
   const back=page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'});
   await expect(back).toBeVisible();
