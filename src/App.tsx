@@ -109,13 +109,17 @@ export default function App() {
     }else if(overviewScrollY.current!==null){
       const y=overviewScrollY.current;
       overviewScrollY.current=null;
-      // Restoring the overview also re-focuses the selected setting button.
-      // Reapply the offset after that focus/layout update (iOS Safari and
-      // Chromium may otherwise scroll toward the focused inspector).
-      window.scrollTo({top:y,left:0,behavior:'instant'});
-      requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>window.scrollTo({top:y,left:0,behavior:'instant'}));
-      });
+      if(window.matchMedia('(max-width:720px)').matches){
+        // On phones, return to the inspector list itself. Restoring an
+        // earlier pixel offset can leave the selected setting offscreen.
+        requestAnimationFrame(()=>{
+          document.getElementById('studio-settings')?.scrollIntoView({
+            block:'start',behavior:'instant'
+          });
+        });
+      }else{
+        window.scrollTo({top:y,left:0,behavior:'instant'});
+      }
     }
   },[fullFineKey]);
   const settingsNavigationInitialized=useRef(false);
