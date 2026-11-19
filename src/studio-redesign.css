@@ -1685,3 +1685,39 @@
   }
   .studio-app .fine-settings-chevron{transition:none!important;transform:none!important}
 }
+
+/* Export workflow: compact controls that stay inside the sliding inspector. */
+.studio-app .export-resolution-tools{
+  display:flex;align-items:stretch;flex-wrap:wrap;gap:8px;
+  margin:14px 0 9px;
+}
+.studio-app .export-resolution-tools .export-ratio-lock{
+  display:inline-flex;align-items:center;gap:9px;
+  min-height:44px;flex:1 1 160px;
+  padding:8px 11px;border:1px solid var(--st-stroke);
+  border-radius:10px;background:#202a3c;
+  color:var(--st-ink);font-size:12px;cursor:pointer;
+}
+.studio-app .export-resolution-tools .export-ratio-lock input{
+  flex:none;accent-color:#bba5ff;
+}
+.studio-app .export-resolution-tools button{
+  flex:1 1 130px;min-height:44px;padding:9px 11px;
+  border:1px solid #8e79c6;border-radius:10px;
+  background:#322c4b;color:#f3ebff;font:inherit;font-size:12px;
+  cursor:pointer;
+}
+.studio-app .export-resolution-tools button:hover:not(:disabled){border-color:#c9b7ff}
+.studio-app .export-resolution-tools button:disabled,
+.studio-app .export-resolution-tools .export-ratio-lock:has(input:disabled){
+  opacity:.5;cursor:not-allowed;
+}
+.studio-app .export-resolution-summary{
+  margin:9px 0 12px;color:var(--st-muted);font-size:11px;line-height:1.6;
+}
+[data-theme=light] .studio-app .export-resolution-tools .export-ratio-lock{
+  background:#f4f1fb;color:#35415b;border-color:#c6cce0;
+}
+[data-theme=light] .studio-app .export-resolution-tools button{
+  background:#e8def8;color:#513875;border-color:#ad97d2;
+}
