@@ -14,6 +14,7 @@ async function start(page:Page){
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
+  await category(page,'拡張');
 }
 test('PARTICLE MODE switches between solids and seeded surface particles without 3D errors',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
@@ -45,7 +46,7 @@ test('particle settings are saved and restored with 3D project JSON',async({page
   await page.getByLabel('保存した3D設定ファイル').setInputFiles({
     name:'particle.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(settings))
   });
-  await category(page,'図形');
+  await category(page,'拡張');
   await expect(page.getByLabel('PARTICLE MODEを有効化')).toBeChecked();
   await expect(page.locator('#particle-count')).toHaveValue('1500');
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-particle-mode','on');
@@ -75,7 +76,7 @@ test('changing the seed morphs the visible cloud, pauses smoothly, then settles'
   expect(await preview.getAttribute('data-particle-seed-progress')).toBe(stopped);
   await page.getByRole('button',{name:'3Dを再生'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled',{timeout:10000});
-  await category(page,'図形');
+  await category(page,'拡張');
   await page.getByLabel('シード変更時に粒子を再集合').uncheck();
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
