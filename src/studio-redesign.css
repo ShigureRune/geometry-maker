@@ -1509,7 +1509,9 @@
    the previous max-height transition made the tabs descend from above after
    the overview had already slid back into place (iOS Safari recording). */
 @media(max-width:720px){
-  .studio-app .studio-fullscreen-overview .studio-controls .settings-tabs-navigation{
+  .studio-app .studio-fullscreen-overview .studio-controls .settings-tabs-navigation,
+  .studio-app .studio-fullscreen-overview .studio-controls:has(.category-panel:not([hidden]) .fine-sections.is-detail) .settings-tabs-navigation,
+  .studio-app .studio-fullscreen-overview .studio-controls:has(.category-panel:not([hidden]) .three-shape-controls.fine-detail-open) .settings-tabs-navigation{
     max-height:none;
     opacity:1;
     transform:none;
