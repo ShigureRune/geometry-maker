@@ -25,6 +25,7 @@ import {GridBackgroundControls} from './GridBackgroundControls';
 import {gridBackgroundDefaults} from './grid-background';
 import {useGridClock} from './useGridClock';
 import {ImagePaletteControls} from './ImagePaletteControls';
+import {PaletteExportControls} from './PaletteExportControls';
 import {TextControls} from './TextControls';
 import {useTextEntrancePreview} from './preview-text-animation';
 import {PreviewTextEditor} from './PreviewTextEditor';
@@ -905,6 +906,7 @@ export default function App() {
           <HelpInfo>テーマに応じて図形の強弱・線・発光・背景色を変更します。下のカラー・装飾設定からさらに調整できます。</HelpInfo>
         </section>},
     {id:'image',label:'画像から配色',detail:'画像を使ったカラー調整',content:<ImagePaletteControls onApply={(palette,scope)=>applyColors(applyImagePalette(activeColors,palette,scope))}/>},
+    {id:'portable',label:'配色を持ち出す',detail:'CSS・GIMP・SVG色見本',content:<PaletteExportControls settings={activeColors}/>},
     {id:'palette',label:'背景と図形の配色',detail:'個別カラー・シード連動',content:<section className="control-section">
           <h3>背景と図形の配色</h3>
           {editor('solid','背景色')}
