@@ -333,3 +333,33 @@ test('3D export has separate PNG, video, and project settings inspectors',async(
   await image.check();
   await expect(page.locator('#three-export-width')).toHaveValue('1600');
 });
+
+
+test('the public default URL opens fine settings while legacy view remains an explicit opt-in',async({page})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('./');
+  const categories=page.getByRole('navigation',{name:'設定カテゴリー'});
+  await expect(categories.getByRole('button')).toHaveCount(7);
+  await expect(categories.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.locator('#fine-sections-shapes').getByRole('checkbox')).toHaveCount(7);
+  const seedChoice=page.getByRole('checkbox',{name:'シードと生成方式の詳細設定を開く'});
+  await seedChoice.check();
+  await page.getByLabel('シード値',{exact:true}).fill('new-default-ui-smoke');
+  await page.getByLabel('シード値',{exact:true}).press('Enter');
+  await page.locator('#fine-sections-shapes').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(seedChoice).toBeFocused();
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await openSettingsCategory(page,'図形');
+  const fine=page.getByRole('navigation',{name:'3D図形の細かい設定'});
+  await expect(fine.getByRole('checkbox')).toHaveCount(6);
+  const particle=fine.getByRole('checkbox',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
+  await particle.check();
+  await expect(page.getByTestId('particle-mode-controls')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(particle).toBeFocused();
+
+  await page.goto('./?legacy-ui=1');
+  const legacy=page.getByRole('navigation',{name:'設定カテゴリー'});
+  await expect(legacy.getByRole('checkbox',{name:'図形の設定を開く'})).toBeVisible();
+  await expect(legacy.getByRole('button')).toHaveCount(0);
+});
