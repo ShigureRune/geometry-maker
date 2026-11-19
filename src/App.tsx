@@ -95,31 +95,29 @@ export default function App() {
   const fineNavigation=useMemo(()=>({
     activeKey:fullFineKey,
     open:(key:string)=>{
-      // Opening from a scrolled mobile overview must show the TOP of the detail,
-      // not an empty area at the former scroll offset.
-      if(overviewScrollY.current===null)overviewScrollY.current=window.scrollY;
+      if(window.matchMedia('(max-width:720px)').matches){
+        // The mobile detail has its own viewport scroller. Never move the
+        // overview/document: returning then reveals the exact same position.
+        if(fullFineHost)fullFineHost.scrollTop=0;
+      }else if(overviewScrollY.current===null){
+        overviewScrollY.current=window.scrollY;
+      }
       setFullFineKey(key);
     },
     close:()=>setFullFineKey(null),
     host:fullFineHost
   }),[fullFineKey,fullFineHost]);
   useLayoutEffect(()=>{
+    // Desktop retains its existing document-scroll behavior. On mobile, the
+    // detail is a fixed, separately scrolling page; changing window.scrollY
+    // here would cause the visible jump captured in the iPhone recording.
+    if(window.matchMedia('(max-width:720px)').matches)return;
     if(fullFineKey!==null){
       window.scrollTo({top:0,left:0,behavior:'instant'});
     }else if(overviewScrollY.current!==null){
       const y=overviewScrollY.current;
       overviewScrollY.current=null;
-      if(window.matchMedia('(max-width:720px)').matches){
-        // On phones, return to the inspector list itself. Restoring an
-        // earlier pixel offset can leave the selected setting offscreen.
-        requestAnimationFrame(()=>{
-          document.getElementById('studio-settings')?.scrollIntoView({
-            block:'start',behavior:'instant'
-          });
-        });
-      }else{
-        window.scrollTo({top:y,left:0,behavior:'instant'});
-      }
+      window.scrollTo({top:y,left:0,behavior:'instant'});
     }
   },[fullFineKey]);
   const settingsNavigationInitialized=useRef(false);
@@ -1094,8 +1092,6 @@ export default function App() {
       <section ref={setFullFineHost} className="studio-fullscreen-detail" aria-label="設定の詳細画面"
         inert={!fullFineKey} aria-hidden={!fullFineKey}>
         <div className="studio-global-detail-head">
-          <button type="button" className="studio-global-back"
-            onClick={()=>setFullFineKey(null)}>← 編集画面に戻る</button>
           <strong>◇ 幾何学メーカー</strong><span>詳細設定</span>
         </div>
       </section>
