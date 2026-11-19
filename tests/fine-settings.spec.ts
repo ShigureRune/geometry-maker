@@ -425,3 +425,36 @@ test('the entire desktop overview moves away, including header and live preview'
   await expect.poll(async()=>header.evaluate(node=>node.getBoundingClientRect().left)).toBeGreaterThanOrEqual(-1);
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','false');
 });
+
+test('mobile fullscreen detail starts at top and returns to a visible inspector list',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./');
+  const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
+  await choice.scrollIntoViewIfNeeded();
+  await page.evaluate(()=>window.scrollTo({top:350,behavior:'instant'}));
+  await choice.scrollIntoViewIfNeeded();
+  const previousScroll=await page.evaluate(()=>window.scrollY);
+  expect(previousScroll).toBeGreaterThan(100);
+
+  await choice.click();
+  const full=page.locator('.studio-fullscreen-track');
+  await expect(full).toHaveClass(/is-detail/);
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
+  await expect(page.getByRole('button',{name:'編集画面に戻る'})).toBeInViewport();
+  await expect(page.getByLabel('シード値',{exact:true})).toBeInViewport();
+  await expect(page.locator('.studio-mobile-dock')).toBeHidden();
+  await expect(page.locator('.studio-back-to-top')).toBeHidden();
+  // Capture the completed transition rather than an in-between animation frame.
+  await expect.poll(()=>full.evaluate(node=>
+    Math.round(new DOMMatrixReadOnly(getComputedStyle(node).transform).m41)
+  )).toBeLessThanOrEqual(-385);
+  await mkdir('test-results',{recursive:true});
+  await page.screenshot({path:'test-results/fine-default-2d-mobile-detail.png'});
+
+  await page.getByRole('button',{name:'編集画面に戻る'}).click();
+  await expect(full).not.toHaveClass(/is-detail/);
+  // Return directly to the inspector, with its selected item on-screen.
+  await expect(choice).toBeInViewport();
+  await expect(page.locator('.studio-mobile-dock')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(100);
+});

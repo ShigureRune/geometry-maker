@@ -126,6 +126,8 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
 });
 
 test('Compact seed help sits next to the label instead of beneath the seed input',async({page})=>{
+  // Geometry assertions must sample both boxes in one stable animation state.
+  await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   const row=page.locator('#panel-shapes .studio-setting-label').filter({

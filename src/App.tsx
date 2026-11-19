@@ -31,7 +31,7 @@ import {PreviewTextEditor} from './PreviewTextEditor';
 import {textOverlayDefaults,type TextOverlaySettings} from './text-overlay';
 import {applyImagePalette} from './image-palette';
 import { coloredBackground, legacyColors, reseedColors, rerollColor, type Slot, type ColorSettings } from './colors';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {generateThreeComposition, spaceThreeComposition, THREE_ALGORITHM_VERSION, visibleThreeObjects} from './three/model';
 import {generateCelestialBodies, celestialDefaults} from './three/celestial';
 import {threeDefaults, type ThreePreviewHandle, type ThreeSettings, type ThreeView} from './three/settings';
@@ -91,8 +91,37 @@ export default function App() {
   const [settingsOverview,setSettingsOverview]=useState(!finePreview);
   const [fullFineKey,setFullFineKey]=useState<string|null>(null);
   const [fullFineHost,setFullFineHost]=useState<HTMLElement|null>(null);
-  const fineNavigation=useMemo(()=>({activeKey:fullFineKey,open:setFullFineKey,
-    close:()=>setFullFineKey(null),host:fullFineHost}),[fullFineKey,fullFineHost]);
+  const overviewScrollY=useRef<number|null>(null);
+  const fineNavigation=useMemo(()=>({
+    activeKey:fullFineKey,
+    open:(key:string)=>{
+      // Opening from a scrolled mobile overview must show the TOP of the detail,
+      // not an empty area at the former scroll offset.
+      if(overviewScrollY.current===null)overviewScrollY.current=window.scrollY;
+      setFullFineKey(key);
+    },
+    close:()=>setFullFineKey(null),
+    host:fullFineHost
+  }),[fullFineKey,fullFineHost]);
+  useLayoutEffect(()=>{
+    if(fullFineKey!==null){
+      window.scrollTo({top:0,left:0,behavior:'instant'});
+    }else if(overviewScrollY.current!==null){
+      const y=overviewScrollY.current;
+      overviewScrollY.current=null;
+      if(window.matchMedia('(max-width:720px)').matches){
+        // On phones, return to the inspector list itself. Restoring an
+        // earlier pixel offset can leave the selected setting offscreen.
+        requestAnimationFrame(()=>{
+          document.getElementById('studio-settings')?.scrollIntoView({
+            block:'start',behavior:'instant'
+          });
+        });
+      }else{
+        window.scrollTo({top:y,left:0,behavior:'instant'});
+      }
+    }
+  },[fullFineKey]);
   const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
   useEffect(()=>{
@@ -1064,7 +1093,11 @@ export default function App() {
       </div>
       <section ref={setFullFineHost} className="studio-fullscreen-detail" aria-label="設定の詳細画面"
         inert={!fullFineKey} aria-hidden={!fullFineKey}>
-        <div className="studio-global-detail-head"><strong>◇ 幾何学メーカー</strong><span>詳細設定</span></div>
+        <div className="studio-global-detail-head">
+          <button type="button" className="studio-global-back"
+            onClick={()=>setFullFineKey(null)}>← 編集画面に戻る</button>
+          <strong>◇ 幾何学メーカー</strong><span>詳細設定</span>
+        </div>
       </section>
     </div>
   </div>
