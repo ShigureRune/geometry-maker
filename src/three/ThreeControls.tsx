@@ -11,6 +11,7 @@ import {VOID_WEB_VERSION} from './void-settings';
 import {VOID_PARTICLE_DEFAULT,VOID_PARTICLE_HIGH_LIMIT,VOID_PARTICLE_LOW_LIMIT,VOID_PARTICLE_NODE_SHARE_DEFAULT} from './void-particle';
 import {GALAXY_PALETTES,GALAXY_TYPES,GALAXY_TYPE_LABELS,galaxyDefaults,type GalaxyPalette,type GalaxyType} from './galaxy';
 import {GALAXY_PRESETS,galaxyWithPreset,type GalaxyPreset} from './galaxy-presets';
+import {PARTICLE_PRESETS,particleWithPreset,type ParticlePreset} from './extension-presets';
 
 export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
   sphere:'球体',cube:'立方体',torus:'トーラス',
@@ -107,7 +108,9 @@ export function ThreeShapeControls({settings,onChange,scope='shapes',voidControl
             <span className="fine-settings-choice-copy">
               <strong>{item.label}</strong>
               <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
-                item.id==='galaxy'?' · 現在'+(galaxy.enabled?'ON':'OFF'):''}</small>
+                item.id==='galaxy'?' · 現在'+(galaxy.enabled?'ON':'OFF'):
+                item.id==='void'?' · 現在'+(settings.voidMode?.enabled?'ON':'OFF'):
+                item.id==='hybrid'?' · 現在'+(settings.hybrid2D?.enabled?'ON':'OFF'):''}</small>
             </span>
             <span className="fine-settings-chevron" aria-hidden="true">›</span>
           </button>)}
@@ -187,6 +190,17 @@ export function ThreeShapeControls({settings,onChange,scope='shapes',voidControl
              galaxy:{...galaxy,enabled:false}})}/>
         {cosmicWeb?'コズミックウェブを粒子で描く':'立体を粒子で描く'}
       </label>
+      <label htmlFor="particle-preset">粒子の演出プリセット</label>
+      <select id="particle-preset" aria-label="粒子の演出プリセット" value=""
+        disabled={legacyVoid}
+        onChange={event=>{
+          if(event.target.value)onChange(particleWithPreset(settings,event.target.value as ParticlePreset));
+        }}>
+        <option value="">演出を選ぶ</option>
+        {(Object.entries(PARTICLE_PRESETS) as [ParticlePreset,typeof PARTICLE_PRESETS[ParticlePreset]][]).map(([id,preset])=>
+          <option key={id} value={id}>{preset.label}</option>)}
+      </select>
+      <p className="help">選ぶとPARTICLEを有効化し、粒子数・渦・集合速度を調整します。大規模VOIDでは粒子配分も切り替わります。</p>
       {legacyVoid&&<p className="help">旧VOIDプロトタイプは従来の立体描画専用です。大規模コズミックウェブに切り替えるとPARTICLE MODEを使えます。</p>}
       {cosmicWeb&&<p className="help">コズミックウェブとPARTICLE MODEを同時に使用できます。結節点とフィラメントを一括GPU描画し、元の配線の表示も維持します。GPUで密集したウェブを描画します。粒子数の上限は「3D描画品質」で決まります。高品質は最大500,000粒子、軽量は最大80,000粒子。自動では端末に応じて軽量／高品質を選択し、スマホでも高品質を手動選択すると高密度表示を試せます（動作が重い場合は軽量へ戻してください）。通常3Dの粒子数とは別設定です。</p>}
       {particle.enabled&&<>
