@@ -45,7 +45,7 @@ export function ThreeShapeControls({settings, onChange}: Props) {
   const legacyVoid=!!settings.voidMode?.enabled&&!cosmicWeb;
   // Opt-in prototype: individual settings navigate to a dedicated inspector,
   // while generation enable/disable remains inside each inspector.
-  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('fine-preview')==='1';
+  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
   const [fineDetail,setFineDetail]=useState<FineShapeItem|null>(null);
   const lastFineItem=useRef<FineShapeItem|null>(null);
   const fineNavReady=useRef(false);
