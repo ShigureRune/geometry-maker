@@ -444,6 +444,10 @@ test('mobile fullscreen detail opens at top and restores overview scroll without
   await expect(page.getByLabel('シード値',{exact:true})).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeHidden();
   await expect(page.locator('.studio-back-to-top')).toBeHidden();
+  // Capture the completed transition rather than an in-between animation frame.
+  await expect.poll(()=>full.evaluate(node=>
+    Math.round(new DOMMatrixReadOnly(getComputedStyle(node).transform).m41)
+  )).toBeLessThanOrEqual(-385);
   await mkdir('test-results',{recursive:true});
   await page.screenshot({path:'test-results/fine-default-2d-mobile-detail.png'});
 
