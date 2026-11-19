@@ -77,6 +77,14 @@ export function moveSeedHistory(vault:SeedVault,direction:-1|1):{vault:SeedVault
   if(cursor<0||cursor>=vault.history.length)return null;
   return {vault:{...vault,cursor},seed:vault.history[cursor]};
 }
+/** Browse the entire bounded history, newest first, without modifying the cursor.
+ * Searches are token-based and match the raw seed, including Japanese text. */
+export function searchSeedHistory(vault:SeedVault,query:string):{seed:string;index:number}[]{
+  const terms=query.trim().toLocaleLowerCase().split(/\s+/u).filter(Boolean);
+  return vault.history.map((seed,index)=>({seed,index})).reverse()
+    .filter(item=>terms.every(term=>item.seed.toLocaleLowerCase().includes(term)));
+}
+
 export function saveBookmark(vault:SeedVault,seed:string,name:string):SeedVault{
   if(!isUsableSeed(seed)||!isValidSeedName(name))throw new Error('シードと名前を確認してください。');
   const existing=vault.bookmarks.find(item=>item.seed===seed);
