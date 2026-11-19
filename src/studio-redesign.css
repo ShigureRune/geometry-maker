@@ -1281,15 +1281,15 @@
   transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
     max-height .38s ease,margin .38s ease,visibility 0s;
 }
-.studio-app .studio-controls:has(.fine-sections.is-detail) .settings-tabs-navigation,
-.studio-app .studio-controls:has(.three-shape-controls.fine-detail-open) .settings-tabs-navigation{
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .fine-sections.is-detail) .settings-tabs-navigation,
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .three-shape-controls.fine-detail-open) .settings-tabs-navigation{
   max-height:0;opacity:0;transform:translateX(-100%);margin:0;
   pointer-events:none;visibility:hidden;
   transition:transform .38s cubic-bezier(.22,1,.36,1),opacity .25s ease,
     max-height .38s ease,margin .38s ease,visibility 0s .38s;
 }
-.studio-app .studio-controls:has(.fine-sections.is-detail) .panel-intro,
-.studio-app .studio-controls:has(.three-shape-controls.fine-detail-open) .panel-intro{
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .fine-sections.is-detail) .panel-intro,
+.studio-app .studio-controls:has(.category-panel:not([hidden]) .three-shape-controls.fine-detail-open) .panel-intro{
   display:none;
 }
 /* A selected detail page occupies the settings panel instead of sitting
