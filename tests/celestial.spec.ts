@@ -18,7 +18,7 @@ async function celestialControls(page: Page) {
   const controls = page.locator('.three-shape-controls');
   const overview = controls.getByRole('button', {name: '星や惑星の詳細設定を開く'});
   if (await overview.count() && await controls.getAttribute('data-fine-selected') !== 'celestial') {
-    const back = controls.getByRole('button', {name: '細かい設定一覧へ'});
+    const back = page.locator('#three-shapes-fullscreen-detail').getByRole('button', {name: '細かい設定一覧へ'});
     if (await back.isVisible()) await back.click();
     await overview.click();
   }
@@ -30,7 +30,7 @@ async function exportControls(page: Page, section: 'image' | 'settings') {
   if (await fine.count()) {
     const choice = fine.locator('#fine-export-3d-' + section);
     if ((await choice.getAttribute('aria-expanded')) !== 'true') {
-      const back = fine.locator('.fine-sections-back-button');
+      const back = page.locator('#fine-sections-export-3d-detail .fine-sections-back-button');
       if (await back.isVisible()) await back.click();
       await choice.click();
     }
