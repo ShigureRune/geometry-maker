@@ -361,7 +361,7 @@ test('the public default URL opens fine settings while legacy view remains an ex
   await common.getByRole('button',{name:'シードと生成方式の詳細設定を開く'}).click();
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
-  await common.getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await page.locator('#fine-sections-shapes-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
   await expect(fine).toBeVisible();
   const particle=fine.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'});
   await particle.click();
