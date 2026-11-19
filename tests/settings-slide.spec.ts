@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 
 test('settings checklist opens sliding details and keeps previous values',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   const screen=page.locator('.settings-screen');
   const choices=page.getByRole('navigation',{name:'設定カテゴリー'});
   await expect(screen).not.toHaveClass(/is-detail/);
@@ -25,7 +25,7 @@ test('settings checklist opens sliding details and keeps previous values',async(
 test('mobile floating top button returns to the first screen',async({page})=>{
   await page.setViewportSize({width:390,height:720});
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('checkbox',{name:'アニメーションの設定を開く'}).check();
   await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight));
   const toTop=page.getByRole('button',{name:'ページの先頭に戻る'});
@@ -36,7 +36,7 @@ test('mobile floating top button returns to the first screen',async({page})=>{
 });
 
 test('keyboard navigation transfers focus to the settings detail and back',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   const shapes=page.getByRole('checkbox',{name:'図形の設定を開く'});
   await shapes.focus();
   await shapes.press('Space');

@@ -15,7 +15,7 @@ async function acceptReset(page:Page,name:string){
 }
 test('cancel leaves settings intact; confirmed full reset clears 2D, 3D, seed and UI but not other storage',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('keep-until-reset');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
@@ -49,7 +49,7 @@ test('cancel leaves settings intact; confirmed full reset clears 2D, 3D, seed an
 test('individual 3D resets restore GALAXY/PARTICLE values while preserving current seed and active mode',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('keep-3d-seed');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -78,7 +78,7 @@ test('individual 3D resets restore GALAXY/PARTICLE values while preserving curre
 test('VOID reset restores web defaults without losing the seed; 2D reset retains seed',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('preserve-seed');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();

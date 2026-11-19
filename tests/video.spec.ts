@@ -3,7 +3,7 @@ import { readFile, mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 test('deterministic WebM frames, FPS, ratios, glow, playback and JSON', async ({page})=>{
   test.setTimeout(180000);
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByLabel('アニメーションを有効化').uncheck();
   await page.getByLabel('シード値',{exact:true}).fill('video-stage4');
   await page.getByLabel('シード値',{exact:true}).press('Enter');
@@ -73,7 +73,7 @@ test('deterministic WebM frames, FPS, ratios, glow, playback and JSON', async ({
   await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('video cancel and unsupported browser are explicit',async({page})=>{
-  await page.goto('./');await page.locator('summary').filter({hasText:'動画書き出し'}).click();
+  await page.goto('./?legacy-ui=1');await page.locator('summary').filter({hasText:'動画書き出し'}).click();
   await page.getByLabel('動画の幅 (px)').fill('256');await page.getByLabel('動画の高さ (px)').fill('256');
   await page.getByRole('button',{name:'動画を書き出す',exact:true}).click();
   await page.getByRole('button',{name:'動画書き出しをキャンセル',exact:true}).click();
@@ -84,7 +84,7 @@ test('video cancel and unsupported browser are explicit',async({page})=>{
   await expect(page.getByRole('button',{name:'動画を書き出す',exact:true})).toBeDisabled();
 });
 test('MP4 exports when H264 is available, otherwise explains support',async({page})=>{
-  await page.goto('./');await page.getByLabel('アニメーションを有効化').uncheck();
+  await page.goto('./?legacy-ui=1');await page.getByLabel('アニメーションを有効化').uncheck();
   await page.getByLabel('成長時間（秒）').fill('1');await page.getByLabel('再生速度',{exact:true}).selectOption('4');
   await page.locator('summary').filter({hasText:'動画書き出し'}).click();
   await page.getByLabel('動画の幅 (px)').fill('256');await page.getByLabel('動画の高さ (px)').fill('256');await page.getByLabel('動画形式').selectOption('mp4');

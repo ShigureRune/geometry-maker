@@ -1,7 +1,7 @@
 import {openSettingsCategory} from './settings-test-helper';
 import {test,expect} from '@playwright/test';
 test('mobile category grid and desktop preview retain usable layouts',async({page})=>{
- await page.goto('./');for(const width of [390,720,1440]){
+ await page.goto('./?legacy-ui=1');for(const width of [390,720,1440]){
  if((await page.locator('.settings-screen').getAttribute('class'))?.includes('is-detail'))await page.getByRole('button',{name:'設定一覧へ',exact:true}).click();
  await page.setViewportSize({width,height:844});const preview=(await page.locator('.preview-panel').boundingBox())!,controls=(await page.locator('.controls').boundingBox())!;
  if(width<=720)expect(controls.y).toBeGreaterThanOrEqual(preview.y+preview.height-1);else expect(controls.x+controls.width).toBeLessThanOrEqual(preview.x+1);

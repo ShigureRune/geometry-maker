@@ -7,7 +7,7 @@ test.setTimeout(135_000);
 async function category(page:Page,label:string){await openSettingsCategory(page,label);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');

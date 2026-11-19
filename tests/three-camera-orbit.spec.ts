@@ -19,7 +19,7 @@ const distance=(a:number[],b:number[])=>
 test('standby camera orbit defaults OFF, moves without zoom jumps, pauses and survives refresh',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
@@ -75,7 +75,7 @@ test('standby camera orbit defaults OFF, moves without zoom jumps, pauses and su
 test('tilted 10-degree orbit moves camera vertically, stays centered and restores its mode',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');

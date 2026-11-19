@@ -14,7 +14,7 @@ test('same-size preview, PNG, SVG, MP4 and WebM preserve rendering across resolu
  await mkdir('test-results/render-quality',{recursive:true});
  const results:unknown[]=[];
  for(const version of ['2d-v4','2d-v5'])for(const item of cases){
-  await page.goto('./');await page.getByLabel('アニメーションを有効化').uncheck();
+  await page.goto('./?legacy-ui=1');await page.getByLabel('アニメーションを有効化').uncheck();
   await page.getByLabel('生成アルゴリズム').selectOption(version);
   await page.getByLabel('シード値',{exact:true}).fill(item.seed);await page.getByLabel('シード値',{exact:true}).press('Enter');
   await page.getByLabel('キャンバスの比率').selectOption(item.ratio);

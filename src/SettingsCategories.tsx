@@ -10,12 +10,18 @@ export const categories = [
 
 export type Category=typeof categories[number]['id'];
 
-/** A checkbox-like settings hub. Each option navigates to a persistent detail panel. */
-export function SettingsCategories({active,onChange,disabled=[]}:{
+/** Normal tabs for top-level categories; checkbox drill-down belongs to fine settings. */
+export function SettingsCategories({active,onChange,disabled=[],variant='checklist'}:{
   active:Category|null;
   onChange:(value:Category|null)=>void;
   disabled?:readonly Category[];
+  variant?:'checklist'|'tabs';
 }){
+  if(variant==='tabs')return <nav className="category-navigation settings-tabs-navigation" aria-label="設定カテゴリー">
+    {categories.map(item=><button key={item.id} type="button" disabled={disabled.includes(item.id)}
+      aria-pressed={active===item.id} aria-controls={`panel-${item.id}`}
+      onClick={()=>onChange(item.id)}>{item.label}</button>)}
+  </nav>;
   return <nav className="category-navigation settings-index-list" aria-label="設定カテゴリー">
     {categories.map(item=>{
       const unavailable=disabled.includes(item.id);

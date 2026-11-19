@@ -1,4 +1,5 @@
 import {HelpInfo} from './HelpInfo';
+import {FineSections} from './FineSections';
 import { SettingsCategories, categories, type Category } from './SettingsCategories';
 import {StudioCommandPalette, type StudioCommand} from './StudioCommandPalette';
 import {SeedExplorerBoard} from './SeedExplorerBoard';
@@ -83,8 +84,10 @@ export default function App() {
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
   const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
   const activeCategory=renderMode==='2d'?category:threeCategory;
-  // Landing on the overview avoids presenting a giant list of controls at once.
-  const [settingsOverview,setSettingsOverview]=useState(true);
+  // Fine-detail prototype: keep the seven main categories as compact tabs;
+  // individual sections, not main categories, use the checkbox drill-down.
+  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
+  const [settingsOverview,setSettingsOverview]=useState(!finePreview);
   const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
   useEffect(()=>{
@@ -132,7 +135,7 @@ export default function App() {
         event.preventDefault();setCommandOpen(true);
       }else if(event.key==='Escape'&&studioFocus&&!commandOpen){
         setStudioFocus(false);
-      }else if(event.key==='Escape'&&!commandOpen&&!settingsOverview&&
+      }else if(event.key==='Escape'&&!finePreview&&!commandOpen&&!settingsOverview&&
         !(event.target instanceof HTMLElement&&event.target.closest('input,textarea,select'))){
         setSettingsOverview(true);
       }
@@ -552,7 +555,7 @@ export default function App() {
     }
   }
   function goToSettingsIndex(){
-    setSettingsOverview(true);
+    setSettingsOverview(!finePreview);
     setStudioFocus(false);setSidebarCollapsed(false);
     if(matchMedia('(max-width:720px)').matches){
       requestAnimationFrame(()=>document.getElementById('studio-settings')?.scrollIntoView({
@@ -645,6 +648,10 @@ export default function App() {
         </div>
         <div className="panel-intro"><span className="eyebrow">MAKE IT YOURS</span><h2>ひとつのシードから、<br />あなただけの幾何学を。</h2><p>文字や数字を変えて、新しい構図に出会う。</p></div>
 
+        {finePreview&&<SettingsCategories variant="tabs" active={activeCategory}
+          onChange={value=>{if(value)goToSettings(value);}}
+          disabled={threeExportBusy?categories.map(item=>item.id):
+            renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
         <div className={'settings-screen'+(settingsOverview?'':' is-detail')} aria-label="設定画面">
           <section className="settings-screen-index" aria-label="設定一覧"
             inert={!settingsOverview} aria-hidden={!settingsOverview}>
@@ -653,12 +660,12 @@ export default function App() {
               <h2>設定一覧</h2>
               <p>右のチェックをオンにして、専用の設定画面を開きます。</p>
             </div>
-            <SettingsCategories active={settingsOverview?null:activeCategory}
+            {!finePreview&&<SettingsCategories active={settingsOverview?null:activeCategory}
               onChange={value=>{if(threeExportBusy)return;
                 if(value===null){goToSettingsIndex();return;}
                 goToSettings(value);}}
               disabled={threeExportBusy?categories.map(item=>item.id):
-                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>
+                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
             <div className="studio-sidebar-resize">
               <label htmlFor="studio-sidebar-width">パネル幅</label>
               <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
@@ -668,7 +675,7 @@ export default function App() {
           </section>
           <section className="settings-screen-detail" aria-label="個別設定"
             inert={settingsOverview} aria-hidden={settingsOverview}>
-            <div className="settings-detail-toolbar">
+            <div className="settings-detail-toolbar" hidden={finePreview}>
               <button type="button" className="settings-detail-back" onClick={goToSettingsIndex}>
                 <span aria-hidden="true">←</span> 設定一覧へ
               </button>
@@ -676,7 +683,21 @@ export default function App() {
             </div>
             <div id="panel-shapes" className="category-panel" data-category="shapes" role="region" aria-labelledby="category-shapes" hidden={activeCategory!=='shapes'}>
           <h2 className="category-title">図形</h2>
-        <section className="control-section" aria-labelledby="seed-heading">
+        {finePreview&&renderMode==='3d'&&<>
+        <p className="fine-settings-group-heading">3D図形の細かい設定</p>
+        <ThreeShapeControls settings={threeSettings} onChange={next=>{
+          // Switching on the mode starts its one-shot assembly at t=0; ordinary
+          // setting sliders preserve the current scene time.
+          if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
+            (!threeSettings.galaxy?.enabled&&next.galaxy?.enabled))){
+            setStandbyTransition(null);setStandbyFinishedSeed(null);setRegenerations(n=>n+1);
+          }
+          setThreeSettings(next);
+        }}/>
+        <p className="fine-settings-group-heading">共通設定</p>
+        </>}
+
+        <FineSections id="shapes" enabled={finePreview} items={[{id:'seed',label:'シードと生成方式',detail:'シード値・アルゴリズム',content:<><section className="control-section" aria-labelledby="seed-heading">
           <div className="section-heading"><h3 id="seed-heading"><span>01</span> シード</h3><span className="tiny-label">SEED</span></div>
           <div className="studio-setting-label">
             <label htmlFor="seed">模様の合言葉</label>
@@ -693,19 +714,22 @@ export default function App() {
           </select>
           </div>
         </section>
-        <SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
+        </>},
+{id:'history',label:'シード履歴',detail:'保存・呼び出し・履歴移動',content:<><SeedVaultControls seed={seed} vault={seedVault} disabled={threeExportBusy||!!standbyTransition}
           onChange={setSeedVault} onSelect={recallBookmarkedSeed}
           onNavigate={navigateVault} onHistoryIndex={useVaultHistory}/>
-        {renderMode==='2d'&&<section className="control-section seed-explorer-launch">
+        </>},
+{id:'explorer',label:'構図探索ボード',detail:'複数シードの比較',content:<>{renderMode==='2d'&&<section className="control-section seed-explorer-launch">
           <h3>構図探索ボード</h3>
           <p className="help">今の生成設定で複数案を同時に見比べ、好きなシードを採用できます。</p>
           <button type="button" onClick={()=>setExplorerOpen(true)} aria-label="構図探索ボードを開く">
             ◈ 4〜8案をまとめて比較
           </button>
         </section>}
-        {renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
+        </>},
+{id:'kinds',label:'図形の種類',detail:'2D図形・魔法陣の設定',content:<>{renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
-        {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
+        {renderMode==='3d'&&!finePreview&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
           // Switching on the mode starts its one-shot assembly at t=0; ordinary
           // setting sliders preserve the current scene time.
           if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
@@ -717,7 +741,8 @@ export default function App() {
           <Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
             sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/></>}
 
-        <section className="control-section ratio-section" aria-labelledby="ratio-heading">
+        </>},
+{id:'ratio',label:'縦横比',detail:'キャンバスの比率',content:<><section className="control-section ratio-section" aria-labelledby="ratio-heading">
           <div className="section-heading"><h3 id="ratio-heading"><span>03</span> 縦横比</h3><span className="tiny-label">ASPECT RATIO</span></div>
           <div className="studio-setting-label">
             <label htmlFor="ratio">キャンバスの比率</label>
@@ -728,14 +753,16 @@ export default function App() {
           </select> 
         </section>
 
-        <section className="control-section">
+        </>},
+{id:'density',label:'図形密度',detail:'密度の微調整',content:<><section className="control-section">
           <div className="studio-setting-label studio-setting-label-range">
             <label className="range-label" htmlFor="density">図形密度 <output htmlFor="density">{density}%</output></label>
             <HelpInfo>{renderMode==='3d'?'0%は背景のみ。主役の位置を保って3Dオブジェクトを段階的に追加します。':version===MAGIC_ALGORITHM_VERSION?'0%は背景のみ。主線は保持し、装飾は密度を上げるほど増えます。':'0%は背景のみ。50%が標準。主役の位置を保って図形量を調整します。'}</HelpInfo>
           </div>
           <input id="density" type="range" min="0" max="100" step="5" value={density} onChange={e=>setDensity(Number(e.target.value))}/> 
         </section>
-        <StudioResetControls mode={renderMode} disabled={threeExportBusy||!!standbyTransition}
+        </>},
+{id:'reset',label:'再生成とリセット',detail:'リセット・再生成・自動保存',content:<><StudioResetControls mode={renderMode} disabled={threeExportBusy||!!standbyTransition}
           onResetAll={resetAllSettings} onReset2D={resetTwoDSettings}
           onReset3D={resetThreeDSettings} onResetGalaxy={resetGalaxySettings}
           onResetParticle={resetParticleSettings} onResetVoid={resetVoidSettings}/>
@@ -746,10 +773,16 @@ export default function App() {
             autosaveStatus==='unavailable'?'自動保存を利用できません。設定ファイルで保存してください。':
               '自動保存を準備中…'}
         </p>
+        </>},
+        ...(renderMode==='3d'&&finePreview?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
+            sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}]:[])
+        ].filter(item=>!finePreview||renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
-        {!(renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION)&&<section className="control-section" aria-labelledby="background-heading">
+        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&
+    <FineSections id="background" enabled={finePreview} items={[
+      {id:'base',label:'背景の種類',detail:'単色・グラデーション・角度',content:<section className="control-section" aria-labelledby="background-heading">
           <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
           <div className="segmented" role="group" aria-label="背景の種類">
             <button type="button" aria-pressed={background.mode === 'solid'} onClick={() => setBackground({ ...background, mode: 'solid' })}>単色</button>
@@ -760,10 +793,24 @@ export default function App() {
             <input id="angle" type="range" min="0" max="360" value={background.angle} onChange={e=>setBackground({...background,angle:Number(e.target.value)})}/>
           </>}
           <HelpInfo>背景の各色は「カラー」で編集できます。</HelpInfo>
-        </section>}
-        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<HelpInfo>魔法陣の背景・自動配色は「カラー」から変更できます。背景なしでの表示や透過保存は「図形」の魔法陣設定で切り替えられます。</HelpInfo>}
-        {renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION&&<GridBackgroundControls value={background.grid??gridBackgroundDefaults} onChange={grid=>setBackground(bg=>({...bg,grid}))}/>}
-        {renderMode==='3d'&&<><VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
+        </section>},
+      {id:'grid',label:'2Dグリッド背景',detail:'格子・アニメーション・遠近感',content:<GridBackgroundControls value={background.grid??gridBackgroundDefaults} onChange={grid=>setBackground(bg=>({...bg,grid}))}/>}
+    ]}/>}
+    {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<HelpInfo>魔法陣の背景・自動配色は「カラー」から変更できます。背景なしでの表示や透過保存は「図形」の魔法陣設定で切り替えられます。</HelpInfo>}
+    {renderMode==='3d'&&<FineSections id="background" enabled={finePreview} items={[
+{id:'base',label:'背景の種類',detail:'単色・グラデーションと方向',content:<section className="control-section" aria-labelledby="background-heading">
+          <div className="section-heading"><h3 id="background-heading"><span>02</span> 背景</h3><span className="tiny-label">BACKGROUND</span></div>
+          <div className="segmented" role="group" aria-label="背景の種類">
+            <button type="button" aria-pressed={background.mode === 'solid'} onClick={() => setBackground({ ...background, mode: 'solid' })}>単色</button>
+            <button type="button" aria-pressed={background.mode === 'gradient'} onClick={() => setBackground({ ...background, mode: 'gradient' })}>グラデーション</button>
+          </div>
+          {background.mode==='gradient'&&<>
+            <label className="range-label" htmlFor="angle">方向 <output htmlFor="angle">{background.angle}°</output></label>
+            <input id="angle" type="range" min="0" max="360" value={background.angle} onChange={e=>setBackground({...background,angle:Number(e.target.value)})}/>
+          </>}
+          <HelpInfo>背景の各色は「カラー」で編集できます。</HelpInfo>
+        </section>},
+{id:'void',label:'VOID MODE',detail:'コズミックウェブ・無限空間',content:<VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
           if(voidMode.enabled!==voidEnabled||(voidMode.enabled&&voidMode.version!==voidVersion)){
             const floorTime=threeApi.current?.getFloorElapsedSeconds?.()??threeRestore.floorTime;
             if(voidMode.enabled){
@@ -774,15 +821,21 @@ export default function App() {
             setStandbyTransition(null);setStandbyFinishedSeed(!voidMode.enabled&&beforeVoid.current?.seed===seed?beforeVoid.current.complete:null);
           }
           setThreeSettings(settings=>({...settings,voidMode}));
-        }}/><SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/><FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/></>}
+        }}/>},
+{id:'sky',label:'空と景色',detail:'空・天候・地形・自然',content:<SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/>},
+{id:'floor',label:'床の模様',detail:'3D床・回路・床グリッド',content:<FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/>}
+]}/>}
 
 
         </div>
         <div id="panel-colors" className="category-panel" data-category="colors" role="region" aria-labelledby="category-colors" hidden={activeCategory!=='colors'}>
           <h2 className="category-title">カラー</h2>
-        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION?
-          <MagicColorControls value={magicSettings} onChange={setMagicSettings} seed={seed}/> : <>
-        <section className="control-section" aria-labelledby="theme-heading">
+        {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION
+? <FineSections id="colors" enabled={finePreview} items={[
+    {id:'magic',label:'魔法陣の配色',detail:'背景色・魔法陣の自動配色',content:<MagicColorControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
+  ]}/>
+: <FineSections id="colors" enabled={finePreview} items={[
+    {id:'theme',label:'ビジュアルテーマ',detail:'配色テーマとプリセット',content:<section className="control-section" aria-labelledby="theme-heading">
           <h3 id="theme-heading">ビジュアルテーマ</h3>
           <label htmlFor="visual-theme">テーマを選ぶ</label>
           <select id="visual-theme" value={visualTheme} onChange={e=>chooseVisualTheme(e.target.value as VisualTheme)}>
@@ -794,9 +847,9 @@ export default function App() {
               ...THEME_PRESETS[visualTheme].colors].map((color,i)=><span key={i} style={{backgroundColor:color}} title={color} aria-label={color}/>)}
           </div>}
           <HelpInfo>テーマに応じて図形の強弱・線・発光・背景色を変更します。下のカラー・装飾設定からさらに調整できます。</HelpInfo>
-        </section>
-        <ImagePaletteControls onApply={(palette,scope)=>applyColors(applyImagePalette(activeColors,palette,scope))}/>
-        <section className="control-section">
+        </section>},
+    {id:'image',label:'画像から配色',detail:'画像を使ったカラー調整',content:<ImagePaletteControls onApply={(palette,scope)=>applyColors(applyImagePalette(activeColors,palette,scope))}/>},
+    {id:'palette',label:'背景と図形の配色',detail:'個別カラー・シード連動',content:<section className="control-section">
           <h3>背景と図形の配色</h3>
           {editor('solid','背景色')}
           {editor('gradient0','グラデーション色1')}{editor('gradient1','グラデーション色2')}{editor('gradient2','グラデーション色3')}
@@ -812,43 +865,62 @@ export default function App() {
           </select>
           {editor('primary','主役色')}{editor('support','補助色')}{editor('accent','アクセント色')}
           <HelpInfo>シード連動が初期状態です。固定中も手動編集・個別再抽選ができます。入力色をそのまま描画します。</HelpInfo>
-        </section>
-        </>}
+        </section>}
+  ]}/>}
+
         </div>
         <div id="panel-text" className="category-panel" data-category="text" role="region" aria-labelledby="category-text" hidden={renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION||activeCategory!=='text'}>
           <h2 className="category-title">文字</h2>
-          <TextControls settings={textOverlay} onChange={setTextOverlay} onReplay={entrancePreview.replay} previewPlaying={entrancePreview.playing}/>
+          <TextControls settings={textOverlay} onChange={setTextOverlay} onReplay={entrancePreview.replay} previewPlaying={entrancePreview.playing} finePreview={finePreview}/>
         </div>
         <div id="panel-decoration" className="category-panel" data-category="decoration" role="region" aria-labelledby="category-decoration" hidden={activeCategory!=='decoration'}>
           <h2 className="category-title">装飾</h2>
-        <section className="control-section">
+        {renderMode==='2d'&&<FineSections id="decoration" enabled={finePreview} items={[
+   {id:'glow',label:'発光の強さ',detail:'発光のON/OFFと強度',content:<section className="control-section">
+          <label className="glow-toggle"><input type="checkbox" checked={(background.glowIntensity??0)>0} onChange={e=>{if(e.target.checked)setBackground({...background,glowIntensity:lastGlow.current||100});else{lastGlow.current=background.glowIntensity||100;setBackground({...background,glowIntensity:0});}}}/> 発光を有効化</label>
+          
+          <label className="range-label" htmlFor="glow-intensity">発光強度 <output>{background.glowIntensity??0}%</output></label>
+          <input id="glow-intensity" type="range" min="0" max="200" step="5" value={background.glowIntensity??0} onChange={e=>setBackground({...background,glowIntensity:+e.target.value})}/>
+          <HelpInfo>0%は発光なし。主役を強め、補助・装飾は控えめに光らせます。</HelpInfo>
+        </section>},
+   {id:'line',label:'線の太さ',detail:'主役と装飾の線幅',content:<section className="control-section"><div><label className="range-label" htmlFor="line-width">線の太さ <output>{background.lineWidth ?? 125}%</output></label>
+          <input id="line-width" type="range" min="50" max="300" step="5" value={background.lineWidth ?? 125} onChange={e=>setBackground({...background,lineWidth:+e.target.value})}/></div></section>}
+ ]}/>}
+        {renderMode==='3d'&&<FineSections id="decoration" enabled={finePreview} items={[
+{id:'glow',label:'発光と線の太さ',detail:'発光のON/OFFと強度',content:<section className="control-section">
           <label className="glow-toggle"><input type="checkbox" checked={(background.glowIntensity??0)>0} onChange={e=>{if(e.target.checked)setBackground({...background,glowIntensity:lastGlow.current||100});else{lastGlow.current=background.glowIntensity||100;setBackground({...background,glowIntensity:0});}}}/> 発光を有効化</label>
           <div hidden={renderMode==='3d'}><label className="range-label" htmlFor="line-width">線の太さ <output>{background.lineWidth ?? 125}%</output></label>
           <input id="line-width" type="range" min="50" max="300" step="5" value={background.lineWidth ?? 125} onChange={e=>setBackground({...background,lineWidth:+e.target.value})}/></div>
           <label className="range-label" htmlFor="glow-intensity">発光強度 <output>{background.glowIntensity??0}%</output></label>
           <input id="glow-intensity" type="range" min="0" max="200" step="5" value={background.glowIntensity??0} onChange={e=>setBackground({...background,glowIntensity:+e.target.value})}/>
           <HelpInfo>0%は発光なし。主役を強め、補助・装飾は控えめに光らせます。</HelpInfo>
-        </section>
-        {renderMode==='3d'&&<><ThreeStyleControls settings={voidRenderSettings(threeSettings)} fixedTopology={voidEnabled} onChange={next=>{
+        </section>},
+{id:'network',label:'光る線とつながり',detail:'接続線・ネオン輪郭',content:<ThreeStyleControls settings={voidRenderSettings(threeSettings)} fixedTopology={voidEnabled} onChange={next=>{
           if(!voidEnabled){setThreeSettings(next);return;}
           setThreeSettings(current=>({...current,voidMode:{...(current.voidMode??voidDefaults),
             network:{...next.network!,mode:'neural'},neon:next.neon!}}));
-        }}/><ThreeMaterialControls settings={threeSettings} onChange={setThreeSettings}/></>}
+        }}/>},
+{id:'material',label:'質感と光',detail:'素材・金属感・ライト',content:<ThreeMaterialControls settings={threeSettings} onChange={setThreeSettings}/>}
+]}/>}
         </div>
         <div id="panel-animation" className="category-panel" data-category="animation" role="region" aria-labelledby="category-animation" hidden={activeCategory!=='animation'}>
           <h2 className="category-title">アニメーション</h2>
-        <div hidden={renderMode==='3d'}>
-        {version!==MAGIC_ALGORITHM_VERSION&&<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}
-        <AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>
-        </div>
-        {renderMode==='3d'&&<><ThreeAnimationControls settings={threeSettings} onChange={setThreeSettings} seed={seed} onReplay={()=>{setStandbyFinishedSeed(null);setThreeSettings(current=>({...current,animation:true}));setRegenerations(n=>n+1);}}/>
-          <ThreeStandbyControls settings={threeSettings} onChange={setThreeSettings} onNext={beginStandbyTransition}
-            transitioning={!!standbyTransition} exporting={threeExportBusy}/></>}
+        {/* Keep the 2D animation clocks mounted but hidden while 3D is active. */}
+        <div hidden={renderMode==='3d'}><FineSections id="animation-2d" label="アニメーション" enabled={finePreview} items={[
+      ...(version!==MAGIC_ALGORITHM_VERSION?[{id:'ambient',label:'自動再生・待機画面',detail:'自動切替・スクロール',content:<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}]:[]),
+      {id:'growth',label:'成長アニメーション',detail:'速度・動き・再生',content:<AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>}
+    ]}/></div>
+        {renderMode==='3d'&&<FineSections id="animation" enabled={finePreview} items={[
+{id:'motion',label:'図形の動き',detail:'回転・登場・消える演出',content:<ThreeAnimationControls settings={threeSettings} onChange={setThreeSettings} seed={seed} onReplay={()=>{setStandbyFinishedSeed(null);setThreeSettings(current=>({...current,animation:true}));setRegenerations(n=>n+1);}}/>
+          },
+{id:'standby',label:'自動切り替え',detail:'待機画面・シード・カメラ',content:<ThreeStandbyControls settings={threeSettings} onChange={setThreeSettings} onNext={beginStandbyTransition}
+            transitioning={!!standbyTransition} exporting={threeExportBusy}/>}
+]}/>}
         </div>
         <div id="panel-export" className="category-panel" data-category="export" role="region" aria-labelledby="category-export" hidden={activeCategory!=='export'}>
           <h2 className="category-title">書き出し</h2>
       <div className="export-area" hidden={renderMode==='3d'}>
-        <ExportPanel textOverlay={textOverlay} magicSettings={version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined} videoArtwork={{scene,candidates,seed,background:twoDBackground,animation,magicSettings:version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined,textOverlay:version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay,ambient:{scrollFigureState:ambientClock.scrollFigureState,scrollPaletteState:ambientClock.scrollPaletteState,scrollPath:ambientClock.scrollPath,seed,version,ratio,density,background:twoDBackground,colors:activeColors,animation,settings:{...ambient,enabled:version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled},visualTheme,enabledShapeKinds,textOverlay}}} version={version} density={density} colorSettings={activeColors} visualTheme={visualTheme} enabledShapeKinds={enabledShapeKinds} seed={seed} ratio={ratio} background={background} animation={animation} artwork={completedArtwork}
+        <ExportPanel finePreview={finePreview} textOverlay={textOverlay} magicSettings={version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined} videoArtwork={{scene,candidates,seed,background:twoDBackground,animation,magicSettings:version===MAGIC_ALGORITHM_VERSION?magicSettings:undefined,textOverlay:version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay,ambient:{scrollFigureState:ambientClock.scrollFigureState,scrollPaletteState:ambientClock.scrollPaletteState,scrollPath:ambientClock.scrollPath,seed,version,ratio,density,background:twoDBackground,colors:activeColors,animation,settings:{...ambient,enabled:version!==MAGIC_ALGORITHM_VERSION&&ambient.enabled},visualTheme,enabledShapeKinds,textOverlay}}} version={version} density={density} colorSettings={activeColors} visualTheme={visualTheme} enabledShapeKinds={enabledShapeKinds} seed={seed} ratio={ratio} background={background} animation={animation} artwork={completedArtwork}
           onRatio={setRatio} onRestore={settings => {
             ambientClock.stop();setAmbient({...ambientDefaults,...settings.ambient,enabled:false});
             setDensity(settings.density ?? 50);setVisualTheme(settings.visualTheme??'standard');setTextOverlay(settings.textOverlay??{...textOverlayDefaults});
@@ -863,7 +935,7 @@ export default function App() {
             setRegenerations(0);
           }} />
       </div>
-        {renderMode==='3d'&&<ThreeExportPanel api={threeApi} seed={seed} ready={threeReady}
+        {renderMode==='3d'&&<ThreeExportPanel finePreview={finePreview} api={threeApi} seed={seed} ready={threeReady}
            onBusyChange={setThreeExportBusy}
           project={()=>({kind:'geometry-maker-3d',schemaVersion:1,algorithmVersion:THREE_ALGORITHM_VERSION,seed,aspectRatio:ratio,density,visualTheme,background,
             colorSettings:activeColors,settings:threeSettings,

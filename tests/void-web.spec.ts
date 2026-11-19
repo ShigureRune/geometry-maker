@@ -24,7 +24,7 @@ async function restore(page:Page,project:ThreeProject){
   await expect(page.getByRole('button',{name:'視点をリセット',exact:true})).toBeEnabled({timeout:30_000});
 }
 async function open(page:Page,project=fixture()){
-  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./');await page.getByRole('button',{name:'3Dモード',exact:true}).click();await restore(page,project);
+  await page.emulateMedia({reducedMotion:'reduce'});await page.goto('./?legacy-ui=1');await page.getByRole('button',{name:'3Dモード',exact:true}).click();await restore(page,project);
 }
 async function png(page:Page){await category(page,'書き出し');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3D PNGを書き出す',exact:true}).click();return readFile((await(await pending).path())!);}
 async function saved(page:Page):Promise<ThreeProject>{await category(page,'書き出し');const pending=page.waitForEvent('download');await page.getByRole('button',{name:'3Dの設定を保存',exact:true}).click();return JSON.parse(await readFile((await(await pending).path())!,'utf8'));}

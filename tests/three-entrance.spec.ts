@@ -7,7 +7,7 @@ test.setTimeout(180_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await category(page,'図形');
@@ -104,7 +104,7 @@ test('3D random seed preserves entrance UI and settings JSON roundtrip / legacy 
 
 test('automatic 3D entrance is enabled for ordinary motion preferences',async({page})=>{
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-entrance-enabled','true');
   await category(page,'アニメーション');

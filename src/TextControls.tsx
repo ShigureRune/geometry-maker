@@ -1,10 +1,11 @@
+import {FineSections} from './FineSections';
 import {HelpInfo} from './HelpInfo';
 import type {TextOverlaySettings} from './text-overlay';
 import {EASINGS} from './animation';
-type Props={settings:TextOverlaySettings;onChange:(next:TextOverlaySettings)=>void;onReplay?:()=>void;previewPlaying?:boolean};
+type Props={settings:TextOverlaySettings;onChange:(next:TextOverlaySettings)=>void;onReplay?:()=>void;previewPlaying?:boolean;finePreview?:boolean};
 type NumberKey='fontSize'|'opacity'|'x'|'y'|'rotation'|'strokeWidth'|'shadowBlur'|'glowStrength'|'glowBlur'|'entranceDelay'|'entranceDuration';
 type ColorKey='color'|'strokeColor'|'shadowColor'|'glowColor';
-export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
+export function TextControls({settings,onChange,onReplay,previewPlaying,finePreview=false}:Props){
  const update=<K extends keyof TextOverlaySettings>(key:K,value:TextOverlaySettings[K])=>onChange({...settings,[key]:value});
  const range=(key:NumberKey,label:string,min:number,max:number,step=1,unit='')=><div className="text-control-range">
   <label htmlFor={`text-${key}`}>{label} <output htmlFor={`text-${key}`}>{settings[key]}{unit}</output></label>
@@ -15,6 +16,7 @@ export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
   <input type="color" value={settings[key]} onChange={e=>update(key,e.target.value)}/>
  </label>;
  return <section className="control-section text-controls" aria-labelledby="text-settings-heading">
+  <FineSections id="text" enabled={finePreview} items={[{id:'content',label:'文字とフォント',detail:'テキスト・フォント・文字色',content:<>
   <div className="section-heading"><h3 id="text-settings-heading">文字を配置</h3><span className="tiny-label">TEXT OVERLAY</span></div>
   <label className="text-checkbox"><input type="checkbox" checked={settings.enabled} onChange={e=>update('enabled',e.target.checked)}/> 文字を表示</label>
   <label htmlFor="overlay-text">表示する文字</label>
@@ -58,7 +60,8 @@ export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
    <HelpInfo>中抜きでは文字の内側を透明にします。図形の線が文字の中を透けて見えるデザインにできます。</HelpInfo>
   </div>
   {range('opacity','不透明度',0,100,1,'%')}
-  <h3>位置と重なり順</h3>
+  </>},
+{id:'layout',label:'位置と重なり順',detail:'配置・回転・前後関係',content:<><h3>位置と重なり順</h3>
   <div className="text-control-columns">
    {range('x','横位置',0,100,1,'%')}
    {range('y','縦位置',0,100,1,'%')}
@@ -72,7 +75,8 @@ export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
   <select id="text-layer" value={settings.layer} onChange={e=>update('layer',e.target.value as TextOverlaySettings['layer'])}>
    <option value="front">図形より前面</option><option value="back">図形より背面（背景より前）</option>
   </select>
-  <h3>文字の登場アニメーション</h3>
+  </>},
+{id:'entrance',label:'文字の登場アニメーション',detail:'登場エフェクト・再生',content:<><h3>文字の登場アニメーション</h3>
   <label htmlFor="text-entrance-mode">登場エフェクト</label>
   <select id="text-entrance-mode" value={settings.entrance??'none'}
    onChange={e=>onChange({...settings,enabled:e.target.value!=='none'?true:settings.enabled,
@@ -97,7 +101,8 @@ export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
    </button>
    <HelpInfo>文字だけの登場演出です。図形の成長アニメとは独立して再生できます。動画は設定した待ち時間と登場時間まで再生されます。静止画のPNG・SVGは完成状態で保存されます。</HelpInfo>
   </>}
-  <h3>発光と装飾</h3>
+  </>},
+{id:'effects',label:'発光と装飾',detail:'発光・縁取り・影',content:<><h3>発光と装飾</h3>
   <label className="text-checkbox"><input type="checkbox" checked={settings.glowEnabled}
    onChange={e=>update('glowEnabled',e.target.checked)}/> 文字の発光を有効化</label>
   {settings.glowEnabled&&<>
@@ -135,5 +140,6 @@ export function TextControls({settings,onChange,onReplay,previewPlaying}:Props){
   <label className="text-checkbox"><input type="checkbox" checked={settings.shadowEnabled} onChange={e=>update('shadowEnabled',e.target.checked)}/> 影を有効化</label>
   {settings.shadowEnabled&&<>{color('shadowColor','影の色')}{range('shadowBlur','影のぼかし',0,40,1)}</>}
   <HelpInfo>中抜き時は発光対象を「縁取りだけ」にすると内側も透明のまま光ります。文字の発光は図形と独立して設定できます。PNG・SVG・動画・設定JSONにも反映されます。</HelpInfo>
+ </>}]}/>
  </section>;
 }

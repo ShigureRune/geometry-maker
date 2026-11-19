@@ -11,7 +11,7 @@ async function openCategory(page:Page,name:string){
 test('Studio v2 desktop quick tuning, command search, inspector, focus, and theme',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   await expect(page.locator('.studio-app')).toBeVisible();
   await expect(page.locator('.studio-controls')).toBeVisible();
@@ -58,7 +58,7 @@ test('Studio v2 mobile action dock and command navigation do not overflow',async
   const page=await context.newPage();
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   const dock=page.getByRole('navigation',{name:'モバイルクイック操作'});
   await expect(dock).toBeVisible();
@@ -86,7 +86,7 @@ test('Studio v2 mobile action dock and command navigation do not overflow',async
 test('Studio v2 advanced settings share one checkbox design and circled info toggles',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   // Keep the old accessible name while simplifying the visible seed label.
   await expect(page.getByLabel('シード値',{exact:true})).toBeVisible();
@@ -126,7 +126,7 @@ test('Studio v2 advanced settings share one checkbox design and circled info tog
 });
 
 test('Compact seed help sits next to the label instead of beneath the seed input',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   const row=page.locator('#panel-shapes .studio-setting-label').filter({
     has:page.getByText('模様の合言葉',{exact:true}),
@@ -185,7 +185,7 @@ test('Compact seed help sits next to the label instead of beneath the seed input
 
 
 test('Studio command search supports slash, multi-term matching and five-item paging',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.focus();
@@ -213,7 +213,7 @@ test('Studio command search supports slash, multi-term matching and five-item pa
 });
 
 test('Studio command favorites and recent actions survive reopening and reload',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
@@ -242,7 +242,7 @@ test('Seed clipboard can copy and paste reproducible project seeds',async({page}
       readText:async()=>clipWindow.__seedTestClipboard??'',
     }});
   });
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('copied-seed-42');

@@ -1,7 +1,7 @@
 import {test,expect} from './ui-test';
 import {mkdir} from 'node:fs/promises';
 test('growth start, seek, completion, playback and complete exports',async({page})=>{
- await page.goto('./');await page.getByLabel('アニメーションを有効化').uncheck();await page.getByLabel('シード値',{exact:true}).fill('undefined-heartbeat');await page.getByLabel('発光強度').fill('0');const shapes=page.getByTestId('shapes');
+ await page.goto('./?legacy-ui=1');await page.getByLabel('アニメーションを有効化').uncheck();await page.getByLabel('シード値',{exact:true}).fill('undefined-heartbeat');await page.getByLabel('発光強度').fill('0');const shapes=page.getByTestId('shapes');
  const count=await shapes.locator(':scope > g').count();
  await page.getByLabel('アニメーションを有効化').check();
  await expect(shapes.locator(':scope > g')).toHaveCount(0);
@@ -22,7 +22,7 @@ test('growth start, seek, completion, playback and complete exports',async({page
 });
 
 test('v4 classic contour light flows after 100%, pauses, resumes and leaves shapes fixed',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  await page.getByLabel('生成アルゴリズム').selectOption('2d-v4');
  // This known seed contains both v4 bands and a two-layer arc. Include all
  // density candidates so the secondary dotted arc is actually rendered.
@@ -202,7 +202,7 @@ test('2D v4/v5 live and exported video frames share selected motion preset',asyn
 
 
 test('timeline quick-jump buttons seek precisely and pause playback',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('checkbox',{name:'アニメーションの設定を開く'}).check();
   for(const percent of [25,50,75,100,0]){
     const jump=page.getByRole('button',{name:`再生位置を${percent}%に移動`});

@@ -3,7 +3,7 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('create, drag, directly edit and export a title from the live canvas',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  const initialSeed=await page.getByTestId('current-seed').textContent();
  await page.getByRole('button',{name:'プレビューに文字を追加'}).click();
  const mini=page.getByRole('group',{name:'プレビュー上で文字を編集'});
@@ -55,7 +55,7 @@ test('create, drag, directly edit and export a title from the live canvas',async
 });
 
 test('outline-only neon can be dragged and edited in the ambient preview',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
 
  await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('ネオン');
@@ -91,7 +91,7 @@ test('touch drag and tap can edit an outline title on a narrow portrait canvas',
  const context=await browser.newContext({hasTouch:true,isMobile:true,deviceScaleFactor:1,viewport:{width:390,height:844}});
  try{
   const page=await context.newPage();
-  await page.goto('http://127.0.0.1:5173/');
+  await page.goto('http://127.0.0.1:5173/?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   await page.getByLabel('キャンバスの比率').selectOption('9:16');
 

@@ -6,7 +6,7 @@ test.setTimeout(120_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
 async function start(page:Page){
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await category(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('particle-smoke');
   await page.getByLabel('シード値',{exact:true}).press('Enter');

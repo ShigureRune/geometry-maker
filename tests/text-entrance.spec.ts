@@ -3,7 +3,7 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('text entrance settings animate preview independently and save completed SVG with JSON',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  const seed=await page.getByTestId('current-seed').textContent();
 
  await openSettingsCategory(page,'文字');
@@ -44,7 +44,7 @@ test('text entrance settings animate preview independently and save completed SV
 
 test('exported video duration includes slow text entrance even when figure growth is short',async({page})=>{
  test.setTimeout(120000);
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
 
  await openSettingsCategory(page,'文字');
  await page.getByLabel('表示する文字').fill('動画タイトル');

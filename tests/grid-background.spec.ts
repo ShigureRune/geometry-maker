@@ -10,7 +10,7 @@ async function openCategory(page:Page,name:string){
 import {readFile} from 'node:fs/promises';
 
 test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
 
   await openCategory(page,'アニメーション');
   await page.getByLabel('アニメーションを有効化').uncheck();
@@ -62,7 +62,7 @@ test('2D grid controls, SVG/PNG export, JSON round-trip, and 3D isolation',async
 });
 
 test('animated grid scrolls, rotates and pulses independently of shape growth',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
 
  await openCategory(page,'アニメーション');
  await page.getByLabel('アニメーションを有効化').uncheck();
@@ -103,7 +103,7 @@ test('animated grid scrolls, rotates and pulses independently of shape growth',a
 });
 
 test('grid speed is independent and follows the 0–360 degree infinite figure scroll setting',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
 
  await openCategory(page,'背景');
  await page.getByLabel('グリッド背景を有効化').check();
@@ -134,7 +134,7 @@ test('grid speed is independent and follows the 0–360 degree infinite figure s
 
 
 test('grid presets provide ready-made static and animated backgrounds',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openCategory(page,'背景');
   await page.getByRole('button',{name:'星屑ドットプリセットを適用'}).click();
   await expect(page.getByLabel('グリッド背景を有効化')).toBeChecked();

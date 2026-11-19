@@ -11,7 +11,7 @@ test('iPhone-sized WebKit can open 3D and render the live motherboard',async({pa
     if(m.type()==='error'&&/WebGLProgram|Shader Error|VALIDATE_STATUS|GLSL/.test(m.text()))
       errors.push(m.text());
   });
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   const hasWebGL2=await page.evaluate(()=>{
     const canvas=document.createElement('canvas');
     return !!canvas.getContext('webgl2');

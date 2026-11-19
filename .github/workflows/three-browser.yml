@@ -14,6 +14,7 @@ on:
       - 'src/colors.ts'
       - 'src/themes.ts'
       - 'tests/three.spec.ts'
+      - 'tests/fine-settings.spec.ts'
       - 'tests/three-spacing.spec.ts'
       - 'tests/three-sky.spec.ts'
       - 'tests/three-liminal.spec.ts'
@@ -42,7 +43,7 @@ jobs:
       matrix:
         include:
           - suite: core
-            specs: 'tests/three.spec.ts'
+            specs: 'tests/three.spec.ts tests/fine-settings.spec.ts'
           - suite: network
             specs: 'tests/neon-network.spec.ts tests/celestial.spec.ts tests/three-spacing.spec.ts tests/three-entrance.spec.ts'
           - suite: sky
@@ -59,6 +60,16 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Check 3D interaction, output, mobile touch and 2D compatibility
         run: npx playwright test ${{ matrix.specs }}
+      - name: Upload fine settings design review screenshots
+        if: ${{ always() && matrix.suite == 'core' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fine-default-ui-visual-review
+          path: |
+            test-results/fine-default-2d-desktop.png
+            test-results/fine-default-3d-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

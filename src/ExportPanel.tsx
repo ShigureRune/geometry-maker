@@ -1,3 +1,4 @@
+import {FineSections} from './FineSections';
 import {HelpInfo} from './HelpInfo';
 import { VideoPanel } from './VideoPanel';
 import { videoDefaults, videoSettings, type VideoSettings } from './video-settings';
@@ -14,8 +15,8 @@ import { downloadBlob, pngBlob, serializeArtwork } from './export';
 import { EXPORT_PRESETS, fileStem, MAX_PNG_PIXELS, MAX_SETTINGS_BYTES, parseSettings, resolutionError, settingsText, type ProjectSettings } from './settings';
 
 type Props = { textOverlay:TextOverlaySettings; magicSettings?:MagicCircleSettings; videoArtwork: VideoArtwork; version:AlgorithmVersion; animation:AnimationSettings; density:number; colorSettings?:ColorSettings; visualTheme?:VisualTheme; enabledShapeKinds?:readonly ShapeKind[]; seed: string; ratio: Ratio; background: Background; artwork: (transparentOnly?:boolean) => SVGSVGElement | null;
-  onRatio: (ratio: Ratio) => void; onRestore: (settings: ProjectSettings) => void };
-export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version, animation, density, colorSettings, visualTheme, enabledShapeKinds, seed, ratio, background, artwork, onRatio, onRestore }: Props) {
+  onRatio: (ratio: Ratio) => void; onRestore: (settings: ProjectSettings) => void; finePreview?:boolean };
+export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version, animation, density, colorSettings, visualTheme, enabledShapeKinds, seed, ratio, background, artwork, onRatio, onRestore, finePreview=false }: Props) {
   const [width, setWidth] = useState('1920'), [height, setHeight] = useState('1080');
   const [video, setVideo] = useState<VideoSettings>({...videoDefaults});
   const [custom, setCustom] = useState(false);
@@ -62,6 +63,8 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     finally { setBusy(false); if (fileInput.current) fileInput.current.value = ''; }
   }
   return <section className="export-panel" aria-labelledby="export-heading">
+    <FineSections id="export" enabled={finePreview} items={[
+      {id:'image',label:'画像と設定ファイルの保存',detail:'PNG・SVG・JSONと解像度',content:<>
     <div className="section-heading"><h3 id="export-heading">保存・再利用</h3><span className="tiny-label">EXPORT / SETTINGS</span></div>
     <label htmlFor="export-preset">書き出し解像度</label>
     <select id="export-preset" value={!custom && EXPORT_PRESETS.some(p => p.width === w && p.height === h) ? `${w}x${h}` : 'custom'} disabled={busy}
@@ -91,6 +94,9 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
     <input ref={fileInput} type="file" accept=".json,application/json" aria-label="保存した設定ファイル" hidden disabled={busy} onChange={e => void restore(e.target.files?.[0])} />
     {error && <p className="export-error" role="alert">{error}</p>}
     <p className="export-message" role="status" aria-live="polite">{message}</p>
-    <VideoPanel settings={video} onChange={setVideo} artwork={videoArtwork} />
+    </>},
+      {id:'video',label:'動画の書き出し',detail:'動画形式・フレーム・画質',content:<><VideoPanel settings={video} onChange={setVideo} artwork={videoArtwork} />
+  </>}
+    ]}/>
   </section>;
 }

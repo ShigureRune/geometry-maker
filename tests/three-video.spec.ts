@@ -8,7 +8,7 @@ test.setTimeout(150_000);
 test('3D WebM exports a playable, animated frame-exact video and restores live preview',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview').locator('canvas')).toBeVisible();
   await openSettingsCategory(page,'書き出し');
@@ -49,7 +49,7 @@ test('3D video UI rejects unsupported encoder, validates resolution, and stays u
   await page.addInitScript(()=>{
     Object.defineProperty(window,'VideoEncoder',{configurable:true,value:undefined});
   });
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await expect(page.getByTestId('three-preview')).toBeVisible();
   await openSettingsCategory(page,'書き出し');
