@@ -40,6 +40,10 @@ on:
       - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/ui-tactile.spec.ts'
+      - 'tests/export-resolution.spec.ts'
+      - 'src/export-resolution.ts'
+      - 'src/export-resolution.test.ts'
+      - 'src/ExportPanel.tsx'
       - 'tests/studio-autosave.spec.ts'
       - 'tests/seed-vault.spec.ts'
       - 'tests/seed-explorer.spec.ts'
@@ -77,6 +81,10 @@ on:
       - 'tests/fine-settings.spec.ts'
       - 'tests/studio-ui.spec.ts'
       - 'tests/ui-tactile.spec.ts'
+      - 'tests/export-resolution.spec.ts'
+      - 'src/export-resolution.ts'
+      - 'src/export-resolution.test.ts'
+      - 'src/ExportPanel.tsx'
       - 'tests/studio-autosave.spec.ts'
       - 'tests/seed-vault.spec.ts'
       - 'tests/seed-explorer.spec.ts'
@@ -164,5 +172,27 @@ jobs:
         if: failure()
         with:
           name: tactile-ui-failures
+          path: test-results/
+          retention-days: 7
+
+  export-resolution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Unit-test export resolution logic
+        run: npx vitest run src/export-resolution.test.ts
+      - name: Browser-test export resolution UI
+        run: npx playwright test tests/export-resolution.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: export-resolution-failures
           path: test-results/
           retention-days: 7
