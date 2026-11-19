@@ -577,6 +577,7 @@ export default function App() {
     setFullFineKey(null);
     if(threeExportBusy&&next!=='export')return;
     if(next==='text'&&(renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION))return;
+    if(next==='extensions'&&renderMode!=='3d')return;
     (renderMode==='2d'?setCategory:setThreeCategory)(next);
     setSettingsOverview(false);
     setStudioFocus(false);setSidebarCollapsed(false);
@@ -626,8 +627,9 @@ export default function App() {
       version,playback.motionSeconds]);
   function completedArtwork(transparentOnly=false){return new DOMParser().parseFromString(renderToStaticMarkup(<Preview scene={scene} background={twoDBackground} transparent={version===MAGIC_ALGORITHM_VERSION&&transparentOnly} textOverlay={version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>),'image/svg+xml').documentElement as unknown as SVGSVGElement;}
   const studioCommands:StudioCommand[]=[
-    ...categories.filter(item=>item.id!=='text'||
-      (renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION))
+    ...categories.filter(item=>
+      (item.id!=='text'||(renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION))&&
+      (item.id!=='extensions'||renderMode==='3d'))
       .map(item=>({id:'open-'+item.id,title:item.label+'の設定を開く',
         description:'設定パネル / '+item.label,keywords:item.id,run:()=>goToSettings(item.id)})),
     {id:'seed',title:'新しいシードを生成',description:'ランダムな構図をすぐ生成',keywords:'random 乱数',run:randomizeSeed},
@@ -688,7 +690,8 @@ export default function App() {
         {finePreview&&<SettingsCategories variant="tabs" active={activeCategory}
           onChange={value=>{if(value)goToSettings(value);}}
           disabled={threeExportBusy?categories.map(item=>item.id):
-            renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
+            renderMode==='3d'?['text']:
+             version===MAGIC_ALGORITHM_VERSION?['text','extensions']:['extensions']}/>}
         <div className={'settings-screen'+(settingsOverview?'':' is-detail')} aria-label="設定画面">
           <section className="settings-screen-index" aria-label="設定一覧"
             inert={!settingsOverview} aria-hidden={!settingsOverview}>
@@ -702,7 +705,8 @@ export default function App() {
                 if(value===null){goToSettingsIndex();return;}
                 goToSettings(value);}}
               disabled={threeExportBusy?categories.map(item=>item.id):
-                renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION?['text']:[]}/>}
+                renderMode==='3d'?['text']:
+                version===MAGIC_ALGORITHM_VERSION?['text','extensions']:['extensions']}/>}
             <div className="studio-sidebar-resize">
               <label htmlFor="studio-sidebar-width">パネル幅</label>
               <input id="studio-sidebar-width" type="range" min={280} max={480} step={20}
@@ -722,7 +726,7 @@ export default function App() {
           <h2 className="category-title">図形</h2>
         {finePreview&&renderMode==='3d'&&<>
         <p className="fine-settings-group-heading">3D図形の細かい設定</p>
-        <ThreeShapeControls settings={threeSettings} onChange={next=>{
+        <ThreeShapeControls scope="shapes" settings={threeSettings} onChange={next=>{
           // Switching on the mode starts its one-shot assembly at t=0; ordinary
           // setting sliders preserve the current scene time.
           if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
@@ -766,7 +770,7 @@ export default function App() {
         </>},
 {id:'kinds',label:'図形の種類',detail:'2D図形・魔法陣の設定',content:<>{renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
-        {renderMode==='3d'&&!finePreview&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
+        {renderMode==='3d'&&!finePreview&&<><ThreeShapeControls scope="shapes" settings={threeSettings} onChange={next=>{
           // Switching on the mode starts its one-shot assembly at t=0; ordinary
           // setting sliders preserve the current scene time.
           if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
@@ -775,8 +779,7 @@ export default function App() {
           }
           setThreeSettings(next);
         }}/>
-          <Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
-            sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/></>}
+</>}
 
         </>},
 {id:'ratio',label:'縦横比',detail:'キャンバスの比率',content:<><section className="control-section ratio-section" aria-labelledby="ratio-heading">
@@ -811,8 +814,6 @@ export default function App() {
               '自動保存を準備中…'}
         </p>
         </>},
-        ...(renderMode==='3d'&&finePreview?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
-            sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}]:[])
         ].filter(item=>!finePreview||renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
@@ -847,7 +848,24 @@ export default function App() {
           </>}
           <HelpInfo>背景の各色は「カラー」で編集できます。</HelpInfo>
         </section>},
-{id:'void',label:'VOID MODE',detail:'コズミックウェブ・無限空間',content:<VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
+{id:'sky',label:'空と景色',detail:'空・天候・地形・自然',content:<SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/>},
+{id:'floor',label:'床の模様',detail:'3D床・回路・床グリッド',content:<FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/>}
+]}/>}
+
+
+        </div>
+        <div id="panel-extensions" className="category-panel" data-category="extensions" role="region"
+          aria-labelledby="category-extensions" hidden={renderMode!=='3d'||activeCategory!=='extensions'}>
+          <h2 className="category-title">拡張</h2>
+          {renderMode==='3d'&&<ThreeShapeControls scope="extensions" settings={threeSettings} onChange={next=>{
+          // Switching on the mode starts its one-shot assembly at t=0; ordinary
+          // setting sliders preserve the current scene time.
+          if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
+            (!threeSettings.galaxy?.enabled&&next.galaxy?.enabled))){
+            setStandbyTransition(null);setStandbyFinishedSeed(null);setRegenerations(n=>n+1);
+          }
+          setThreeSettings(next);
+        }} voidControls={<VoidModeControls value={threeSettings.voidMode} disabled={threeExportBusy||!!standbyTransition} onChange={voidMode=>{
           if(voidMode.enabled!==voidEnabled||(voidMode.enabled&&voidMode.version!==voidVersion)){
             const floorTime=threeApi.current?.getFloorElapsedSeconds?.()??threeRestore.floorTime;
             if(voidMode.enabled){
@@ -858,12 +876,10 @@ export default function App() {
             setStandbyTransition(null);setStandbyFinishedSeed(!voidMode.enabled&&beforeVoid.current?.seed===seed?beforeVoid.current.complete:null);
           }
           setThreeSettings(settings=>({...settings,voidMode}));
-        }}/>},
-{id:'sky',label:'空と景色',detail:'空・天候・地形・自然',content:<SkyControls value={threeSettings.sky} onChange={sky=>setThreeSettings(settings=>({...settings,sky}))}/>},
-{id:'floor',label:'床の模様',detail:'3D床・回路・床グリッド',content:<FloorGridControls value={threeSettings.floorGrid??floorGridDefaults} onChange={floorGrid=>setThreeSettings(settings=>({...settings,floorGrid}))}/>}
-]}/>}
-
-
+        }}/>}
+            hybridControls={<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
+              sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}
+          />}
         </div>
         <div id="panel-colors" className="category-panel" data-category="colors" role="region" aria-labelledby="category-colors" hidden={activeCategory!=='colors'}>
           <h2 className="category-title">カラー</h2>
