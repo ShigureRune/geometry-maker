@@ -23,7 +23,7 @@ export const THREE_KIND_LABELS: Record<ThreeKind,string> = {
 
 type Props = {settings: ThreeSettings; onChange: (settings: ThreeSettings) => void};
 type ShapeScope = 'shapes'|'extensions';
-type GroupProps = Props & {scope?:ShapeScope;voidControls?:ReactNode;hybridControls?:ReactNode};
+type GroupProps = Props & {scope?:ShapeScope;voidControls?:ReactNode;hybridControls?:ReactNode;nebulaControls?:ReactNode};
 const FINE_SHAPE_ITEMS = [
   {id:'spacing',label:'図形の間隔',detail:'立体の位置・距離の調整'},
   {id:'kinds',label:'図形の種類',detail:'13種類の立体を選択'},
@@ -31,6 +31,7 @@ const FINE_SHAPE_ITEMS = [
   {id:'void',label:'VOID MODE · コズミックウェブ',detail:'無限空間・宇宙の大規模構造'},
   {id:'particle',label:'PARTICLE MODE · 渦巻き集合',detail:'立体を粒子で描く'},
   {id:'galaxy',label:'GALAXY MODE · 巨大銀河',detail:'巨大銀河を生成する'},
+  {id:'nebula',label:'NEBULA MODE · 星雲空間',detail:'ガス雲と発光の宇宙演出'},
   {id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成'},
   {id:'quality',label:'3D描画品質',detail:'自動・軽量・高品質'},
 ] as const;
@@ -44,7 +45,7 @@ export function ThreeRange({id, label, value, min, max, step = .05, unit = '', o
     <input id={id} type="range" min={min} max={max} step={step} value={value} aria-valuetext={`${value}${unit}`} onChange={event => onChange(Number(event.target.value))}/>
   </div>;
 }
-export function ThreeShapeControls({settings,onChange,scope='shapes',voidControls,hybridControls}: GroupProps) {
+export function ThreeShapeControls({settings,onChange,scope='shapes',voidControls,hybridControls,nebulaControls}: GroupProps) {
   const fineItems=FINE_SHAPE_ITEMS.filter(item=>
     (scope==='shapes')===SHAPE_FINE_ITEMS.includes(item.id));
   const pageKey=scope==='shapes'?'three-shapes':'three-extensions';
@@ -95,7 +96,7 @@ export function ThreeShapeControls({settings,onChange,scope='shapes',voidControl
         <div className="studio-setting-label studio-setting-heading"><h3>{scope==='shapes'?'3D図形':'拡張モード'}</h3>
           <HelpInfo>{scope==='shapes'
             ?'13種類の立体から生成します。図形の種類だけ変えても位置・シード・密度は維持されます。'
-            :'VOID・粒子・銀河・2D×3Dの特殊モードをまとめています。各モードの切り替えは詳細画面で行えます。'}</HelpInfo>
+             :'VOID・粒子・銀河・星雲・2D×3Dをまとめています。星雲はほかのモードと併用できます。'}</HelpInfo>
         </div>
         {finePreview&&<nav className="fine-settings-overview" aria-label={scope==='shapes'?'3D図形の細かい設定':'拡張モードの細かい設定'}>
           <p className="fine-settings-caption">{scope==='extensions'
@@ -110,6 +111,7 @@ export function ThreeShapeControls({settings,onChange,scope='shapes',voidControl
               <small>{item.detail}{item.id==='particle'? ' · 現在'+(particle.enabled?'ON':'OFF'):
                 item.id==='galaxy'?' · 現在'+(galaxy.enabled?'ON':'OFF'):
                 item.id==='void'?' · 現在'+(settings.voidMode?.enabled?'ON':'OFF'):
+                item.id==='nebula'?' · 現在'+(settings.nebula?.enabled?'ON':'OFF'):
                 item.id==='hybrid'?' · 現在'+(settings.hybrid2D?.enabled?'ON':'OFF'):''}</small>
             </span>
             <span className="fine-settings-chevron" aria-hidden="true">›</span>
@@ -431,6 +433,7 @@ export function ThreeShapeControls({settings,onChange,scope='shapes',voidControl
     <HelpInfo>軽量設定では解像度・曲面の分割数を抑え、影とブルームを省略します。図形の配置と色は維持します。</HelpInfo>
     </div>
     </>}
+    {scope==='extensions'&&<div className="fine-settings-structural" data-fine-item="nebula">{nebulaControls}</div>}
     {scope==='extensions'&&<div className="fine-settings-structural" data-fine-item="hybrid">
       {hybridControls}
     </div>}
