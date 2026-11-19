@@ -8,7 +8,7 @@ test.setTimeout(75_000);
 test('iPhone-size WebKit Studio v2 dock, command search and focus navigation',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   const dock=page.getByRole('navigation',{name:'モバイルクイック操作'});
   await expect(dock).toBeVisible();
@@ -67,7 +67,7 @@ test('iPhone-size WebKit Studio v2 dock, command search and focus navigation',as
 });
 
 test('iPhone-size Safari/WebKit restores the same scene after reload',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('safari-reload-keeps-work');
   await page.getByLabel('クイック比率').selectOption('9:16');

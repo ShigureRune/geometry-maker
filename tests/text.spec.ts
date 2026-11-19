@@ -3,7 +3,7 @@ import {test,expect} from '@playwright/test';
 import {readFile} from 'node:fs/promises';
 
 test('text editor is reflected in preview, SVG and JSON without changing seed',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  // Geometry comparisons must use a stable frame, not partially grown paths.
  await openSettingsCategory(page,'アニメーション');
  await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
@@ -53,7 +53,7 @@ test('text editor is reflected in preview, SVG and JSON without changing seed',a
 
 
 test('text colors track figure colors and glow survives SVG and JSON export',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  // Geometry comparisons must use a stable frame, not partially grown paths.
  await openSettingsCategory(page,'アニメーション');
  await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();
@@ -95,7 +95,7 @@ test('text colors track figure colors and glow survives SVG and JSON export',asy
 
 
 test('one-click hollow neon creates outline-only SVG, exports settings and restores them',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
  // Geometry comparisons must use a stable frame, not partially grown paths.
  await openSettingsCategory(page,'アニメーション');
  await page.getByLabel('アニメーションを有効化',{exact:true}).uncheck();

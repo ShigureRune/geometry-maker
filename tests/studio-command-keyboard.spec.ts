@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 
 test('command palette supports arrow selection and Enter activation',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   await expect(search).toBeFocused();
@@ -21,7 +21,7 @@ test('command palette supports arrow selection and Enter activation',async({page
 });
 
 test('filtering resets keyboard selection and empty search does not execute',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   await search.press('ArrowDown');
@@ -35,7 +35,7 @@ test('filtering resets keyboard selection and empty search does not execute',asy
 });
 
 test('keyboard navigation highlights and scrolls the selected command into view',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   const items=page.locator('.studio-command-result');
@@ -52,7 +52,7 @@ test('keyboard navigation highlights and scrolls the selected command into view'
 
 
 test('command search announces result counts to assistive technology',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'コマンド検索'}).click();
   const search=page.getByRole('searchbox',{name:'コマンドを検索'});
   const status=page.getByRole('status');
