@@ -47,7 +47,7 @@ export function ThreeExportPanel({api, seed, ready,project,onRestore,onBusyChang
     finally {setBusy(false);}
   }
   return <section className="control-section three-controls three-export" aria-labelledby="three-export-heading">
-   <FineSections id="export" enabled={finePreview} items={[
+   <FineSections id="export-3d" label="書き出し" enabled={finePreview} items={[
      {id:'image',label:'3D画像の保存',detail:'PNG・解像度・サイズ',content:<>
     <h3 id="three-export-heading">3D画像・動画の保存</h3>
     <HelpInfo>現在の視点・姿勢・背景・発光を保存します。比率が異なる場合は構図を保って余白を追加します。高解像度はPC推奨です。</HelpInfo>
