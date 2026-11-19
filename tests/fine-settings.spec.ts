@@ -298,7 +298,7 @@ test('2D text, animation and export preserve their original controls behind fine
   const aList=animation.getByRole('navigation',{name:'細かい設定項目一覧'});
   await expect(aList.getByRole('button')).toHaveCount(2);
   await aList.getByRole('button',{name:'成長アニメーションの詳細設定を開く'}).click();
-  await expect(page.locator('#fine-sections-animation-detail').locator('[data-fine-panel="growth"]')).toBeVisible();
+  await expect(page.locator('#fine-sections-animation-2d-detail').locator('[data-fine-panel="growth"]')).toBeVisible();
 
   await openSettingsCategory(page,'書き出し');
   const exp=page.locator('#fine-sections-export');
