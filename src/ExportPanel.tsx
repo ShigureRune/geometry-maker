@@ -109,7 +109,7 @@ export function ExportPanel({ textOverlay, magicSettings, videoArtwork, version,
       <label htmlFor="export-height">高さ (px)<input id="export-height" type="number" min="256" max="8192" step="1" inputMode="numeric" value={height} disabled={busy} aria-invalid={!!invalid} aria-describedby="resolution-feedback" onChange={e=>changeDimension('height',e.target.value)} /></label>
     </div>
     <p className="export-resolution-summary" aria-live="polite">{megapixels?megapixels+' MP · ':''}{lockRatio?'縦横比を固定中':'幅と高さを個別に編集できます'}。縦横の入れ替えはキャンバスの構図を変更しません。</p>
-    {dimensionHint&&<p className="export-error" role="status">{dimensionHint}</p>
+    {dimensionHint&&<p className="export-error" role="status">{dimensionHint}</p>}
     <p id="resolution-feedback" className={invalid ? 'export-error' : 'help'}>{invalid || (tooLarge ? 'PNGは合計16,777,216画素まで。SVG・設定ファイルは保存できます。' : '256〜8192px。PNGは合計16,777,216画素まで。')}</p>
     {margins && <HelpInfo>構図と書き出しの比率が異なるため、中央配置して{magicTransparent?'透明な':'背景色の'}余白を追加します。図形は変形・切り取りしません。</HelpInfo>}
     {version===MAGIC_ALGORITHM_VERSION&&<p className="help" data-testid="magic-export-info">{magicTransparent?'透過保存ON：魔法陣の線だけをアルファ付きPNG / 背景なしSVGで保存します。':'背景付き保存：魔法陣の設定から透過PNG / SVGに切り替えられます。'}</p>}
