@@ -189,7 +189,7 @@ export function SeedVaultControls({
     <div className="seed-vault-transfer">
       <button type="button" disabled={disabled||!isUsableSeed(seed)}
         onClick={()=>void copyShareLink()}>共有リンクをコピー</button>
-      <button type="button" disabled={disabled} onClick={downloadCollection}>一覧をJSON保存</button>
+      <button type="button" disabled={disabled} onClick={()=>downloadCollection(false)}>一覧をJSON保存</button>
       <label htmlFor="seed-vault-import">一覧を読み込む</label>
       <input ref={fileInput} id="seed-vault-import" aria-label="シード一覧JSONを読み込む"
         type="file" accept=".json,application/json" disabled={disabled}
