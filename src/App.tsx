@@ -683,7 +683,21 @@ export default function App() {
             </div>
             <div id="panel-shapes" className="category-panel" data-category="shapes" role="region" aria-labelledby="category-shapes" hidden={activeCategory!=='shapes'}>
           <h2 className="category-title">図形</h2>
-        <FineSections id="shapes" enabled={finePreview&&renderMode==='2d'} items={[{id:'seed',label:'シードと生成方式',detail:'シード値・アルゴリズム',content:<><section className="control-section" aria-labelledby="seed-heading">
+        {finePreview&&renderMode==='3d'&&<>
+        <p className="fine-settings-group-heading">3D図形の細かい設定</p>
+        <ThreeShapeControls settings={threeSettings} onChange={next=>{
+          // Switching on the mode starts its one-shot assembly at t=0; ordinary
+          // setting sliders preserve the current scene time.
+          if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
+            (!threeSettings.galaxy?.enabled&&next.galaxy?.enabled))){
+            setStandbyTransition(null);setStandbyFinishedSeed(null);setRegenerations(n=>n+1);
+          }
+          setThreeSettings(next);
+        }}/>
+        <p className="fine-settings-group-heading">共通設定</p>
+        </>}
+
+        <FineSections id="shapes" enabled={finePreview} items={[{id:'seed',label:'シードと生成方式',detail:'シード値・アルゴリズム',content:<><section className="control-section" aria-labelledby="seed-heading">
           <div className="section-heading"><h3 id="seed-heading"><span>01</span> シード</h3><span className="tiny-label">SEED</span></div>
           <div className="studio-setting-label">
             <label htmlFor="seed">模様の合言葉</label>
@@ -715,7 +729,7 @@ export default function App() {
         </>},
 {id:'kinds',label:'図形の種類',detail:'2D図形・魔法陣の設定',content:<>{renderMode==='2d'&&version===ALGORITHM_VERSION&&<ShapeKindControls enabled={enabledShapeKinds} onChange={setEnabledShapeKinds}/>}
         {renderMode==='2d'&&version===MAGIC_ALGORITHM_VERSION&&<MagicCircleControls value={magicSettings} onChange={setMagicSettings} seed={seed}/>}
-        {renderMode==='3d'&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
+        {renderMode==='3d'&&!finePreview&&<><ThreeShapeControls settings={threeSettings} onChange={next=>{
           // Switching on the mode starts its one-shot assembly at t=0; ordinary
           // setting sliders preserve the current scene time.
           if(next.animation&&((!threeSettings.particle?.enabled&&next.particle?.enabled)||
@@ -759,7 +773,10 @@ export default function App() {
             autosaveStatus==='unavailable'?'自動保存を利用できません。設定ファイルで保存してください。':
               '自動保存を準備中…'}
         </p>
-        </>}]}/>
+        </>},
+        ...(renderMode==='3d'?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
+            sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}]:[])
+        ].filter(item=>renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
         </div>
         <div id="panel-background" className="category-panel" data-category="background" role="region" aria-labelledby="category-background" hidden={activeCategory!=='background'}>
           <h2 className="category-title">背景</h2>
