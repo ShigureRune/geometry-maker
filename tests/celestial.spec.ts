@@ -89,7 +89,7 @@ test('celestial settings are saved, restored and render identically while paused
   const saved = JSON.parse(bytes.toString());
   expect(saved.settings.celestial.enabled).toBe(true);
   expect(saved.settings.celestial.kinds).toHaveLength(6);
-  await category(page, '図形');
+  await celestialControls(page);
   await page.getByLabel('3D天体を表示').uncheck();
   await expect(page.getByTestId('three-preview')).toHaveAttribute('data-celestial-count', '0');
   await exportControls(page, 'settings');
