@@ -1721,3 +1721,47 @@
 [data-theme=light] .studio-app .export-resolution-tools button{
   background:#e8def8;color:#513875;border-color:#ad97d2;
 }
+
+/* Seed history explorer — searchable 40-entry history with independent bookmarking.
+   Internal scrolling prevents the inspector from becoming a 40-row page. */
+.studio-app .seed-vault-history-tools{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;
+  align-items:center;margin:12px 0 9px;
+}
+.studio-app .seed-vault-history-tools label{
+  grid-column:1/-1;font-size:11px;color:var(--st-muted);
+}
+.studio-app .seed-vault-history-tools input{
+  min-width:0;width:100%;
+}
+.studio-app .seed-vault-history-tools>span{
+  font-size:10px;color:var(--st-muted);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.studio-app .seed-vault-history-results{
+  max-height:300px;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+  padding-right:3px;
+}
+.studio-app .seed-vault-history-entry{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;
+  align-items:stretch;gap:6px;min-width:0;
+}
+.studio-app .seed-vault-history-entry .seed-vault-history-recall{
+  min-width:0;display:flex;align-items:center;gap:7px;
+}
+.studio-app .seed-vault-history-recall>span{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.studio-app .seed-vault-history-recall>small{
+  flex:none;font:10px/1 sans-serif;color:#d4c6ff;
+}
+.studio-app .seed-vault-history-entry .seed-vault-history-save{
+  width:auto;min-width:65px;text-align:center;font-family:inherit;font-weight:650;
+}
+[data-theme=light] .studio-app .seed-vault-history-recall>small{color:#faf6ff}
+@media(max-width:400px){
+  .studio-app .seed-vault-history-tools{grid-template-columns:minmax(0,1fr)}
+  .studio-app .seed-vault-history-tools>span{grid-column:1}
+  .studio-app .seed-vault-history-entry .seed-vault-history-save{min-width:54px}
+}

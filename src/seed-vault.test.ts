@@ -3,7 +3,7 @@ import {
   SEED_HISTORY_LIMIT,SEED_VAULT_KEY,SEED_VAULT_LIMIT,
   deleteBookmark,emptySeedVault,exportSeedCollection,importSeedCollection,
   isUsableSeed,loadSeedVault,moveSeedHistory,parseSeedVault,recordSeed,
-  renameBookmark,saveBookmark,saveSeedVault,searchBookmarks,seedFromSearch,seedShareUrl,
+  renameBookmark,saveBookmark,saveSeedVault,searchBookmarks,searchSeedHistory,seedFromSearch,seedShareUrl,
 } from './seed-vault';
 
 describe('seed vault and shareable seed URLs',()=>{
@@ -26,6 +26,21 @@ describe('seed vault and shareable seed URLs',()=>{
     expect(v.history.length).toBe(SEED_HISTORY_LIMIT);
     expect(v.history.at(-1)).toBe('s59');
     expect(v.cursor).toBe(SEED_HISTORY_LIMIT-1);
+  });
+  it('searches the complete bounded history newest-first without changing cursor or bookmarks',()=>{
+    let vault=emptySeedVault('初期');
+    for(let i=0;i<39;i++)vault=recordSeed(vault,'Star-'+i);
+    const original=JSON.stringify(vault);
+    const all=searchSeedHistory(vault,'');
+    expect(all).toHaveLength(40);
+    expect(all[0]).toEqual({seed:'Star-38',index:39});
+    expect(all.at(-1)).toEqual({seed:'初期',index:0});
+    expect(searchSeedHistory(vault,'star-1').map(item=>item.seed)).toEqual(
+      ['Star-19','Star-18','Star-17','Star-16','Star-15','Star-14','Star-13','Star-12','Star-11','Star-10','Star-1']);
+    expect(searchSeedHistory(vault,'STAR 38')).toEqual([{seed:'Star-38',index:39}]);
+    expect(searchSeedHistory(vault,'  初期  ')).toEqual([{seed:'初期',index:0}]);
+    expect(searchSeedHistory(vault,'not found')).toEqual([]);
+    expect(JSON.stringify(vault)).toBe(original);
   });
   it('pins, renames, searches and deletes favorites with a firm capacity',()=>{
     let vault=emptySeedVault('alpha');

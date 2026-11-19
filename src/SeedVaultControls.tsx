@@ -2,7 +2,7 @@ import {useRef,useState,type ChangeEvent} from 'react';
 import {
   SEED_HISTORY_LIMIT,SEED_LABEL_LIMIT,SEED_VAULT_LIMIT,
   deleteBookmark,exportSeedCollection,importSeedCollection,isUsableSeed,
-  renameBookmark,saveBookmark,searchBookmarks,seedShareUrl,
+  renameBookmark,saveBookmark,searchBookmarks,searchSeedHistory,seedShareUrl,
   type SeedVault,
 } from './seed-vault';
 
@@ -20,11 +20,13 @@ export function SeedVaultControls({
 }:Props){
   const [name,setName]=useState('');
   const [query,setQuery]=useState('');
+  const [historyQuery,setHistoryQuery]=useState('');
   const [renaming,setRenaming]=useState<string|null>(null);
   const [renameText,setRenameText]=useState('');
   const [message,setMessage]=useState('');
   const fileInput=useRef<HTMLInputElement>(null);
   const matches=searchBookmarks(vault,query);
+  const historyMatches=searchSeedHistory(vault,historyQuery);
   const bookmarked=vault.bookmarks.some(item=>item.seed===seed);
 
   function saveCurrent(){
@@ -82,15 +84,38 @@ export function SeedVaultControls({
       <button type="button" disabled={disabled||vault.cursor>=vault.history.length-1} onClick={()=>onNavigate(1)}>次のシード →</button>
     </div>
     <details className="seed-vault-history">
-      <summary>最近のシード（最大{SEED_HISTORY_LIMIT}件）</summary>
-      <ol>
-        {vault.history.map((value,index)=>({value,index})).reverse().slice(0,8).map(item=>
-          <li key={item.index}>
-            <button type="button" disabled={disabled} aria-current={item.index===vault.cursor?'true':undefined}
-              onClick={()=>onHistoryIndex(item.index)} title={item.value}>
-              {item.value}
+      <summary>シード履歴を探す（{vault.history.length} / 最大{SEED_HISTORY_LIMIT}件）</summary>
+      <div className="seed-vault-history-tools">
+        <label htmlFor="seed-vault-history-search">履歴を検索</label>
+        <input id="seed-vault-history-search" type="search" value={historyQuery}
+          placeholder="シード名の一部で検索" onChange={event=>setHistoryQuery(event.target.value)}/>
+        <span role="status">{historyMatches.length}件表示 · 新しい順</span>
+      </div>
+      <ol className="seed-vault-history-results">
+        {historyMatches.map(item=>{
+          const saved=vault.bookmarks.some(bookmark=>bookmark.seed===item.seed);
+          return <li key={item.index} className="seed-vault-history-entry">
+            <button type="button" className="seed-vault-history-recall" disabled={disabled}
+              aria-current={item.index===vault.cursor?'true':undefined}
+              aria-label={item.seed+'の履歴を呼び出す'}
+              onClick={()=>onHistoryIndex(item.index)} title={item.seed}>
+              <span>{item.seed}</span>
+              {item.index===vault.cursor&&<small>現在</small>}
             </button>
-          </li>)}
+            <button type="button" className="seed-vault-history-save"
+              disabled={disabled||(!saved&&vault.bookmarks.length>=SEED_VAULT_LIMIT)}
+              aria-label={item.seed+'をお気に入りに保存'}
+              title={saved?'保存済みのシード':'この履歴をお気に入りに保存'}
+              onClick={()=>{
+                try{
+                  if(saved){setMessage('このシードはすでにお気に入りに保存されています。');return;}
+                  onChange(saveBookmark(vault,item.seed,item.seed.slice(0,SEED_LABEL_LIMIT)));
+                  setMessage('履歴のシードをお気に入りに保存しました。現在の作品は変更していません。');
+                }catch(error){setMessage(error instanceof Error?error.message:'履歴を保存できませんでした。');}
+              }}>{saved?'★':'☆ 保存'}</button>
+          </li>;
+        })}
+        {!historyMatches.length&&<li className="seed-vault-empty">一致する履歴がありません。</li>}
       </ol>
     </details>
     <div className="seed-vault-save">
