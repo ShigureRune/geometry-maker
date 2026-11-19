@@ -110,6 +110,23 @@ export function searchBookmarks(vault:SeedVault,query:string):SeedBookmark[]{
     return terms.every(term=>text.includes(term));
   });
 }
+/** View-only ordering: persisted bookmarks remain newest-first and unchanged. */
+export type BookmarkOrder='recent'|'name'|'seed';
+export function browseBookmarks(vault:SeedVault,query:string,order:BookmarkOrder='recent'):SeedBookmark[]{
+  const matches=searchBookmarks(vault,query);
+  if(order==='recent')return matches;
+  const compare=(a:string,b:string)=>a.localeCompare(b,'ja',{numeric:true,sensitivity:'base'});
+  return [...matches].sort((a,b)=>order==='name'
+    ?compare(a.name,b.name)||compare(a.seed,b.seed)
+    :compare(a.seed,b.seed)||compare(a.name,b.name));
+}
+
+/** A selected-only export preserves the standard JSON schema and original bookmark order.
+ * It never changes the source vault, and cannot export unknown seeds. */
+export function exportSelectedSeedCollection(vault:SeedVault,selected:ReadonlySet<string>):SeedCollection{
+  return {format:SEED_COLLECTION_FORMAT,version:1,
+    bookmarks:vault.bookmarks.filter(item=>selected.has(item.seed))};
+}
 export function exportSeedCollection(vault:SeedVault):SeedCollection{
   return {format:SEED_COLLECTION_FORMAT,version:1,bookmarks:[...vault.bookmarks]};
 }

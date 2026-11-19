@@ -3,7 +3,8 @@ import {
   SEED_HISTORY_LIMIT,SEED_VAULT_KEY,SEED_VAULT_LIMIT,
   deleteBookmark,emptySeedVault,exportSeedCollection,importSeedCollection,
   isUsableSeed,loadSeedVault,moveSeedHistory,parseSeedVault,recordSeed,
-  renameBookmark,saveBookmark,saveSeedVault,searchBookmarks,searchSeedHistory,seedFromSearch,seedShareUrl,
+  renameBookmark,saveBookmark,saveSeedVault,searchBookmarks,browseBookmarks,
+  exportSelectedSeedCollection,searchSeedHistory,seedFromSearch,seedShareUrl,
 } from './seed-vault';
 
 describe('seed vault and shareable seed URLs',()=>{
@@ -62,6 +63,32 @@ describe('seed vault and shareable seed URLs',()=>{
     expect(vault.bookmarks).toHaveLength(SEED_VAULT_LIMIT);
     expect(()=>saveBookmark(vault,'overflow','Over')).toThrow(/24/);
     expect(saveBookmark(vault,'beta','Updated').bookmarks).toHaveLength(SEED_VAULT_LIMIT);
+  });
+  it('sorts searched bookmarks without changing stored order or active seed',()=>{
+    let vault=emptySeedVault('active');
+    vault=saveBookmark(vault,'seed-10','Zebra');
+    vault=saveBookmark(vault,'seed-2','Beta');
+    vault=saveBookmark(vault,'seed-1','Alpha');
+    const before=JSON.stringify(vault);
+    expect(browseBookmarks(vault,'','recent').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
+    expect(browseBookmarks(vault,'','name').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
+    expect(browseBookmarks(vault,'','seed').map(item=>item.seed)).toEqual(['seed-1','seed-2','seed-10']);
+    expect(browseBookmarks(vault,'SEED-2','name')).toEqual([{seed:'seed-2',name:'Beta'}]);
+    expect(JSON.stringify(vault)).toBe(before);
+  });
+  it('exports only selected known bookmarks in compatible original order',()=>{
+    let vault=emptySeedVault('active');
+    vault=saveBookmark(vault,'one','First');
+    vault=saveBookmark(vault,'two','Second');
+    vault=saveBookmark(vault,'three','Third');
+    const before=JSON.stringify(vault);
+    const exported=exportSelectedSeedCollection(vault,new Set(['one','three','unknown']));
+    expect(exported.bookmarks).toEqual([{seed:'three',name:'Third'},{seed:'one',name:'First'}]);
+    expect(exportSelectedSeedCollection(vault,new Set()).bookmarks).toEqual([]);
+    const imported=importSeedCollection(emptySeedVault('other'),exported);
+    expect(imported.added).toBe(2);
+    expect(imported.vault.history).toEqual(['other']);
+    expect(JSON.stringify(vault)).toBe(before);
   });
   it('exports only named favorites, then safely merges without touching the current seed',()=>{
     let original=emptySeedVault('active');
