@@ -1317,11 +1317,14 @@
 .studio-app{overflow-x:clip}
 .studio-app .studio-fullscreen-track{
   display:flex;align-items:flex-start;width:200%;min-width:0;
-  transform:translateX(0);
+  transform:none;
   transition:transform .43s cubic-bezier(.22,1,.36,1);
-  will-change:transform;
 }
-.studio-app .studio-fullscreen-track.is-detail{transform:translateX(-50%)}
+/* Idle must have no transform or will-change: fixed mobile docks and the
+   floating Back-to-top control otherwise become anchored to this track. */
+.studio-app .studio-fullscreen-track.is-detail{
+  transform:translateX(-50%);will-change:transform;
+}
 .studio-app .studio-fullscreen-overview,
 .studio-app .studio-fullscreen-detail{
   flex:0 0 50%;width:50%;max-width:50%;min-width:0;
