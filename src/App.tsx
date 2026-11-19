@@ -1063,22 +1063,6 @@ export default function App() {
       </section>
 
     </main>
-    <button type="button" className="studio-back-to-top" aria-label="ページの先頭に戻る"
-      title="ページの先頭に戻る" hidden={!showBackToTop} onClick={scrollToTop}>
-      <span aria-hidden="true">↑</span><small>TOP</small>
-    </button>
-    <nav className="studio-mobile-dock" aria-label="モバイルクイック操作">
-      <button type="button" onClick={goToSettingsIndex}>
-        <span aria-hidden="true">◈</span><small>設定</small></button>
-      <button type="button" onClick={randomizeSeed} disabled={threeExportBusy}>
-        <span aria-hidden="true">↻</span><small>新規</small></button>
-      <button type="button" onClick={()=>goToSettings('export')}>
-        <span aria-hidden="true">↥</span><small>保存</small></button>
-      <button type="button" aria-pressed={studioFocus} onClick={()=>setStudioFocus(v=>!v)}>
-        <span aria-hidden="true">{studioFocus?'↙':'⤢'}</span><small>{studioFocus?'戻る':'集中'}</small></button>
-      <button type="button" onClick={()=>setCommandOpen(true)}>
-        <span aria-hidden="true">⌕</span><small>探す</small></button>
-    </nav>
     <StudioCommandPalette open={commandOpen} onClose={closeCommands} commands={studioCommands}/>
     {explorerOpen&&renderMode==='2d'&&<SeedExplorerBoard
       activeSeed={seed} ratio={ratio} version={version} shapeKinds={enabledShapeKinds}
@@ -1096,6 +1080,24 @@ export default function App() {
         </div>
       </section>
     </div>
+    {/* Fixed viewport controls must stay outside the horizontally sliding overview.
+        A transformed ancestor makes position:fixed move with the page on iOS. */}
+    <button type="button" className="studio-back-to-top" aria-label="ページの先頭に戻る"
+      title="ページの先頭に戻る" hidden={!showBackToTop} onClick={scrollToTop}>
+      <span aria-hidden="true">↑</span><small>TOP</small>
+    </button>
+    <nav className="studio-mobile-dock" aria-label="モバイルクイック操作">
+      <button type="button" onClick={goToSettingsIndex}>
+        <span aria-hidden="true">◈</span><small>設定</small></button>
+      <button type="button" onClick={randomizeSeed} disabled={threeExportBusy}>
+        <span aria-hidden="true">↻</span><small>新規</small></button>
+      <button type="button" onClick={()=>goToSettings('export')}>
+        <span aria-hidden="true">↥</span><small>保存</small></button>
+      <button type="button" aria-pressed={studioFocus} onClick={()=>setStudioFocus(v=>!v)}>
+        <span aria-hidden="true">{studioFocus?'↙':'⤢'}</span><small>{studioFocus?'戻る':'集中'}</small></button>
+      <button type="button" onClick={()=>setCommandOpen(true)}>
+        <span aria-hidden="true">⌕</span><small>探す</small></button>
+    </nav>
   </div>
   </StudioFineContext.Provider>;
 }
