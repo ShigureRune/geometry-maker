@@ -18,6 +18,15 @@ export const GALAXY_PRESETS={
     irregularity:.87,coreGlow:25,dust:18,palette:'rose'}},
   interaction:{label:'相互作用・潮汐の尾',type:'interacting',overrides:{
     companionDistance:1.08,companionSize:.45,tidalStrength:.9,coreGlow:75}},
+  blueNight:{label:'青の深宇宙・シネマ',type:'grand_design',overrides:{
+    arms:3,twist:2.1,armWidth:.95,dust:25,coreGlow:110,palette:'blue',
+    radius:7.5,inclination:32,rotationSpeed:.4,darkBackground:true}},
+  roseBloom:{label:'ローズ星雲・光る星団',type:'flocculent',overrides:{
+    arms:6,clumpiness:.92,branchiness:.9,armWidth:1.9,dust:18,
+    coreGlow:60,palette:'rose',radius:6.5,inclination:18,darkBackground:true}},
+  goldenRing:{label:'黄金リング・幻想宇宙',type:'ring',overrides:{
+    ringRadius:.72,ringWidth:.07,dust:8,coreGlow:120,
+    palette:'gold',radius:7,inclination:34,darkBackground:true}},
 } as const satisfies Record<string,{label:string;type:GalaxyType;overrides:Partial<GalaxySettings>}>;
 export type GalaxyPreset=keyof typeof GALAXY_PRESETS;
 export function galaxyWithPreset(settings:GalaxySettings,key:GalaxyPreset):GalaxySettings{
