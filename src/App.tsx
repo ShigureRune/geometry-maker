@@ -888,10 +888,11 @@ export default function App() {
         </div>
         <div id="panel-animation" className="category-panel" data-category="animation" role="region" aria-labelledby="category-animation" hidden={activeCategory!=='animation'}>
           <h2 className="category-title">アニメーション</h2>
-        {renderMode==='2d'&&<FineSections id="animation" enabled={finePreview} items={[
+        {/* Keep the 2D animation clocks mounted but hidden while 3D is active. */}
+        <div hidden={renderMode==='3d'}><FineSections id="animation-2d" label="アニメーション" enabled={finePreview} items={[
       ...(version!==MAGIC_ALGORITHM_VERSION?[{id:'ambient',label:'自動再生・待機画面',detail:'自動切替・スクロール',content:<AmbientControls input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} settings={ambient} onChange={setAmbient} clock={ambientClock}/>}]:[]),
       {id:'growth',label:'成長アニメーション',detail:'速度・動き・再生',content:<AnimationControls settings={animation} onChange={setAnimation} playback={playback} version={version}/>}
-    ]}/>}
+    ]}/></div>
         {renderMode==='3d'&&<FineSections id="animation" enabled={finePreview} items={[
 {id:'motion',label:'図形の動き',detail:'回転・登場・消える演出',content:<ThreeAnimationControls settings={threeSettings} onChange={setThreeSettings} seed={seed} onReplay={()=>{setStandbyFinishedSeed(null);setThreeSettings(current=>({...current,animation:true}));setRegenerations(n=>n+1);}}/>
           },
