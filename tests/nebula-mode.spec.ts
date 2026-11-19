@@ -18,6 +18,7 @@ test('NEBULA presets and custom colors render, autosave and reload without repla
   await page.getByLabel('星雲プリセット').selectOption('pink_bloom');
   await expect(page.getByRole('checkbox',{name:'NEBULA MODEを有効化'})).toBeChecked();
   await expect(preview).toHaveAttribute('data-nebula-mode','on');
+  await expect(preview).toHaveAttribute('data-nebula-renderer','3d-worldspace-cloud');
   await expect(preview).toHaveAttribute('data-nebula-preset','pink_bloom');
   await expect(page.locator('#nebula-density')).toHaveValue('65');
   await page.locator('#nebula-density').fill('70');
@@ -62,6 +63,8 @@ test('NEBULA coexists with GALAXY and PARTICLE on iPhone without moving the fixe
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-galaxy-mode','on');
   await expect(preview).toHaveAttribute('data-nebula-mode','on');
+  await expect(preview).toHaveAttribute('data-nebula-renderer','3d-worldspace-cloud');
+  await expect(preview).toHaveAttribute('data-nebula-cloudlets','1600');
   await page.keyboard.press('Escape');
   await nav.getByRole('button',{name:'PARTICLE MODE · 渦巻き集合の詳細設定を開く'}).click();
   await page.getByRole('checkbox',{name:'PARTICLE MODEを有効化'}).check();

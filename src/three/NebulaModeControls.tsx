@@ -17,7 +17,7 @@ export function NebulaModeControls({value,onChange}:{
         onChange={event=>onChange({...nebula,enabled:event.target.checked})}/>
       空間に星雲を追加する
     </label>
-    <p className="help">通常の図形・VOID・GALAXY・PARTICLE・2D×3Dハイブリッドと同時に使える軽量な星雲レイヤーです。</p>
+    <p className="help">通常の図形・VOID・GALAXY・PARTICLE・2D×3Dハイブリッドと同時に使える3D空間に配置した、カメラを動かすと視差が変わる立体的な星雲です。</p>
     <label htmlFor="nebula-preset">星雲プリセット</label>
     <select id="nebula-preset" aria-label="星雲プリセット" value={nebula.preset}
       onChange={event=>{
@@ -60,7 +60,7 @@ export function NebulaModeControls({value,onChange}:{
       {nebula.animation&&<ThreeRange id="nebula-drift" label="星雲の流れる速度"
         value={nebula.driftSpeed} min={0} max={5} step={.05}
         onChange={driftSpeed=>edit({driftSpeed})}/>}
-      <p className="help">描画は1枚のGPUシェーダーだけを使います。軽量品質ではノイズ計算を減らし、再生停止・PNG・動画書き出しに既存の時間設定を使います。</p>
+      <p className="help">数千個の淡いガス粒子を3D空間に分散し、GPUでまとめて描きます。カメラを回転・移動すると雲の重なりや奥行きが変化します。軽量品質では粒子数を減らし、PNG・動画にも反映します。</p>
     </>}
   </section>;
 }
