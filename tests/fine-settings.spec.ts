@@ -475,3 +475,33 @@ test('mobile fullscreen detail slides without moving document scroll and has one
   await expect(choice).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeVisible();
 });
+
+
+test('mobile export detail returns sideways without categories dropping in from above',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./');
+  await openSettingsCategory(page,'書き出し');
+  const tabs=page.locator('.studio-fullscreen-overview .settings-tabs-navigation');
+  const heading=page.locator('.studio-fullscreen-overview #panel-export > .category-title');
+  const measure=()=>tabs.evaluate(node=>{
+    const style=getComputedStyle(node);
+    return {height:Math.round(node.getBoundingClientRect().height),
+      maxHeight:style.maxHeight,visibility:style.visibility,opacity:style.opacity};
+  });
+  const initial=await measure();
+  expect(initial.height).toBeGreaterThan(120);
+  expect(initial.maxHeight).toBe('none');
+  await page.getByRole('button',{name:'動画の書き出しの詳細設定を開く'}).click();
+  const detail=page.locator('.studio-fullscreen-track');
+  await expect(detail).toHaveClass(/is-detail/);
+  // The original overview must keep its layout even while offscreen.
+  expect(await measure()).toEqual(initial);
+  expect(await heading.evaluate(node=>getComputedStyle(node).display)).not.toBe('none');
+  await page.locator('.studio-fullscreen-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(detail).not.toHaveClass(/is-detail/);
+  // No delayed expansion of the seven category tabs during the return slide.
+  expect(await measure()).toEqual(initial);
+  await page.waitForTimeout(600);
+  expect(await measure()).toEqual(initial);
+  await expect(page.getByRole('button',{name:'動画の書き出しの詳細設定を開く'})).toBeInViewport();
+});
