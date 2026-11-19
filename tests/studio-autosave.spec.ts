@@ -5,7 +5,7 @@ import {STUDIO_AUTOSAVE_KEY} from '../src/studio-autosave';
 test('2D scene, colors, text and selected settings survive refreshing the page',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   const original=await page.getByLabel('シード値',{exact:true}).inputValue();
   expect(original).toMatch(/^[0-9a-f]{24}$/);
@@ -39,7 +39,7 @@ test('2D scene, colors, text and selected settings survive refreshing the page',
 test('3D mode and detailed motherboard settings survive a refresh and 2D settings remain available',async({page})=>{
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   await page.getByLabel('シード値',{exact:true}).fill('save-both-modes');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
@@ -71,7 +71,7 @@ test('corrupt or unsupported local drafts are ignored rather than crashing start
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   await page.addInitScript(key=>localStorage.setItem(key,'{"schemaVersion":999,"mode":"3d"}'),STUDIO_AUTOSAVE_KEY);
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   await expect(page.getByRole('button',{name:'2Dモード',exact:true})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByLabel('シード値',{exact:true})).toHaveValue(/^[0-9a-f]{24}$/);
@@ -82,7 +82,7 @@ test('corrupt or unsupported local drafts are ignored rather than crashing start
 });
 
 test('selected 2D motion preset survives local autosave and reload',async({page})=>{
- await page.goto('./');
+ await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
  await openSettingsCategory(page,'アニメーション');
  const control=page.getByLabel('アニメーションプリセット');

@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 
 test('seed history is committed, navigable, branched, and persists after reload',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   const original=await seed.inputValue();
@@ -44,7 +44,7 @@ test('seed history is committed, navigable, branched, and persists after reload'
 });
 
 test('bookmarks can be named, searched, recalled, renamed and deleted',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('star-vault-seed');await seed.press('Enter');
@@ -69,7 +69,7 @@ test('bookmarks can be named, searched, recalled, renamed and deleted',async({pa
 });
 
 test('named seed collections round-trip JSON without replacing the active project',async({page})=>{
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await seed.fill('json-library-seed');await seed.press('Enter');
@@ -100,7 +100,7 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
       writeText:async(text:string)=>{(window as Window & {__sharedSeedUrl?:string}).__sharedSeedUrl=text;},
     }});
   });
-  await page.goto('./?seed=shared%20seed%20%2F%2042');
+  await page.goto('./?legacy-ui=1&seed=shared%20seed%20%2F%2042');
   await openSettingsCategory(page,'図形');
   const seed=page.getByLabel('シード値',{exact:true});
   await expect(seed).toHaveValue('shared seed / 42');
