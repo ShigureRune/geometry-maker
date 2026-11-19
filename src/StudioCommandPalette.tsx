@@ -1,4 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
+import {filterCommands,normalizeCommandIds,type CommandView} from './command-workspaces';
 
 export type StudioCommand={id:string;title:string;description:string;keywords?:string;shortcut?:string;run:()=>void};
 
@@ -8,8 +9,7 @@ function readCommandIds(key:string):string[]{
   try{
     if(typeof window==='undefined')return [];
     const stored=JSON.parse(window.localStorage.getItem(key)??'[]');
-    return Array.isArray(stored)
-      ?stored.filter((id:unknown):id is string=>typeof id==='string').slice(0,20):[];
+    return normalizeCommandIds(stored);
   }catch{return [];}
 }
 function saveCommandIds(key:string,ids:string[]){
@@ -21,6 +21,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
   open:boolean;onClose:()=>void;commands:readonly StudioCommand[];
 }){
   const [query,setQuery]=useState('');
+  const [view,setView]=useState<CommandView>('all');
   const [activeIndex,setActiveIndex]=useState(0);
   const [favorites,setFavorites]=useState(()=>readCommandIds(FAVORITES_KEY));
   const [recent,setRecent]=useState(()=>readCommandIds(RECENT_KEY));
@@ -29,6 +30,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
   useEffect(()=>{
     if(!open)return;
     setQuery('');
+    setView('all');
     setActiveIndex(0);
     const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
     const frame=requestAnimationFrame(()=>input.current?.focus());
@@ -47,23 +49,13 @@ export function StudioCommandPalette({open,onClose,commands}:{
     window.addEventListener('keydown',key);
     return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',key);previous?.focus();};
   },[open,onClose]);
-  const filtered=useMemo(()=>{
-    // Separate search terms can match different parts of a command, in any order.
-    const terms=query.toLocaleLowerCase().trim().split(/\s+/u).filter(Boolean);
-    const matching=terms.length?commands.filter(item=>{
-      const text=[item.title,item.description,item.keywords??''].join(' ').toLocaleLowerCase();
-      return terms.every(term=>text.includes(term));
-    }):[...commands];
-    // Preserve the original command order for normal search, but make common
-    // actions fast to reach whenever the search box is empty.
-    if(terms.length)return matching;
-    return matching.sort((a,b)=>{
-      const favorited=Number(favorites.includes(b.id))-Number(favorites.includes(a.id));
-      if(favorited)return favorited;
-      const aRecent=recent.indexOf(a.id),bRecent=recent.indexOf(b.id);
-      return (aRecent<0?100:aRecent)-(bRecent<0?100:bRecent);
-    });
-  },[commands,query,favorites,recent]);
+  const filtered=useMemo(()=>filterCommands(commands,query,view,favorites,recent),
+    [commands,query,view,favorites,recent]);
+  const selectView=(next:CommandView)=>{setView(next);setActiveIndex(0);};
+  const clearRecents=()=>{
+    setRecent([]);saveCommandIds(RECENT_KEY,[]);setActiveIndex(0);
+    input.current?.focus();
+  };
   useEffect(()=>{
     if(!open||!filtered.length)return;
     const index=Math.min(activeIndex,filtered.length-1);
@@ -112,8 +104,16 @@ export function StudioCommandPalette({open,onClose,commands}:{
             event.preventDefault();execute(filtered[selectedIndex]);
           }
         }}/>
+      <div className="studio-command-workspaces" role="group" aria-label="コマンドの表示範囲">
+        {([
+          ['all','すべて'],['favorites','★ お気に入り'],['recent','最近使った操作'],
+        ] as const).map(([id,label])=><button key={id} type="button"
+          aria-pressed={view===id} onClick={()=>selectView(id)}>{label}</button>)}
+      </div>
       <div className="studio-command-actions">
-        <span>★ {favorites.length} 件のお気に入り</span>
+        <span>★ {favorites.length} 件のお気に入り · 履歴 {recent.length} 件</span>
+        {view==='recent'&&recent.length>0&&<button type="button" onClick={clearRecents}
+          aria-label="最近使った操作の履歴を消去">履歴を消去</button>}
         <button type="button" disabled={!filtered.length}
           aria-pressed={filtered.length?favorites.includes(filtered[selectedIndex].id):false}
           onClick={()=>{if(filtered.length)toggleFavorite(filtered[selectedIndex].id);}}>
@@ -131,7 +131,7 @@ export function StudioCommandPalette({open,onClose,commands}:{
           <span className="studio-command-result-label"><strong>{command.title}</strong>
             <small>{command.description}</small></span>
           {command.shortcut&&<kbd>{command.shortcut}</kbd>}
-        </button>):<p className="studio-command-empty">一致する操作がありません。別のキーワードを試してみてね。</p>}
+        </button>):<p className="studio-command-empty">{view==='favorites'&&!favorites.length?'お気に入りはまだありません。すべてから★で登録できます。':view==='recent'&&!recent.length?'最近使った操作はまだありません。':'一致する操作がありません。別のキーワードを試してみてね。'}</p>}
       </div>
       <div className="studio-command-footer"><span>↑↓・PageUp/Down・Home/End で選択 · Enter で実行</span><span>Esc で閉じる</span></div>
     </section>
