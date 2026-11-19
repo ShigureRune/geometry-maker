@@ -47,3 +47,32 @@ test('2D export preset and invalid input remain safe with aspect lock',async({pa
   await expect(height).toHaveValue('1080');
   await expect(lock).toBeChecked();
 });
+
+test('2D export scales sizes and fits oversized PNG without changing composition',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./');
+  const seed=await page.getByTestId('current-seed').textContent();
+  await openSettingsCategory(page,'書き出し');
+  await page.getByRole('button',{name:'画像と設定ファイルの保存の詳細設定を開く'}).click();
+  const width=page.locator('#export-width'),height=page.locator('#export-height');
+  const tools=page.getByRole('group',{name:'書き出し解像度の一括調整'});
+  await tools.getByRole('button',{name:'½ サイズ'}).click();
+  await expect(width).toHaveValue('960');
+  await expect(height).toHaveValue('540');
+  await tools.getByRole('button',{name:'2倍サイズ'}).click();
+  await expect(width).toHaveValue('1920');
+  await expect(height).toHaveValue('1080');
+  await width.fill('8192');await height.fill('8192');
+  await expect(page.getByRole('button',{name:'PNGを書き出す'})).toBeDisabled();
+  await tools.getByRole('button',{name:'PNG上限に合わせる'}).click();
+  await expect(width).toHaveValue('4096');
+  await expect(height).toHaveValue('4096');
+  await expect(page.getByRole('button',{name:'PNGを書き出す'})).toBeEnabled();
+  await expect(tools.getByRole('button',{name:'2倍サイズ'})).toBeEnabled();
+  await tools.getByRole('button',{name:'2倍サイズ'}).click();
+  await expect(tools.getByRole('button',{name:'2倍サイズ'})).toBeDisabled();
+  await expect(page.getByTestId('current-seed')).toHaveText(seed!);
+  expect(errors).toEqual([]);
+});

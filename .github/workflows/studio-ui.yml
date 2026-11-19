@@ -14,6 +14,9 @@ on:
       - 'src/main.tsx'
       - 'src/studio-redesign.css'
       - 'src/StudioCommandPalette.tsx'
+      - 'src/command-workspaces.ts'
+      - 'src/command-workspaces.test.ts'
+      - 'tests/command-workspaces.spec.ts'
       - 'src/SeedVaultControls.tsx'
       - 'src/SeedExplorerBoard.tsx'
       - 'src/seed-explorer.ts'
@@ -52,6 +55,9 @@ on:
       - 'tests/seed-vault.spec.ts'
       - 'tests/seed-history-explorer.spec.ts'
       - 'tests/seed-explorer.spec.ts'
+      - 'tests/explorer-timeline.spec.ts'
+      - 'src/explorer-timeline.ts'
+      - 'src/explorer-timeline.test.ts'
       - '.github/workflows/studio-ui.yml'
   pull_request:
     paths:
@@ -60,6 +66,9 @@ on:
       - 'src/main.tsx'
       - 'src/studio-redesign.css'
       - 'src/StudioCommandPalette.tsx'
+      - 'src/command-workspaces.ts'
+      - 'src/command-workspaces.test.ts'
+      - 'tests/command-workspaces.spec.ts'
       - 'src/SeedVaultControls.tsx'
       - 'src/SeedExplorerBoard.tsx'
       - 'src/seed-explorer.ts'
@@ -98,6 +107,9 @@ on:
       - 'tests/seed-vault.spec.ts'
       - 'tests/seed-history-explorer.spec.ts'
       - 'tests/seed-explorer.spec.ts'
+      - 'tests/explorer-timeline.spec.ts'
+      - 'src/explorer-timeline.ts'
+      - 'src/explorer-timeline.test.ts'
       - '.github/workflows/studio-ui.yml'
   workflow_dispatch:
 
@@ -117,7 +129,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Test Studio v2 desktop and iPhone-size UI
-        run: npx playwright test tests/studio-ui.spec.ts tests/studio-autosave.spec.ts tests/seed-vault.spec.ts tests/seed-explorer.spec.ts tests/seed-history-explorer.spec.ts
+        run: npx playwright test tests/studio-ui.spec.ts tests/studio-autosave.spec.ts tests/seed-vault.spec.ts tests/seed-explorer.spec.ts tests/seed-history-explorer.spec.ts tests/command-workspaces.spec.ts tests/explorer-timeline.spec.ts
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

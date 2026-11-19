@@ -49,3 +49,25 @@ export function explorerSelection(seeds:readonly string[],a:number|null,b:number
     index>=0&&index<seeds.length;
   return {a:valid(a)?seeds[a!]:null,b:valid(b)?seeds[b!]:null};
 }
+
+/** Plan a non-destructive, capacity-aware batch of new favorites in gallery order.
+ * Never modifies the original vault or its history/cursor. */
+export function planExplorerFavorites(
+  candidates:readonly string[],selected:ReadonlySet<string>,
+  existing:readonly string[],capacity:number,
+):{seeds:string[];alreadySaved:number;skippedFull:number}{
+  const known=new Set(existing);
+  const seen=new Set<string>();
+  const seeds:string[]=[];
+  let alreadySaved=0,skippedFull=0;
+  const remaining=Math.max(0,Math.floor(Number.isFinite(capacity)?capacity:0)-known.size);
+  for(const seed of candidates){
+    if(!selected.has(seed)||!isUsableSeed(seed)||seen.has(seed))continue;
+    seen.add(seed);
+    if(known.has(seed)){alreadySaved++;continue;}
+    known.add(seed);
+    if(seeds.length<remaining)seeds.push(seed);
+    else skippedFull++;
+  }
+  return {seeds,alreadySaved,skippedFull};
+}

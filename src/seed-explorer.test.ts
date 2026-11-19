@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {explorerSelection,formatExplorerSeeds,generateExplorerSet,relatedSeed,withCurrentSeed} from './seed-explorer';
+import {explorerSelection,formatExplorerSeeds,generateExplorerSet,relatedSeed,withCurrentSeed,planExplorerFavorites} from './seed-explorer';
 
 describe('2D seed explorer selection',()=>{
   it('derives 4 or 8 deterministic distinct seeds from the same source',()=>{
@@ -45,5 +45,24 @@ describe('2D seed explorer selection',()=>{
     expect(()=>generateExplorerSet(' ',4,'related')).toThrow();
     expect(()=>generateExplorerSet('valid',10 as 4,'related')).toThrow();
     expect(()=>generateExplorerSet('valid',4,'unknown' as 'related')).toThrow();
+  });
+});
+
+describe('batch explorer favorites planner',()=>{
+  it('preserves gallery order, deduplicates and never mutates input',()=>{
+    const candidates=['a','b','b','c','d'];
+    const saved=['a'];
+    const result=planExplorerFavorites(candidates,new Set(['a','b','c','d']),saved,3);
+    expect(result).toEqual({seeds:['b','c'],alreadySaved:1,skippedFull:1});
+    expect(candidates).toEqual(['a','b','b','c','d']);
+    expect(saved).toEqual(['a']);
+  });
+  it('respects full capacity, selection and invalid seeds',()=>{
+    expect(planExplorerFavorites(['a','b',' '],new Set(['a','b',' ']),['x','y'],2))
+      .toEqual({seeds:[],alreadySaved:0,skippedFull:2});
+    expect(planExplorerFavorites(['a','b'],new Set(['b']),[],24))
+      .toEqual({seeds:['b'],alreadySaved:0,skippedFull:0});
+    expect(planExplorerFavorites(['a'],new Set(['a']),[],NaN))
+      .toEqual({seeds:[],alreadySaved:0,skippedFull:1});
   });
 });
