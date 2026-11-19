@@ -431,12 +431,15 @@ test('mobile fullscreen detail slides without moving document scroll and has one
   await page.goto('./');
   const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
   await choice.scrollIntoViewIfNeeded();
-  await page.evaluate(()=>window.scrollTo({top:350,behavior:'instant'}));
-  await choice.scrollIntoViewIfNeeded();
-  const previousScroll=await page.evaluate(()=>window.scrollY);
-  expect(previousScroll).toBeGreaterThan(100);
-
+  await expect(choice).toBeInViewport();
+  // A browser automation click can scroll the element into view *before*
+  // firing click. Measure at event dispatch, not at an earlier forced offset.
+  await choice.evaluate(element=>element.addEventListener('click',()=>{
+    Reflect.set(window,'__fineScrollAtClick',window.scrollY);
+  },{capture:true,once:true}));
   await choice.click();
+  const previousScroll=await page.evaluate(()=>Number(Reflect.get(window,'__fineScrollAtClick')));
+  expect(previousScroll).toBeGreaterThan(100);
   const full=page.locator('.studio-fullscreen-track');
   const overview=page.locator('.studio-fullscreen-overview');
   const detail=page.locator('.studio-fullscreen-detail');
