@@ -1065,7 +1065,9 @@ export default function App() {
             </select>
           </label>
           <label className="studio-quick-field studio-quick-density">密度 <span>{density}%</span>
-            <input type="range" aria-label="クイック密度" disabled={threeExportBusy} min={0} max={100} step={5} value={density}
+            <input type="range" className="studio-progress-range" aria-label="クイック密度"
+              disabled={threeExportBusy} min={0} max={100} step={5} value={density}
+              style={{'--studio-range-fill':`${density}%`} as CSSProperties}
               onChange={event=>setDensity(Number(event.target.value))}/>
           </label>
           <div className="studio-quick-actions">

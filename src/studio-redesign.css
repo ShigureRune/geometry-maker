@@ -1535,3 +1535,153 @@
     display:block;
   }
 }
+
+/* Studio UI 2.2 — tactile response without layout reflow.
+   These states work on desktop + touch screens and preserve the fullscreen
+   inspector's scroll position, WebGL canvas and fixed mobile action dock. */
+.studio-app .fine-settings-choice{
+  position:relative;isolation:isolate;
+  transform:translateZ(0);
+  box-shadow:inset 0 1px 0 #fff00010,0 2px 9px #060a1426;
+  transition:
+    transform .19s cubic-bezier(.2,.78,.25,1),
+    box-shadow .19s ease,
+    border-color .16s ease,
+    background-color .16s ease;
+}
+@media(hover:hover) and (pointer:fine){
+  .studio-app .fine-settings-choice:hover:not(:disabled){
+    transform:translateY(-2px);
+    box-shadow:inset 0 1px 0 #ffffff17,0 8px 20px #070b1938;
+  }
+  .studio-app .fine-settings-choice:hover .fine-settings-chevron{
+    transform:translateX(3px);
+  }
+}
+.studio-app .fine-settings-choice:active:not(:disabled){
+  transform:scale(.984);
+  box-shadow:inset 0 2px 9px #080d1a45,0 1px 3px #080d1a22;
+}
+.studio-app .fine-settings-choice:focus-visible{
+  outline:2px solid #d1b9ff;
+  outline-offset:3px;
+  border-color:#c4adff;
+}
+.studio-app .fine-settings-chevron{
+  transition:transform .2s cubic-bezier(.16,1,.3,1);
+}
+.studio-app .studio-controls .settings-tabs-navigation button,
+.studio-app .studio-global-back,
+.studio-app .fine-sections-back button,
+.studio-app .fine-settings-back button{
+  transition:transform .14s cubic-bezier(.2,.8,.2,1),
+    border-color .16s ease,box-shadow .16s ease,background-color .16s ease;
+}
+.studio-app .studio-controls .settings-tabs-navigation button:active:not(:disabled),
+.studio-app .studio-global-back:active:not(:disabled),
+.studio-app .fine-sections-back button:active:not(:disabled),
+.studio-app .fine-settings-back button:active:not(:disabled){
+  transform:scale(.97);
+}
+@media(hover:hover) and (pointer:fine){
+  .studio-app .studio-controls .settings-tabs-navigation button:hover:not(:disabled){
+    border-color:#ac93f6;
+    box-shadow:0 0 0 1px #ab93ff33;
+  }
+}
+.studio-app .studio-controls .settings-tabs-navigation button[aria-pressed="true"]{
+  box-shadow:inset 0 1px 0 #fff2,0 0 0 1px #a887f35b;
+}
+/* The progression is supplied by the range's actual controlled React value.
+   Track, thumb and output respond in the same frame; no JS animation loops. */
+.studio-app .studio-progress-range{
+  -webkit-appearance:none;appearance:none;
+  background:transparent;
+  cursor:ew-resize;
+  accent-color:#baa4ff;
+}
+.studio-app .studio-progress-range::-webkit-slider-runnable-track{
+  height:8px;
+  border-radius:999px;
+  border:1px solid #66718c55;
+  background:linear-gradient(90deg,
+    #bfa8ff 0 var(--studio-range-fill,50%),
+    #3b465c var(--studio-range-fill,50%) 100%);
+  box-shadow:inset 0 1px 3px #080e1a66;
+}
+.studio-app .studio-progress-range::-moz-range-track{
+  height:8px;border-radius:999px;
+  border:1px solid #66718c55;background:#3b465c;
+  box-shadow:inset 0 1px 3px #080e1a66;
+}
+.studio-app .studio-progress-range::-moz-range-progress{
+  height:8px;border-radius:999px;background:#bfa8ff;
+}
+.studio-app .studio-progress-range::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:23px;height:23px;
+  margin-top:-8px;
+  border:3px solid #f5f0ff;border-radius:50%;
+  background:#9a77ec;
+  box-shadow:0 2px 9px #03071455,0 0 0 2px #9d86db33;
+  transition:box-shadow .16s ease,transform .16s ease;
+}
+.studio-app .studio-progress-range::-moz-range-thumb{
+  width:17px;height:17px;
+  border:3px solid #f5f0ff;border-radius:50%;
+  background:#9a77ec;
+  box-shadow:0 2px 9px #03071455,0 0 0 2px #9d86db33;
+  transition:box-shadow .16s ease,transform .16s ease;
+}
+.studio-app .studio-progress-range:focus-visible{
+  outline:2px solid #c7b6ff;outline-offset:1px;border-radius:8px;
+}
+.studio-app .studio-progress-range:disabled{cursor:not-allowed;opacity:.48}
+.studio-app .three-range:focus-within output,
+.studio-app .studio-quick-density:focus-within>span{
+  color:#e0cdff;
+}
+.studio-app .studio-controls :is(.three-checkbox,.glow-toggle,.text-checkbox){
+  transition:background-color .17s ease,border-color .17s ease,
+    box-shadow .17s ease,transform .16s cubic-bezier(.2,.8,.2,1);
+}
+.studio-app .studio-controls :is(.three-checkbox,.glow-toggle,.text-checkbox):has(input:checked){
+  box-shadow:inset 0 1px 0 #fff1,0 0 0 1px #a687ef14;
+}
+.studio-app .studio-controls :is(.three-checkbox,.glow-toggle,.text-checkbox):active{
+  transform:scale(.992);
+}
+@media(max-width:720px){
+  .studio-app .studio-mobile-dock button{
+    transition:transform .17s cubic-bezier(.2,.8,.2,1),background-color .15s ease;
+  }
+  .studio-app .studio-mobile-dock button:active:not(:disabled){
+    transform:scale(.94);
+  }
+}
+[data-theme=light] .studio-app .studio-progress-range::-webkit-slider-runnable-track{
+  background:linear-gradient(90deg,
+    #8d69ca 0 var(--studio-range-fill,50%),
+    #d2d4e4 var(--studio-range-fill,50%) 100%);
+}
+[data-theme=light] .studio-app .studio-progress-range::-moz-range-track{background:#d2d4e4}
+[data-theme=light] .studio-app .studio-progress-range::-moz-range-progress{background:#8d69ca}
+[data-theme=light] .studio-app .studio-progress-range::-webkit-slider-thumb{
+  background:#7954bd;border-color:#fff;
+}
+[data-theme=light] .studio-app .studio-progress-range::-moz-range-thumb{
+  background:#7954bd;border-color:#fff;
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .fine-settings-choice:active,
+  .studio-app .fine-settings-choice:hover,
+  .studio-app .studio-controls .settings-tabs-navigation button:active,
+  .studio-app .studio-global-back:active,
+  .studio-app .fine-sections-back button:active,
+  .studio-app .fine-settings-back button:active,
+  .studio-app .studio-controls :is(.three-checkbox,.glow-toggle,.text-checkbox):active,
+  .studio-app .studio-mobile-dock button:active{
+    transform:none!important;
+  }
+  .studio-app .fine-settings-chevron{transition:none!important;transform:none!important}
+}
