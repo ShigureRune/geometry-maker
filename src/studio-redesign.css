@@ -1408,11 +1408,12 @@
 .studio-app .studio-fullscreen-track.is-detail .studio-fullscreen-overview{
   height:100dvh;min-height:100dvh;overflow:hidden;
 }
-/* Fixed controls in a transformed ancestor are positioned relative to that
-   ancestor (especially in iOS Safari). Hide them on the destination page
-   instead of leaving a clipped dock and floating TOP button on its left edge. */
-.studio-app .studio-fullscreen-track.is-detail .studio-mobile-dock,
-.studio-app .studio-fullscreen-track.is-detail .studio-back-to-top{
+/* Viewport-fixed controls now live outside the animated overview, so
+   Safari cannot move them sideways with the transformed page. Hide them
+   while the dedicated detail viewport is active; show them at the same
+   fixed bottom/right coordinates immediately on return. */
+.studio-app:has(.studio-fullscreen-track.is-detail) > .studio-mobile-dock,
+.studio-app:has(.studio-fullscreen-track.is-detail) > .studio-back-to-top{
   display:none!important;
 }
 .studio-app .studio-global-detail-head{

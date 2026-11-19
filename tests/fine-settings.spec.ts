@@ -505,3 +505,45 @@ test('mobile export detail returns sideways without categories dropping in from 
   expect(await measure()).toEqual(initial);
   await expect(page.getByRole('button',{name:'動画の書き出しの詳細設定を開く'})).toBeVisible();
 });
+
+
+test('viewport-fixed bottom dock never slides with the returning overview',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./');
+  const dock=page.locator('.studio-app > .studio-mobile-dock');
+  const top=page.locator('.studio-app > .studio-back-to-top');
+  // Both floating controls must be siblings of the animated page, not
+  // descendants of .studio-fullscreen-overview or its transform.
+  await expect(dock).toHaveCount(1);
+  await expect(top).toHaveCount(1);
+  await expect(page.locator('.studio-fullscreen-track .studio-mobile-dock')).toHaveCount(0);
+  await expect(page.locator('.studio-fullscreen-track .studio-back-to-top')).toHaveCount(0);
+  const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
+  await choice.scrollIntoViewIfNeeded();
+  await expect(dock).toBeVisible();
+  const measure=()=>dock.evaluate(node=>{
+    const rect=node.getBoundingClientRect();
+    return {left:rect.left,bottom:window.innerHeight-rect.bottom,
+      position:getComputedStyle(node).position};
+  });
+  const before=await measure();
+  expect(before.position).toBe('fixed');
+  await choice.click();
+  await expect(page.locator('.studio-fullscreen-track')).toHaveClass(/is-detail/);
+  await expect(dock).toBeHidden();
+  await page.locator('.studio-fullscreen-detail').getByRole('button',{name:'細かい設定一覧へ'}).click();
+  await expect(dock).toBeVisible();
+  const atStart=await measure();
+  expect(atStart.position).toBe('fixed');
+  expect(Math.abs(atStart.left-before.left)).toBeLessThan(1);
+  expect(Math.abs(atStart.bottom-before.bottom)).toBeLessThan(1);
+  // Test again DURING the overview's 430ms return animation.
+  await page.waitForTimeout(150);
+  const during=await measure();
+  expect(Math.abs(during.left-before.left)).toBeLessThan(1);
+  expect(Math.abs(during.bottom-before.bottom)).toBeLessThan(1);
+  await page.waitForTimeout(400);
+  const after=await measure();
+  expect(Math.abs(after.left-before.left)).toBeLessThan(1);
+  expect(Math.abs(after.bottom-before.bottom)).toBeLessThan(1);
+});
