@@ -1,5 +1,6 @@
 import {HelpInfo} from './HelpInfo';
 import {FineSections} from './FineSections';
+import {StudioFineContext} from './StudioFinePages';
 import { SettingsCategories, categories, type Category } from './SettingsCategories';
 import {StudioCommandPalette, type StudioCommand} from './StudioCommandPalette';
 import {SeedExplorerBoard} from './SeedExplorerBoard';
@@ -88,6 +89,10 @@ export default function App() {
   // individual sections, not main categories, use the checkbox drill-down.
   const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
   const [settingsOverview,setSettingsOverview]=useState(!finePreview);
+  const [fullFineKey,setFullFineKey]=useState<string|null>(null);
+  const [fullFineHost,setFullFineHost]=useState<HTMLElement|null>(null);
+  const fineNavigation=useMemo(()=>({activeKey:fullFineKey,open:setFullFineKey,
+    close:()=>setFullFineKey(null),host:fullFineHost}),[fullFineKey,fullFineHost]);
   const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
   useEffect(()=>{
@@ -542,6 +547,7 @@ export default function App() {
     }catch{setSeedClipboardMessage('貼り付けできませんでした。ブラウザの権限を確認してください。');}
   }
   function goToSettings(next:Category){
+    setFullFineKey(null);
     if(threeExportBusy&&next!=='export')return;
     if(next==='text'&&(renderMode==='3d'||version===MAGIC_ALGORITHM_VERSION))return;
     (renderMode==='2d'?setCategory:setThreeCategory)(next);
@@ -555,6 +561,7 @@ export default function App() {
     }
   }
   function goToSettingsIndex(){
+    setFullFineKey(null);
     setSettingsOverview(!finePreview);
     setStudioFocus(false);setSidebarCollapsed(false);
     if(matchMedia('(max-width:720px)').matches){
@@ -612,9 +619,12 @@ export default function App() {
     {id:'3d',title:'3Dモードに切り替える',description:'WebGLキャンバスを表示',run:()=>switchRenderMode('3d')},
   ];
   const workspaceStyle={'--studio-sidebar-width':sidebarWidth+'px'} as CSSProperties;
-  return <div className={'app studio-app'+(threeExportBusy?' three-video-exporting':'')+
+  return <StudioFineContext.Provider value={fineNavigation}>
+    <div className={'app studio-app'+(threeExportBusy?' three-video-exporting':'')+
     (studioFocus?' studio-focus':'')+
     (sidebarCollapsed?' studio-sidebar-collapsed':'')}>
+    <div className={'studio-fullscreen-track'+(fullFineKey?' is-detail':'')}>
+      <div className="studio-fullscreen-overview" inert={!!fullFineKey} aria-hidden={!!fullFineKey}>
     <header className="topbar studio-topbar">
       <div className="brand"><span className="brand-mark" aria-hidden="true">◇</span><div><h1>幾何学メーカー</h1><span className="brand-sub">GEOMETRY / BACKGROUND STUDIO</span></div></div>
       <div className="render-mode-switch segmented" role="group" aria-label="描画モード">
@@ -1051,5 +1061,10 @@ export default function App() {
       onClose={closeExplorer} onSelect={selectExplorerSeed} onSave={saveExplorerFavorite}/>}
 
     <footer><span>GENERATIVE DESIGN, DETERMINISTIC BY NATURE.</span><span>2D / 3D 背景スタジオ</span></footer>
-  </div>;
+      </div>
+      <section ref={setFullFineHost} className="studio-fullscreen-detail" aria-label="設定の詳細画面"
+        inert={!fullFineKey} aria-hidden={!fullFineKey}/>
+    </div>
+  </div>
+  </StudioFineContext.Provider>;
 }
