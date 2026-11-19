@@ -116,3 +116,36 @@ test('shared seed URLs are safe, survive a reload and do not leak editor data',a
    await openSettingsCategory(page,'図形');
   await expect(seed).toHaveValue('shared seed / 42');
 });
+
+
+test('favorite library sorting, search selection and selected JSON export leave active project intact',async({page})=>{
+  const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./?legacy-ui=1');
+  await openSettingsCategory(page,'図形');
+  const seed=page.getByLabel('シード値',{exact:true});
+  for(const [value,name] of [['vault-z','Zebra'],['vault-a','Alpha'],['vault-b','Beta']] as const){
+    await seed.fill(value);await seed.press('Enter');
+    await page.getByLabel('お気に入りの名前').fill(name);
+    await page.getByRole('button',{name:'☆ 現在のシードを保存'}).click();
+  }
+  const current=await seed.inputValue();
+  const original=await page.evaluate(()=>localStorage.getItem('geometry-studio-seed-vault-v1'));
+  await page.getByLabel('お気に入りの表示順').selectOption('name');
+  const labels=await page.locator('.seed-vault-bookmarks .seed-vault-select strong').allTextContents();
+  expect(labels).toEqual(['Alpha','Beta','Zebra']);
+  await page.getByLabel('保存済みシードを検索').fill('vault-a');
+  await page.getByRole('button',{name:'表示中を選択'}).click();
+  await page.getByLabel('保存済みシードを検索').fill('');
+  await page.getByLabel('Zebraを一括書き出し対象に選択').check();
+  const download=page.waitForEvent('download');
+  await page.getByRole('button',{name:'選択したシードをJSON保存'}).click();
+  const file=await download;
+  expect(file.suggestedFilename()).toBe('geometry-maker-selected-seeds.json');
+  const parsed=JSON.parse((await readFile((await file.path())!)).toString());
+  expect(parsed).toEqual({format:'geometry-maker-seed-collection',version:1,
+    bookmarks:[{seed:'vault-a',name:'Alpha'},{seed:'vault-z',name:'Zebra'}]});
+  expect(await seed.inputValue()).toBe(current);
+  expect(await page.evaluate(()=>localStorage.getItem('geometry-studio-seed-vault-v1'))).toBe(original);
+  expect(errors).toEqual([]);
+});
