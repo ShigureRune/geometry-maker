@@ -774,7 +774,7 @@ export default function App() {
               '自動保存を準備中…'}
         </p>
         </>},
-        ...(renderMode==='3d'?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
+        ...(renderMode==='3d'&&finePreview?[{id:'hybrid',label:'2D×3D ハイブリッド',detail:'2D図形を3D空間と合成',content:<Hybrid2DControls settings={threeSettings} onChange={setThreeSettings}
             sourceLabel={version===MAGIC_ALGORITHM_VERSION?'魔法陣':version===LEGACY_ALGORITHM_VERSION?'v4（クラシック）':'v5（拡張）'}/>}]:[])
         ].filter(item=>!finePreview||renderMode==='2d'||!['explorer','kinds'].includes(item.id))}/>
         </div>
