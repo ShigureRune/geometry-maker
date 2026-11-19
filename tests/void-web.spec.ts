@@ -140,8 +140,9 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   await expect(preview).toHaveAttribute('data-particle-type','cosmic-web');
   await category(page,'拡張');
   await expect(page.getByLabel('シード変更時に粒子を再集合')).toBeChecked();
-  // The random seed button belongs to the figure category. Switch tabs
-  // only AFTER clicking it, then pause before costly WebGL inspection.
+  // Seed generation remains in the ordinary Shapes category, while
+  // particle transition settings now live under Extensions.
+  await category(page,'図形');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','transition');
   await category(page,'アニメーション');
