@@ -86,7 +86,7 @@ export default function App() {
   const activeCategory=renderMode==='2d'?category:threeCategory;
   // Fine-detail prototype: keep the seven main categories as compact tabs;
   // individual sections, not main categories, use the checkbox drill-down.
-  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('fine-preview')==='1';
+  const finePreview=typeof window!=='undefined'&&new URLSearchParams(window.location.search).get('legacy-ui')!=='1';
   const [settingsOverview,setSettingsOverview]=useState(!finePreview);
   const settingsNavigationInitialized=useRef(false);
   const [showBackToTop,setShowBackToTop]=useState(false);
