@@ -11,7 +11,7 @@ test('standby morph and repeated entrances coexist with connected neon wires',as
     if(msg.type()==='error'&&/WebGL|Shader|Buffer|RangeError/.test(msg.text()))
       errors.push(msg.text());
   });
-  await page.goto('./');
+  await page.goto('./?legacy-ui=1');
   await page.getByRole('button',{name:'3Dモード',exact:true}).click();
   await category(page,'図形');
   await page.getByLabel('3D描画品質').selectOption('low');
