@@ -392,7 +392,7 @@ test('fine navigation uses full-width sliding pages with no navigation checkboxe
   await expect(wholeScreen).toHaveClass(/is-detail/);
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','true');
   await expect(page.locator('.studio-fullscreen-overview .studio-preview-panel')).toHaveCount(1);
-  const distance=await wholeScreen.evaluate(element=>{
+  const distance=await page.locator('.studio-fullscreen-overview').evaluate(element=>{
     const transform=getComputedStyle(element).transform;
     return transform==='none'?0:Number(new DOMMatrixReadOnly(transform).m41);
   });
@@ -426,7 +426,7 @@ test('the entire desktop overview moves away, including header and live preview'
   await expect(page.locator('.studio-fullscreen-overview')).toHaveAttribute('aria-hidden','false');
 });
 
-test('mobile fullscreen detail starts at top and returns to a visible inspector list',async({page})=>{
+test('mobile fullscreen detail slides without moving document scroll and has one back button',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto('./');
   const choice=page.getByRole('button',{name:'シードと生成方式の詳細設定を開く'});
@@ -438,23 +438,37 @@ test('mobile fullscreen detail starts at top and returns to a visible inspector 
 
   await choice.click();
   const full=page.locator('.studio-fullscreen-track');
+  const overview=page.locator('.studio-fullscreen-overview');
+  const detail=page.locator('.studio-fullscreen-detail');
   await expect(full).toHaveClass(/is-detail/);
-  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(0);
-  await expect(page.getByRole('button',{name:'編集画面に戻る'})).toBeInViewport();
+  // Unlike the previous implementation, opening must not scroll the document.
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(previousScroll);
   await expect(page.getByLabel('シード値',{exact:true})).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeHidden();
   await expect(page.locator('.studio-back-to-top')).toBeHidden();
-  // Capture the completed transition rather than an in-between animation frame.
-  await expect.poll(()=>full.evaluate(node=>
+  await expect(detail.getByRole('button',{name:'編集画面に戻る'})).toHaveCount(0);
+  const back=detail.getByRole('button',{name:'細かい設定一覧へ'});
+  await expect(back).toHaveCount(1);
+  await expect(back).toBeInViewport();
+  await expect.poll(()=>overview.evaluate(node=>
     Math.round(new DOMMatrixReadOnly(getComputedStyle(node).transform).m41)
   )).toBeLessThanOrEqual(-385);
+  await expect.poll(()=>detail.evaluate(node=>
+    Math.round(new DOMMatrixReadOnly(getComputedStyle(node).transform).m41)
+  )).toBe(0);
   await mkdir('test-results',{recursive:true});
   await page.screenshot({path:'test-results/fine-default-2d-mobile-detail.png'});
 
-  await page.getByRole('button',{name:'編集画面に戻る'}).click();
+  // The detail can scroll independently without changing the editor position.
+  await detail.evaluate(node=>node.scrollTop=120);
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(previousScroll);
+  await back.click();
   await expect(full).not.toHaveClass(/is-detail/);
-  // Return directly to the inspector, with its selected item on-screen.
+  await expect.poll(()=>overview.evaluate(node=>{
+    const value=getComputedStyle(node).transform;
+    return value==='none'?0:Math.round(new DOMMatrixReadOnly(value).m41);
+  })).toBe(0);
+  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBe(previousScroll);
   await expect(choice).toBeInViewport();
   await expect(page.locator('.studio-mobile-dock')).toBeVisible();
-  await expect.poll(()=>page.evaluate(()=>window.scrollY)).toBeGreaterThan(100);
 });
