@@ -2046,3 +2046,39 @@
   .studio-app .studio-screenshot-launch,
   .studio-app .studio-screenshot-actions :is(button,a){transition:none!important;transform:none!important}
 }
+
+
+/* Share the photograph together with the exact seed used at capture time.
+   Native X integration is a system share target, not an HTML upload. */
+.studio-app .studio-screenshot-caption{
+  margin-top:15px;padding:12px 14px;border:1px solid #696789;
+  border-radius:12px;background:#1c2537;
+}
+.studio-app .studio-screenshot-caption-header{
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;
+}
+.studio-app .studio-screenshot-caption-header strong{
+  font-size:12px;color:#e7dcff;
+}
+.studio-app .studio-screenshot-caption-header button{
+  min-height:36px;padding:6px 10px;border:1px solid #9888c6;
+  border-radius:8px;background:#3a315d;color:#f2eaff;
+  font:inherit;font-size:11px;font-weight:650;
+}
+.studio-app .studio-screenshot-caption p{
+  margin:10px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;
+  font-size:12px;line-height:1.6;color:#e1e4f2;
+}
+.studio-app .studio-screenshot-x-hint a{
+  color:#d1b8ff;text-decoration:underline;
+  text-underline-offset:3px;
+}
+[data-theme=light] .studio-app .studio-screenshot-caption{
+  background:#f3effb;border-color:#b4a8d5;
+}
+[data-theme=light] .studio-app .studio-screenshot-caption-header strong,
+[data-theme=light] .studio-app .studio-screenshot-caption p{color:#34344f}
+[data-theme=light] .studio-app .studio-screenshot-caption-header button{
+  background:#e7ddf6;color:#4c3470;border-color:#a890cb;
+}
+[data-theme=light] .studio-app .studio-screenshot-x-hint a{color:#6844a3}
