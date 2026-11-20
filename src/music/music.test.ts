@@ -175,8 +175,8 @@ describe('Seed Music Studio',()=>{
   });
 
 
-  it('offers ten distinct genres with valid reproducible exported notes',()=>{
-    expect(GENRES).toHaveLength(10);
+  it('offers eleven distinct genres with valid reproducible exported notes',()=>{
+    expect(GENRES).toHaveLength(11);
     const results=GENRES.map(genre=>{
       const config={...DEFAULT_CONFIG,seed:'variety-genre-2026',genre,bars:16 as const,trackCount:8 as const};
       const song=generateSong(config);
