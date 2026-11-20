@@ -1911,3 +1911,138 @@
 @media(prefers-reduced-motion:reduce){
   .studio-command-workspaces button{transition:none}
 }
+
+
+/* Instant screenshot: true modal picture review, not a project/export setting.
+   The image is a static PNG; closing never changes the live scene or the seed. */
+.studio-app .studio-screenshot-launch{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  min-height:42px;min-width:106px;padding:9px 13px;
+  border-radius:11px;border:1px solid #d3baff;
+  background:linear-gradient(125deg,#755aba,#4e3a86);
+  color:#fff;font:inherit;font-size:12px;font-weight:750;white-space:nowrap;
+  box-shadow:0 5px 18px #9873ff35;cursor:pointer;
+  transition:transform .16s ease,filter .16s ease,box-shadow .16s ease;
+}
+.studio-app .studio-screenshot-launch:hover:not(:disabled){
+  filter:brightness(1.12);box-shadow:0 7px 24px #9873ff50;
+}
+.studio-app .studio-screenshot-launch:active:not(:disabled){transform:scale(.96)}
+.studio-app .studio-screenshot-launch:disabled{opacity:.55;cursor:not-allowed}
+.studio-app .studio-screenshot-error{
+  font-size:12px;color:#ffc0ce;margin:10px 0 0;
+}
+.studio-app .studio-screenshot-dialog{
+  position:fixed;inset:0;
+  margin:auto;box-sizing:border-box;
+  width:min(94vw,880px);max-width:880px;
+  max-height:94dvh;overflow:auto;overscroll-behavior:contain;
+  padding:0;border:1px solid #a18bcb;border-radius:22px;
+  background:#151b2b;color:#f4f0ff;
+  box-shadow:0 30px 100px #04030af0,0 0 55px #987aff35;
+}
+.studio-app .studio-screenshot-dialog::backdrop{
+  background:#050711d9;backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.studio-app .studio-screenshot-content{
+  padding:clamp(16px,2.5vw,25px);
+}
+.studio-app .studio-screenshot-head{
+  display:flex;align-items:start;justify-content:space-between;gap:14px;
+  margin-bottom:15px;
+}
+.studio-app .studio-screenshot-head h2{
+  margin:5px 0 4px;font-size:clamp(17px,2.3vw,22px);
+  letter-spacing:.02em;font-weight:800;
+}
+.studio-app .studio-screenshot-head p{
+  color:#b0bed7;font-size:12px;margin:0;font-variant-numeric:tabular-nums;
+}
+.studio-app .studio-screenshot-close{
+  flex:none;width:42px;height:42px;display:grid;place-items:center;
+  border:1px solid #7c7395;border-radius:12px;
+  background:#2d3046;color:#f5f2ff;font-size:18px;
+}
+.studio-app .studio-screenshot-photo{
+  display:grid;place-items:center;
+  width:100%;height:min(55dvh,600px);
+  min-height:150px;overflow:hidden;
+  border-radius:15px;border:1px solid #4a5273;
+  background:radial-gradient(circle at 50% 40%,#282f45,#0b101a 80%);
+}
+.studio-app .studio-screenshot-photo img{
+  display:block;max-width:100%;max-height:100%;width:auto;height:auto;
+  object-fit:contain;box-shadow:0 6px 22px #0006;
+}
+.studio-app .studio-screenshot-photo p{font-size:12px;color:#bac6dc}
+.studio-app .studio-screenshot-actions{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:10px;margin-top:15px;
+}
+.studio-app .studio-screenshot-actions :is(button,a){
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  min-width:0;min-height:49px;padding:10px 8px;
+  border:1px solid #9283c0;border-radius:12px;
+  background:#343052;color:#f0e8ff;
+  text-decoration:none;font:inherit;font-size:12px;font-weight:750;cursor:pointer;
+  transition:transform .16s ease,background-color .16s ease,border-color .16s ease;
+}
+.studio-app .studio-screenshot-actions :is(button,a):first-child{
+  border-color:#c7a6ff;background:#7052ad;color:#fff;
+}
+.studio-app .studio-screenshot-actions :is(button,a):hover{
+  border-color:#d3b5ff;background:#534070;
+}
+.studio-app .studio-screenshot-actions :is(button,a):active{transform:scale(.97)}
+.studio-app .studio-screenshot-actions :is(button,a):focus-visible{
+  outline:2px solid #e0c8ff;outline-offset:3px;
+}
+.studio-app .studio-screenshot-actions button:disabled{opacity:.5;cursor:not-allowed}
+.studio-app .studio-screenshot-x-hint{
+  margin:14px 2px 0;font-size:11px;line-height:1.65;color:#acb8d2;
+}
+.studio-app .studio-screenshot-status{
+  min-height:1.5em;margin:9px 2px 0;font-size:12px;
+  color:#a9e7cb;line-height:1.6;
+}
+[data-theme=light] .studio-app .studio-screenshot-dialog{
+  background:#fff;color:#25304a;border-color:#b8a9d5;
+}
+[data-theme=light] .studio-app .studio-screenshot-head p,
+[data-theme=light] .studio-app .studio-screenshot-x-hint{color:#54627c}
+[data-theme=light] .studio-app .studio-screenshot-actions :is(button,a){
+  background:#e9e2f9;color:#503581;border-color:#9e8ac4;
+}
+[data-theme=light] .studio-app .studio-screenshot-actions :is(button,a):first-child{
+  background:#7351b6;color:#fff;
+}
+[data-theme=light] .studio-app .studio-screenshot-close{
+  color:#49336a;background:#f0eafa;border-color:#ae9acb;
+}
+[data-theme=light] .studio-app .studio-screenshot-status{color:#316d58}
+@media(max-width:720px){
+  .studio-app .studio-preview-toolbar-actions{
+    flex-wrap:wrap;justify-content:flex-end;
+  }
+  .studio-app .studio-screenshot-dialog{
+    width:calc(100% - 16px);max-height:calc(100dvh - 24px);
+    border-radius:16px;
+  }
+  .studio-app .studio-screenshot-photo{height:min(48dvh,460px)}
+  .studio-app .studio-screenshot-actions{
+    grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  }
+  .studio-app .studio-screenshot-actions :is(button,a){min-height:48px}
+}
+@media(max-width:400px){
+  .studio-app .studio-screenshot-launch{
+    padding:8px 9px;min-width:0;font-size:11px;
+  }
+  .studio-app .studio-screenshot-content{padding:13px}
+  .studio-app .studio-screenshot-photo{height:min(42dvh,360px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .studio-app .studio-screenshot-launch,
+  .studio-app .studio-screenshot-actions :is(button,a){transition:none!important;transform:none!important}
+}
