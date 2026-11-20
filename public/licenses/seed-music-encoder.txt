@@ -1,0 +1,13 @@
+Seed Music Studio uses @breezystack/lamejs 1.2.7, based on lamejs by
+Alex Zhukov and the LAME project. The encoder is distributed under
+the GNU Lesser General Public License (LGPL-3.0).
+
+Original LAME project: https://lame.sourceforge.io/
+Corresponding source and build instructions:
+https://github.com/shijinyu/lamejs/tree/1fb0ef5fa177413107e2e107d054a9b994e3f79c
+
+The published encoder JavaScript is copied unmodified as a separate
+asset and loaded as an ES module by the MP3 worker. You may replace it
+with an interface-compatible build at the same asset URL.
+
+License text: LGPL-3.0.txt and GPL-3.0.txt in this directory.

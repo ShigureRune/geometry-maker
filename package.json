@@ -12,6 +12,7 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
+    "@breezystack/lamejs": "1.2.7",
     "@react-three/fiber": "^9.8.2",
     "mediabunny": "^1.65.2",
     "react": "^19.2.0",
@@ -20,6 +21,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
+    "@tonejs/midi": "2.0.28",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
