@@ -32,4 +32,20 @@ describe('SEED EVOLUTION harmonic diversity', () => {
     }
     expect(fingerprints.size).toBeGreaterThan(32);
   });
+  it('varies melodic fingerprints between seeds while keeping repeated A motifs coherent', () => {
+    const fingerprints = new Set<string>();
+    for (let i = 0; i < 96; i++) {
+      const config = {...DEFAULT_CONFIG, seed: 'melodic-evolution-' + i, bars: 32 as const};
+      const song = generateSong(config);
+      const melody = song.tracks.find(track => track.id === 'melody')!.notes;
+      const fingerprint = melody.slice(0, 24).map(note =>
+        [note.startTick, note.pitch, note.durationTicks]).join('|');
+      fingerprints.add(fingerprint);
+      expect(melody.length).toBeGreaterThan(0);
+      expect(melody.every(note => note.pitch >= 56 && note.pitch <= 84)).toBe(true);
+      expect(generateSong(config).tracks.find(track => track.id === 'melody')!.notes).toEqual(melody);
+    }
+    expect(fingerprints.size).toBeGreaterThan(80);
+  });
+
 });
