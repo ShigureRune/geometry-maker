@@ -71,11 +71,23 @@ function arrangement(config: Config): Section[] {
     : config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
     config.bars === 4 ? ['Intro','A','B','Outro'] :
     config.bars >= 32 ? ['Intro','A','B','A′','B′','Outro'] : ['Intro','A','B','Outro'];
+  // The opening and ending stay predictable, while longer standard songs
+  // gain seed-dependent section order and contrasting returns.
+  const sectionRand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'form']));
+  const variedStandard = config.bars >= 32 && config.genre !== 'エピック'
+    ? (config.bars >= 128
+      ? (sectionRand() < .5
+        ? ['Intro','A','B','A′','Bridge','B′','A','Break','B','A′','B′','Outro']
+        : ['Intro','A','A′','Bridge','B','A','B′','Break','A′','B','B′','Outro'])
+      : (sectionRand() < .5
+        ? ['Intro','A','B','A′','B′','Outro']
+        : ['Intro','A','A′','B','B′','Outro']))
+    : standard;
   const names = config.arrangement === 'サビ重視'
     ? (config.bars <= 8 ? ['Intro','A','B','B′'] : ['Intro','A','B','A′','B′','B','Outro'])
     : config.arrangement === 'ビルドアップ'
       ? (config.bars <= 8 ? ['Intro','A','B','Outro'] : ['Intro','A','A′','B','B′','B′','Outro'])
-      : config.arrangement === 'ループ' ? ['A','B','A′','B′'] : standard;
+      : config.arrangement === 'ループ' ? ['A','B','A′','B′'] : variedStandard;
   return names.map((name, i) => {
     const startBar = Math.floor(i * config.bars / names.length);
     return {name, startBar, bars: Math.floor((i + 1) * config.bars / names.length) - startBar};
@@ -86,12 +98,23 @@ function harmonies(config: Config, sections: Section[], variation: number) {
   const style = styles[config.genre];
   const rand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'harmony', variation]));
   const scale = config.scale.includes('マイナー') ? minor : major;
-  const progress = style.progressions[Math.floor(rand() * style.progressions.length)];
+  // Choose a coherent harmonic identity for each section rather than applying
+  // one four-chord loop to the entire song. A/B contrast is seed-dependent.
+  const progressions = sections.map((section, index) => {
+    const base = style.progressions[Math.floor(rand() * style.progressions.length)];
+    const rotation = index === 0 ? 0 : Math.floor(rand() * base.length);
+    const contrast = section.name.startsWith('B') || section.name === 'Bridge';
+    return {section, sequence: base, rotation: contrast ? rotation : 0};
+  });
   const offset = Math.floor(rand() * 3);
   return Array.from({length: config.bars}, (_, bar) => {
-    const section = sections.find(s => s.startBar <= bar && bar < s.startBar + s.bars)!;
+    const selected = progressions.find(item =>
+      item.section.startBar <= bar && bar < item.section.startBar + item.section.bars)!;
+    const {section, sequence, rotation} = selected;
     const alternate = section.name.startsWith('B') || config.mood === '緊張感';
-    const degree = bar === config.bars - 1 ? 0 : progress[(bar + (alternate ? offset + 1 : 0)) % progress.length];
+    const localBar = bar - section.startBar;
+    const degree = bar === config.bars - 1 ? 0 :
+      sequence[(localBar + rotation + (alternate ? offset + 1 : 0)) % sequence.length];
     const degrees = style.seventh || config.complexity > 72 ? [0, 2, 4, 6] : [0, 2, 4];
     return degrees.map(interval => {
       const index = degree + interval;
@@ -110,7 +133,19 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     ? config.melodyStyle === '歌う' ? [0,2,4,6] :
       config.melodyStyle === '疾走' ? [0,1,2,3,4,5,6,7] : [0,2,3,5,7]
     : style.melody;
-  const motif = melodySteps.map((_, i) => i === 0 ? 0 : Math.floor(rand() * 5) - 2);
+  // Stable phrase identities give each seed a distinct melodic contour, while
+  // repeated sections reuse their motif with controlled phrase development.
+  const phraseMotifs = new Map<string, number[]>();
+  const motifFor = (name: string) => {
+    const family = name.replace('′', '');
+    if (!phraseMotifs.has(family)) {
+      const phraseRand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'motif', part, variation, family]));
+      const contour = Array.from({length: melodySteps.length}, (_, i) =>
+        i === 0 ? 0 : Math.floor(phraseRand() * 7) - 3);
+      phraseMotifs.set(family, contour);
+    }
+    return phraseMotifs.get(family)!;
+  };
   const add = (bar: number, step: number, pitch: number, length: number, velocity: number) => {
     const micro = step % 2 ? Math.round(config.swing * .95) : 0;
     const startTick = bar * BAR + step * half + micro;
@@ -155,12 +190,29 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     } else if (part === 'melody') {
       if (intro && bar !== 0 && bar % 2 !== 0) continue;
       const extraDensity = config.melodyStyle === '疾走' ? .23 : config.melodyStyle === '歌う' ? -.10 : 0;
-      const steps = final ? [0] : melodySteps.filter((_, i) => i === 0 || rand() < density + .15 + extraDensity);
+      // A seed-specific rhythmic identity is reused within a section family,
+      // with small bar-level variations. Anchor beat zero and keep onsets unique.
+      const rhythmRand = musicRandom(JSON.stringify([
+        MUSIC_VERSION, config.seed, 'rhythm', variation, section.name.replace('′', ''),
+      ]));
+      const rhythmPattern = Array.from({length: 8}, (_, step) =>
+        step === 0 || rhythmRand() < (.35 + config.density * .005));
+      const rhythmPhase = (bar - section.startBar) % 4;
+      const steps = final ? [0] : melodySteps
+        .filter((step, i) => i === 0 || (rhythmPattern[step] && rand() < density + .26 + extraDensity))
+        .map((step, i) => i === 0 || rhythmPhase !== 3 ? step : Math.min(7, step + (step % 2 === 0 ? 1 : 0)))
+        .filter((step, i, all) => all.indexOf(step) === i)
+        .sort((a, b) => a - b);
       steps.forEach((step, i) => {
-        const motifValue = motif[(melodySteps.indexOf(step) + (bar % 4 === 3 ? 1 : 0)) % motif.length];
+        const motif = motifFor(section.name);
+        const localPhraseBar = (bar - section.startBar) % 4;
+        const motifValue = motif[(i + (localPhraseBar === 3 ? 1 : 0)) % motif.length];
+        // Answer phrases rise/fall relative to their opening; section repeats
+        // retain their recognizable contour instead of drawing unrelated notes.
+        const phraseDevelopment = localPhraseBar === 1 ? 2 : localPhraseBar === 2 ? -2 : 0;
         const jump = config.melodyStyle === '跳躍' ? (bar%2===0?6:-5)+3*motifValue :
           config.melodyStyle === '歌う' ? motifValue : 2*motifValue;
-        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + (epic && contrast ? 5 : 0);
+        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + phraseDevelopment + (epic && contrast ? 5 : 0);
         const accent = step % 4 === 0 || i === 0 || final;
         const tones = accent ? (final ? [config.key] : harmony.map(p => p % 12)) : mode.map(p => (p + config.key) % 12);
         const result = Array.from({length: 29}, (_, index) => index + 56).filter(p => tones.includes(p % 12))
@@ -179,13 +231,33 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         if ((i === 0 || rand() < density + .28) && (!final || step === 0) &&
           (!epic || !intro || step===0)) add(bar, step, 36, epic?(step===3?120:220):190, 73 + energy * 32);
       });
+      // Each section family owns a reproducible groove. Keep the main backbeat
+      // recognizable, but vary ghost snares, kick pickups and hat accents by seed.
+      const grooveRand = musicRandom(JSON.stringify([
+        MUSIC_VERSION, config.seed, 'drum-groove', variation, section.name.replace('′', ''),
+      ]));
+      const ghostStep = [1, 3, 5, 7][Math.floor(grooveRand() * 4)];
+      const pickupStep = [1, 3, 5, 7][Math.floor(grooveRand() * 4)];
+      const hatAccent = Math.floor(grooveRand() * 4);
       if (!final && !(intro && bar === 0) && config.genre !== 'アンビエント') {
+        // A subtle, genre-specific backbeat accent keeps closely related styles
+        // distinguishable without adding unnatural extra hits or changing timing.
+        const backbeatAccent = Object.keys(styles).indexOf(config.genre) * 1.5;
         for (const step of epic ? [4] : [2, 6])
-          add(bar, step, 38, epic?195:145, 70 + energy * 23 + rand() * 8);
+          add(bar, step, 38, epic?195:145, 70 + energy * 23 + backbeatAccent + rand() * 8);
+        // A quiet ghost note only on selected phrase bars, not every beat.
+        if (!epic && density > .48 && (bar - section.startBar) % 4 === 3 &&
+            rand() < .35 + config.complexity * .004)
+          add(bar, ghostStep, 38, 85, 29 + energy * 15);
       }
+      if (!final && !intro && !epic && config.genre !== 'アンビエント' &&
+          (bar - section.startBar) % 4 === 3 && rand() < density * .6 &&
+          !style.kicks.includes(pickupStep))
+        add(bar, pickupStep, 36, 100, 42 + energy * 18);
       if (!final) for (let step = 1; step < 8; step += style.hats) {
         if ((!epic || !intro) && rand() < density + .26)
-          add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
+          add(bar, step, step === 7 && contrast ? 46 : 42, 100,
+            42 + energy * 21 + rand() * 12 + (step % 4 === hatAccent ? 9 : 0));
       }
       // Four accelerating impacts in the last beat of every pre-climax build bar.
       if (epic && build && !final) for (const step of [5,6,7]) {
