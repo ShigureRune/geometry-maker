@@ -139,3 +139,29 @@ test('Music releases the 3D canvas and restores the geometry project on return',
   await expect(page.getByLabel('クイック比率')).toHaveValue('1:1');
   await expect(page.getByTestId('current-seed')).toHaveText('geometry-3d-music');
 });
+
+test('Music can generate a long-form eight-part song and return to four parts',async({page})=>{
+  test.setTimeout(90_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('音楽シード').fill('long-form-browser-check');
+  await studio.getByLabel('長さ',{exact:true}).selectOption('128');
+  await studio.getByLabel('同時演奏パート数').selectOption('8');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  await expect(studio.getByLabel('再生位置',{exact:true})).toHaveAttribute('max',String(128*1920));
+  await expect(studio.getByRole('button',{name:'アルペジオ',exact:true})).toBeVisible();
+  await expect(studio.getByRole('button',{name:'リズムシンセ',exact:true})).toBeVisible();
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks).toHaveLength(8);
+  expect(midi.tracks.every(track=>track.notes.length>0)).toBe(true);
+  await studio.getByRole('button',{name:'リズムシンセ',exact:true}).click();
+  await studio.getByLabel('同時演奏パート数').selectOption('4');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  await expect(studio.getByRole('button',{name:'リズムシンセ',exact:true})).toHaveCount(0);
+  await expect(studio.getByRole('button',{name:'メロディー',exact:true})).toHaveAttribute('aria-pressed','true');
+  expect(errors).toEqual([]);
+});
