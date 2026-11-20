@@ -17,6 +17,12 @@ describe('Seed Music Studio',()=>{
     expect(song.tracks.map(t=>t.type)).toEqual(['melody','chords','bass','drums']);
     for(const t of song.tracks){
       expect(t.notes.length).toBeGreaterThan(64);
+      const lastEnd=new Map<number,number>();
+      for(const note of t.notes) {
+        const end=lastEnd.get(note.pitch)??0;
+        expect(end,genre+' / '+t.id+' / '+note.pitch+' / '+note.startTick).toBeLessThanOrEqual(note.startTick);
+        lastEnd.set(note.pitch,note.startTick+note.durationTicks);
+      }
       expect(()=>validateNotes(t.notes,song.totalTicks)).not.toThrow();
     }
     expect(parseMusicProject(musicProjectText(song))).toEqual(song);
@@ -119,6 +125,60 @@ describe('Seed Music Studio',()=>{
     const imported=parseMusicProject(JSON.stringify(oldProject));
     expect(imported.config.trackCount).toBe(4);
     expect(imported.tracks.map(track=>track.notes)).toEqual(original.tracks.map(track=>track.notes));
+  });
+
+
+  it('offers ten distinct genres with valid reproducible exported notes',()=>{
+    expect(GENRES).toHaveLength(10);
+    const results=GENRES.map(genre=>{
+      const config={...DEFAULT_CONFIG,seed:'variety-genre-2026',genre,bars:16 as const,trackCount:8 as const};
+      const song=generateSong(config);
+      expect(generateSong(config)).toEqual(song);
+      expect(song.tracks).toHaveLength(8);
+      for (const track of song.tracks) {
+        expect(track.notes.length).toBeGreaterThan(0);
+        expect(()=>validateNotes(track.notes,song.totalTicks)).not.toThrow();
+      }
+      const midi=new Midi(exportMidi(song));
+      expect(midi.tracks).toHaveLength(8);
+      expect(parseMusicProject(musicProjectText(song))).toEqual(song);
+      return JSON.stringify(song.tracks.slice(0,4).map(track=>track.notes));
+    });
+    expect(new Set(results).size).toBe(10);
+  });
+
+  it('supports arrangement and melodic variations while migrating old project JSON',()=>{
+    const base={...DEFAULT_CONFIG,genre:'シンセウェーブ' as const,
+      seed:'expanded-arrangement',bars:32 as const,trackCount:8 as const};
+    const arrangements=['標準','サビ重視','ビルドアップ','ループ'] as const;
+    const forms=arrangements.map(arrangement=>{
+      const config={...base,arrangement};
+      const song=generateSong(config);
+      expect(song.sections.reduce((total,part)=>total+part.bars,0)).toBe(config.bars);
+      expect(parseMusicProject(musicProjectText(song))).toEqual(song);
+      return JSON.stringify(song.sections);
+    });
+    expect(new Set(forms).size).toBe(4);
+    const melodicStyles=['標準','歌う','疾走','跳躍'] as const;
+    const melodies=melodicStyles.map(melodyStyle=>{
+      const config={...base,melodyStyle,arrangement:'ビルドアップ' as const};
+      const song=generateSong(config);
+      expect(generateSong(config)).toEqual(song);
+      expect(()=>validateNotes(song.tracks[0].notes,song.totalTicks)).not.toThrow();
+      return song.tracks[0].notes;
+    });
+    expect(new Set(melodies.map(notes=>JSON.stringify(notes))).size).toBe(4);
+    expect(melodies[2].length).toBeGreaterThan(melodies[1].length);
+    const old=generateSong({...DEFAULT_CONFIG,seed:'legacy-genre'});
+    const project=JSON.parse(musicProjectText(old)) as {song:{config:Record<string,unknown>}};
+    delete project.song.config.arrangement;
+    delete project.song.config.melodyStyle;
+    const imported=parseMusicProject(JSON.stringify(project));
+    expect(imported.config.arrangement).toBe('標準');
+    expect(imported.config.melodyStyle).toBe('標準');
+    expect(imported.tracks).toEqual(old.tracks);
+    project.song.config.arrangement='存在しないパターン';
+    expect(()=>parseMusicProject(JSON.stringify(project))).toThrow();
   });
 
 });

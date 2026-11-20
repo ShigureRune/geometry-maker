@@ -25,6 +25,21 @@ const styles: Record<Config['genre'], Style> = {
     melody:[0,2,3,5,6], bass:[0,3,5], kicks:[0,3,5], hats:2, chordHits:[0,5], seventh:true},
   アンビエント: {instruments:['Synth Pluck','Pad','Pad'], progressions:[[0,3,5,0],[0,5,3,0]],
     melody:[0,3,6], bass:[0,4], kicks:[0], hats:4, chordHits:[0], seventh:true},
+  シンセウェーブ: {instruments:['Synth Lead','Pad','Synth Bass'],
+    progressions:[[5,3,0,4],[0,4,5,3],[0,5,3,4]],
+    melody:[0,2,4,5,7], bass:[0,2,4,6], kicks:[0,2,4,6], hats:4, chordHits:[0,4], seventh:false},
+  ジャズ: {instruments:['Piano','Electric Piano','Synth Bass'],
+    progressions:[[0,5,1,4],[1,4,0,5],[2,5,1,4]],
+    melody:[0,1,3,4,6], bass:[0,2,4,6], kicks:[0,4], hats:2, chordHits:[0,3,6], seventh:true},
+  ファンク: {instruments:['Synth Pluck','Electric Piano','Synth Bass'],
+    progressions:[[0,3,4,3],[0,4,3,4],[0,5,3,4]],
+    melody:[0,2,3,5,6,7], bass:[0,1,3,4,6], kicks:[0,3,5,7], hats:1, chordHits:[1,3,5,7], seventh:true},
+  ドラムンベース: {instruments:['Synth Lead','Synth Pluck','Synth Bass'],
+    progressions:[[0,4,5,3],[5,3,0,4],[0,5,4,3]],
+    melody:[0,1,3,4,6,7], bass:[0,1,3,5,6], kicks:[0,3,6], hats:1, chordHits:[0,4], seventh:false},
+  シネマティック: {instruments:['Piano','Pad','Pad'],
+    progressions:[[0,3,5,4],[5,3,0,4],[0,4,3,0]],
+    melody:[0,3,4,6], bass:[0,4], kicks:[0,4], hats:4, chordHits:[0], seventh:true},
 };
 
 /** Extra parts layer over the four original voices; the original seed output is unchanged at 4 tracks. */
@@ -34,12 +49,23 @@ const layeredInstruments: Record<Config['genre'], [Instrument,Instrument,Instrum
   テクノ: ['Synth Pluck','Pad','8-bit Lead','Synth Bass'],
   'Lo-fi': ['Electric Piano','Pad','Piano','Synth Pluck'],
   アンビエント: ['Synth Pluck','Pad','Electric Piano','Synth Pluck'],
+  シンセウェーブ: ['Synth Pluck','Pad','Synth Lead','Synth Bass'],
+  ジャズ: ['Electric Piano','Pad','Piano','Synth Pluck'],
+  ファンク: ['Synth Pluck','Pad','Synth Lead','Synth Bass'],
+  ドラムンベース: ['Synth Pluck','Pad','Synth Lead','Synth Bass'],
+  シネマティック: ['Synth Pluck','Pad','Piano','Synth Pluck'],
 };
 
 function arrangement(config: Config): Section[] {
-  const names = config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
+  // The standard path remains identical to the original generator for older seeds.
+  const standard = config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
     config.bars === 4 ? ['Intro','A','B','Outro'] :
     config.bars >= 32 ? ['Intro','A','B','A′','B′','Outro'] : ['Intro','A','B','Outro'];
+  const names = config.arrangement === 'サビ重視'
+    ? (config.bars <= 8 ? ['Intro','A','B','B′'] : ['Intro','A','B','A′','B′','B','Outro'])
+    : config.arrangement === 'ビルドアップ'
+      ? (config.bars <= 8 ? ['Intro','A','B','Outro'] : ['Intro','A','A′','B','B′','B′','Outro'])
+      : config.arrangement === 'ループ' ? ['A','B','A′','B′'] : standard;
   return names.map((name, i) => {
     const startBar = Math.floor(i * config.bars / names.length);
     return {name, startBar, bars: Math.floor((i + 1) * config.bars / names.length) - startBar};
@@ -70,7 +96,11 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   const notes: Note[] = [];
   const half = PPQ / 2;
   const mode = scales[config.scale];
-  const motif = style.melody.map((_, i) => i === 0 ? 0 : Math.floor(rand() * 5) - 2);
+  const melodySteps = part === 'melody' && config.melodyStyle !== '標準'
+    ? config.melodyStyle === '歌う' ? [0,2,4,6] :
+      config.melodyStyle === '疾走' ? [0,1,2,3,4,5,6,7] : [0,2,3,5,7]
+    : style.melody;
+  const motif = melodySteps.map((_, i) => i === 0 ? 0 : Math.floor(rand() * 5) - 2);
   const add = (bar: number, step: number, pitch: number, length: number, velocity: number) => {
     const micro = step % 2 ? Math.round(config.swing * .95) : 0;
     const startTick = bar * BAR + step * half + micro;
@@ -82,7 +112,13 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   for (let bar = 0; bar < config.bars; bar++) {
     const section = sections.find(s => bar >= s.startBar && bar < s.startBar + s.bars)!;
     const intro = section.name === 'Intro', outro = section.name === 'Outro', contrast = section.name.startsWith('B');
-    const energy = intro ? .63 : outro ? .73 : contrast ? 1 : .87;
+    const baseEnergy = intro ? .63 : outro ? .73 : contrast ? 1 : .87;
+    const progress = bar / Math.max(1,config.bars-1);
+    const arrangementEnergy = config.arrangement === 'ビルドアップ'
+      ? (.66 + progress * .48)
+      : config.arrangement === 'サビ重視' && contrast ? 1.17
+      : config.arrangement === 'ループ' ? .96 : 1;
+    const energy = Math.min(1.2,baseEnergy*arrangementEnergy);
     const density = (.35 + config.density * .006) * energy;
     const harmony = chords[bar];
     const final = bar === config.bars - 1;
@@ -100,14 +136,21 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       });
     } else if (part === 'melody') {
       if (intro && bar !== 0 && bar % 2 !== 0) continue;
-      const steps = final ? [0] : style.melody.filter((_, i) => i === 0 || rand() < density + .15);
+      const extraDensity = config.melodyStyle === '疾走' ? .23 : config.melodyStyle === '歌う' ? -.10 : 0;
+      const steps = final ? [0] : melodySteps.filter((_, i) => i === 0 || rand() < density + .15 + extraDensity);
       steps.forEach((step, i) => {
-        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) +
-          2 * motif[(style.melody.indexOf(step) + (bar % 4 === 3 ? 1 : 0)) % motif.length];
+        const motifValue = motif[(melodySteps.indexOf(step) + (bar % 4 === 3 ? 1 : 0)) % motif.length];
+        const jump = config.melodyStyle === '跳躍' ? (bar%2===0?6:-5)+3*motifValue :
+          config.melodyStyle === '歌う' ? motifValue : 2*motifValue;
+        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump;
         const accent = step % 4 === 0 || i === 0 || final;
         const tones = accent ? (final ? [config.key] : harmony.map(p => p % 12)) : mode.map(p => (p + config.key) % 12);
         const result = Array.from({length: 29}, (_, index) => index + 56).filter(p => tones.includes(p % 12))
-          .sort((a,b) => (Math.abs(a - target) + Math.abs(a - previous) * .55) - (Math.abs(b - target) + Math.abs(b - previous) * .55));
+          .sort((a,b) => {
+            const continuity = config.melodyStyle === '跳躍' ? .11 : config.melodyStyle === '歌う' ? .9 : .55;
+            return (Math.abs(a - target) + Math.abs(a - previous) * continuity) -
+              (Math.abs(b - target) + Math.abs(b - previous) * continuity);
+          });
         const pitch = result[!accent && config.complexity > 65 && bar % 4 === 3 && rand() > .57 ? 1 : 0] ?? result[0];
         previous = pitch;
         add(bar, step, pitch, final ? BAR * .88 : ((steps[i+1] ?? 8) - step) * half - 106,
@@ -193,7 +236,7 @@ export function generateSong(config: Config, options: {
     }
     const genreInstrument = i < 4 ? styles[config.genre].instruments[i] : layeredInstruments[config.genre][i - 4];
     const instrument: Instrument = part === 'drums' ? 'Drum Kit' :
-      existing && (reroll || previous?.config.genre === config.genre) ? existing.instrument : genreInstrument;
+      existing && previous?.config.genre === config.genre ? existing.instrument : genreInstrument;
     return {
       id: part, type: part, name: NAMES[i], color: existing?.color ?? COLORS[i], instrument,
       midiChannel: part === 'drums' ? 9 : i, midiProgram: PROGRAMS[INSTRUMENTS.indexOf(instrument)],
