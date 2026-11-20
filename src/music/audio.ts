@@ -142,7 +142,7 @@ export class MusicSynth {
     // Sample recordings are finite; do not loop piano decay or start beyond the recording.
     if (!source.loop && sourceOffset>=source.buffer.duration) {this.voices.delete(source);source.disconnect();envelope.disconnect();return;}
     source.start(at,source.loop ? sourceOffset%source.buffer.duration : sourceOffset);
-    source.stop(at+Math.min(end-offset,(source.buffer.duration-sourceOffset)/source.playbackRate.value));
+    source.stop(at+(source.loop ? end-offset : Math.min(end-offset,(source.buffer.duration-sourceOffset)/source.playbackRate.value)));
   }
 
   stop() {
