@@ -1,5 +1,6 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ChangeEvent,type KeyboardEvent} from 'react';
 import {MusicTransport,type Loop} from './audio';
+import {GRAND_PIANO_CREDIT,loadGrandPianoSamples,type PianoSamples} from './piano-samples';
 import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {Check,GeneratorPanel,MusicPanel,Range,Select,TrackInspector,TransportControls} from './MusicPanels';
@@ -32,6 +33,9 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const [loop,setLoop]=useState<Loop>({start:0,end:song.totalTicks}), [loopOn,setLoopOn]=useState(false);
   const [metronome,setMetronome]=useState(false), [dependent,setDependent]=useState(true);
   const [pianoOnly,setPianoOnly]=useState(false);
+  const [recordedPiano,setRecordedPiano]=useState(false);
+  const [pianoLoading,setPianoLoading]=useState(false);
+  const [pianoSamples,setPianoSamples]=useState<PianoSamples|undefined>();
   const [message,setMessage]=useState(''), [error,setError]=useState('');
   const [quality,setQuality]=useState<Mp3Options>({rate:44100,bitrate:192});
   const [rangeOnly,setRangeOnly]=useState(false), [audibleMidi,setAudibleMidi]=useState(false);
@@ -42,6 +46,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const job=useRef<AbortController|null>(null);
   const [transport]=useState(()=>new MusicTransport(song));
   const playbackSong=useMemo(()=>pianoOnly?pianoOnlySong(song):song,[song,pianoOnly]);
+  useEffect(()=>{transport.setPianoSamples(recordedPiano&&pianoOnly?pianoSamples:undefined);},[transport,recordedPiano,pianoOnly,pianoSamples]);
   const current=song.tracks.find(t=>t.id===track)!;
   const selected=useMemo(()=>current.notes.filter(n=>selection.includes(n.id)),[current,selection]);
   const effectiveLoop=useMemo(()=>({
@@ -207,13 +212,23 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
       info('楽曲JSONを読み込みました。');
     }catch(e){failure(e);}
   }
+  async function enableRecordedPiano(){
+    if(recordedPiano){setRecordedPiano(false);return;}
+    setPianoLoading(true);setError('');
+    try {
+      const samples=await loadGrandPianoSamples();
+      setPianoSamples(samples);setRecordedPiano(true);
+      info('録音グランドピアノ音源を読み込みました。');
+    }catch(error){failure(error);}
+    finally{setPianoLoading(false);}
+  }
   async function mp3(){
     if(job.current)return;
     const request=new AbortController();
     job.current=request;setProgress(0);info('音声をレンダリングしています。');
     try {
       const {exportMp3}=await import('./mp3');
-      const blob=await exportMp3(playbackSong,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress);
+      const blob=await exportMp3(playbackSong,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress,recordedPiano&&pianoOnly?pianoSamples:undefined);
       request.signal.throwIfAborted();
       saveMusicFile(blob,musicFilename(song,'mp3'));info('MP3の書き出しが完了しました。');
     }catch(e){
@@ -257,6 +272,11 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
         <button aria-pressed={pianoOnly} onClick={()=>setPianoOnly(true)}>🎹 ピアノだけ</button>
         <span className="music-hint">{pianoOnly?'ドラムなし・全メロディーパートをピアノで演奏（MP3/MIDIにも反映）':'元の楽器編成で演奏'}</span>
       </div>
+      {pianoOnly&&<div className="music-buttons" role="group" aria-label="ピアノ音源">
+        <button aria-pressed={!recordedPiano} onClick={()=>setRecordedPiano(false)}>合成ピアノ</button>
+        <button aria-pressed={recordedPiano} disabled={pianoLoading} onClick={()=>void enableRecordedPiano()}>{pianoLoading?'録音音源を読み込み中…':'🎹 録音グランドピアノ'}</button>
+        <span className="music-hint">{GRAND_PIANO_CREDIT} · <a href="https://github.com/sfzinstruments/SalamanderGrandPiano" target="_blank" rel="noreferrer">音源・ライセンス</a> · 初回はネット接続が必要</span>
+      </div>}
       <section className="music-arrangement" aria-label="楽曲編集">
         <div className={'music-roll-panel'+(wide?' is-expanded':'')} ref={roll}>
           <div className="music-roll-toolbar">

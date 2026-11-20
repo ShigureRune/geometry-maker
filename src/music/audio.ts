@@ -1,4 +1,5 @@
 import {PPQ, clamp, musicRandom, playableTracks, secToTick, tickToSec, type Instrument, type Song} from './song';
+import {nearestGrandPianoPitch,type PianoSamples} from './piano-samples';
 
 export const AUDIO_TAIL = .48;
 const CYCLE = 1024;
@@ -58,7 +59,7 @@ export class MusicSynth {
   private outputs = new Map<string,AudioNode>();
   readonly meter: AnalyserNode | null;
 
-  constructor(private context: BaseAudioContext, plan: AudioPlan, realtime: boolean, private retainBuffers = true) {
+  constructor(private context: BaseAudioContext, plan: AudioPlan, realtime: boolean, private retainBuffers = true, private pianoSamples?:PianoSamples) {
     const master = context.createGain();
     master.gain.value = plan.mixer.muted ? 0 : plan.mixer.volume*.66;
     let output: AudioNode = master;
@@ -121,8 +122,11 @@ export class MusicSynth {
     const end = Math.min(shape.duration,offset+horizon);
     if (!target || end <= offset) return;
     const source = this.context.createBufferSource(), envelope = this.context.createGain();
-    source.buffer = this.buffer(event);
-    if (event.instrument !== 'Drum Kit') {
+    const sampled = event.instrument==='Piano' && this.pianoSamples?.size ? nearestGrandPianoPitch(event.pitch,this.pianoSamples.keys()) : undefined;
+    source.buffer = sampled===undefined ? this.buffer(event) : this.pianoSamples!.get(sampled)!;
+    if (sampled!==undefined) {
+      source.playbackRate.value=2**((event.pitch-sampled)/12);
+    } else if (event.instrument !== 'Drum Kit') {
       source.loop = true;
       source.playbackRate.value = 440*2**((event.pitch-69)/12)*CYCLE/this.context.sampleRate;
     }
@@ -135,8 +139,10 @@ export class MusicSynth {
     this.voices.add(source);
     source.onended=()=>{this.voices.delete(source);source.disconnect();envelope.disconnect();};
     const sourceOffset = offset*source.playbackRate.value;
+    // Sample recordings are finite; do not loop piano decay or start beyond the recording.
+    if (!source.loop && sourceOffset>=source.buffer.duration) {this.voices.delete(source);source.disconnect();envelope.disconnect();return;}
     source.start(at,source.loop ? sourceOffset%source.buffer.duration : sourceOffset);
-    source.stop(at+end-offset);
+    source.stop(at+(source.loop ? end-offset : Math.min(end-offset,(source.buffer.duration-sourceOffset)/source.playbackRate.value)));
   }
 
   stop() {
@@ -172,6 +178,7 @@ export class MusicTransport {
   private scheduleUntil = 0;
   private generation = 0;
   private plan: AudioPlan;
+  private pianoSamples?:PianoSamples;
   private meterData = new Float32Array(256);
   private listeners = new Set<()=>void>();
   private readonly onAudioStateChange = () => {
@@ -181,6 +188,13 @@ export class MusicTransport {
   };
   playing = false;
 
+  setPianoSamples(samples?:PianoSamples) {
+    if(this.pianoSamples===samples)return;
+    this.pianoSamples=samples;
+    const playing=this.playing;
+    this.pause();
+    if(playing && this.context?.state==='running')this.start();
+  }
   subscribe(listener:()=>void) {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };
@@ -236,7 +250,7 @@ export class MusicTransport {
     this.originPosition = position < start || position >= end ? start : position;
     this.origin = context.currentTime + .02;
     this.scheduleUntil = this.origin;
-    this.synth = new MusicSynth(context,this.plan,true);
+    this.synth = new MusicSynth(context,this.plan,true,true,this.pianoSamples);
     this.playing = true;
     this.schedule();
     this.timer = window.setInterval(()=>this.schedule(),25);
@@ -323,9 +337,9 @@ export class MusicTransport {
 }
 
 /** Bounded stereo chunks with phase and envelope continuity across boundaries. */
-export async function renderAudioChunk(plan: AudioPlan, rate: number, frame: number, count: number, rangeEnd: number) {
+export async function renderAudioChunk(plan: AudioPlan, rate: number, frame: number, count: number, rangeEnd: number, pianoSamples?:PianoSamples) {
   const context = new OfflineAudioContext(2,count,rate);
-  const synth = new MusicSynth(context,plan,false);
+  const synth = new MusicSynth(context,plan,false,true,pianoSamples);
   const start = frame/rate, end = (frame+count)/rate;
   for (let i=firstEvent(plan.events,start-plan.maxVoiceSpan);i<plan.events.length;i++) {
     const event = plan.events[i];
