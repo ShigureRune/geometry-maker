@@ -58,8 +58,8 @@ describe('authentic piano keyboard geometry',()=>{
     expect(cs.centerY).toBeCloseTo(top+(high-61+.5)*row);
     expect(cs.x).toBeGreaterThan(c.x);
     expect(cs.w).toBeLessThan(c.w);
-    expect(c.y+c.h).toBeCloseTo(cs.centerY,4);
-    expect(d.y).toBeCloseTo(cs.centerY,4);
+    expect(c.y).toBeCloseTo(cs.centerY,4);
+    expect(d.y+d.h).toBeCloseTo(cs.centerY,4);
     expect(isBlackKey(61)).toBe(true);
     expect(isBlackKey(64)).toBe(false);
   });
