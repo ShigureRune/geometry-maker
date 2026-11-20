@@ -87,7 +87,7 @@ function arrangement(config: Config): Section[] {
     ? (config.bars <= 8 ? ['Intro','A','B','B′'] : ['Intro','A','B','A′','B′','B','Outro'])
     : config.arrangement === 'ビルドアップ'
       ? (config.bars <= 8 ? ['Intro','A','B','Outro'] : ['Intro','A','A′','B','B′','B′','Outro'])
-      : config.arrangement === 'ループ' ? ['A','B','A′','B′'] : standard;
+      : config.arrangement === 'ループ' ? ['A','B','A′','B′'] : variedStandard;
   return names.map((name, i) => {
     const startBar = Math.floor(i * config.bars / names.length);
     return {name, startBar, bars: Math.floor((i + 1) * config.bars / names.length) - startBar};
