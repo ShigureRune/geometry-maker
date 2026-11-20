@@ -1,5 +1,5 @@
 import {
-  BAR, GENRES, INSTRUMENTS, KEYS, LENGTHS, MOODS, MUSIC_VERSION, PARTS, TRACK_COUNTS, PPQ, PROGRAMS, SCALES,
+  ARRANGEMENTS, BAR, GENRES, INSTRUMENTS, KEYS, LENGTHS, MELODY_STYLES, MOODS, MUSIC_VERSION, PARTS, TRACK_COUNTS, PPQ, PROGRAMS, SCALES,
   noteOrder, type Config, type Note, type Section, type Song, type Track,
 } from './song';
 
@@ -33,6 +33,9 @@ export function validateConfig(value: unknown): Config {
     trackCount: v.trackCount === undefined ? 4 : choice(v.trackCount,TRACK_COUNTS,'trackCount'),
     mood: choice(v.mood,MOODS,'mood'), complexity: num(v.complexity,'complexity',0,100),
     density: num(v.density,'density',0,100), swing: num(v.swing,'swing',0,100),
+    // Existing saved songs did not include either field. Preserve their standard musical phrasing.
+    arrangement: v.arrangement === undefined ? '標準' : choice(v.arrangement,ARRANGEMENTS,'arrangement'),
+    melodyStyle: v.melodyStyle === undefined ? '標準' : choice(v.melodyStyle,MELODY_STYLES,'melodyStyle'),
   };
 }
 
