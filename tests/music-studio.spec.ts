@@ -257,7 +257,7 @@ test('ten-genre generator supports arrangement and melody variants through MIDI 
   await page.goto('./?mode=music');
   const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
   const genre=studio.getByLabel('ジャンル',{exact:true});
-  await expect(genre.locator('option')).toHaveCount(10);
+  await expect(genre.locator('option')).toHaveCount(11);
   await genre.selectOption('ドラムンベース');
   await studio.getByLabel('曲構成').selectOption('サビ重視');
   await studio.getByLabel('メロディーの動き').selectOption('疾走');
@@ -395,4 +395,28 @@ test('Piano-only mode changes playback and MIDI without destroying the original 
   await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
   const normalMidi=new Midi(await readFile((await (await normalDownload).path())!));
   expect(normalMidi.tracks.some(track=>track.channel===9)).toBe(true);
+});
+
+test('Epic genre generates trailer-style sections and survives JSON plus MIDI export',async({page})=>{
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('ジャンル',{exact:true}).selectOption('エピック');
+  await studio.getByLabel('長さ',{exact:true}).selectOption('16');
+  await studio.getByLabel('同時演奏パート数').selectOption('8');
+  await studio.getByLabel('音楽シード').fill('epic-trailer-browser');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  await expect(studio.getByLabel('ジャンル',{exact:true})).toHaveValue('エピック');
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks).toHaveLength(8);
+  expect(midi.tracks.some(track=>track.notes.length>0)).toBe(true);
+  const jsonDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const json=await readFile((await (await jsonDownload).path())!);
+  const saved=JSON.parse(json.toString());
+  expect(saved.song.config.genre).toBe('エピック');
+  expect(saved.song.sections.some((section:{name:string})=>section.name==='Build')).toBe(true);
+  await studio.getByLabel('楽曲JSONファイル').setInputFiles({name:'epic.json',mimeType:'application/json',buffer:json});
+  await expect(studio.getByLabel('ジャンル',{exact:true})).toHaveValue('エピック');
 });

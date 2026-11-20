@@ -40,6 +40,11 @@ const styles: Record<Config['genre'], Style> = {
   シネマティック: {instruments:['Piano','Pad','Pad'],
     progressions:[[0,3,5,4],[5,3,0,4],[0,4,3,0]],
     melody:[0,3,4,6], bass:[0,4], kicks:[0,4], hats:4, chordHits:[0], seventh:true},
+  // Trailer-inspired: minor-key heroic ostinato, sustained harmonic layers,
+  // half-time impacts and a distinct late climax rather than generic cinematic ambience.
+  エピック: {instruments:['Synth Lead','Pad','Synth Bass'],
+    progressions:[[0,5,3,4],[0,3,5,4],[0,5,4,3]],
+    melody:[0,2,4,5,6], bass:[0,2,4,6], kicks:[0,3,4,6], hats:2, chordHits:[0,4], seventh:false},
 };
 
 /** Extra parts layer over the four original voices; the original seed output is unchanged at 4 tracks. */
@@ -54,11 +59,15 @@ const layeredInstruments: Record<Config['genre'], [Instrument,Instrument,Instrum
   ファンク: ['Synth Pluck','Pad','Synth Lead','Synth Bass'],
   ドラムンベース: ['Synth Pluck','Pad','Synth Lead','Synth Bass'],
   シネマティック: ['Synth Pluck','Pad','Piano','Synth Pluck'],
+  エピック: ['Synth Pluck','Pad','Synth Lead','Synth Pluck'],
 };
 
 function arrangement(config: Config): Section[] {
   // The standard path remains identical to the original generator for older seeds.
-  const standard = config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
+  const standard = config.genre === 'エピック' && config.bars >= 16
+    ? (config.bars >= 64 ? ['Intro','A','A′','Build','B','B′','Break','B′','Outro']
+      : ['Intro','A','Build','B','B′','Outro'])
+    : config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
     config.bars === 4 ? ['Intro','A','B','Outro'] :
     config.bars >= 32 ? ['Intro','A','B','A′','B′','Outro'] : ['Intro','A','B','Outro'];
   const names = config.arrangement === 'サビ重視'
@@ -112,24 +121,32 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   for (let bar = 0; bar < config.bars; bar++) {
     const section = sections.find(s => bar >= s.startBar && bar < s.startBar + s.bars)!;
     const intro = section.name === 'Intro', outro = section.name === 'Outro', contrast = section.name.startsWith('B');
+    const epic = config.genre === 'エピック';
+    const build = epic && section.name === 'Build';
     const baseEnergy = intro ? .63 : outro ? .73 : contrast ? 1 : .87;
     const progress = bar / Math.max(1,config.bars-1);
     const arrangementEnergy = config.arrangement === 'ビルドアップ'
       ? (.66 + progress * .48)
       : config.arrangement === 'サビ重視' && contrast ? 1.17
       : config.arrangement === 'ループ' ? .96 : 1;
-    const energy = Math.min(1.2,baseEnergy*arrangementEnergy);
+    const epicEnergy = epic ? (intro ? .46 : outro ? .72 : build ? .78 + .25*(bar-section.startBar)/Math.max(1,section.bars-1)
+      : contrast ? 1.14 : .72 + .19*progress) : 1;
+    const energy = Math.min(1.25,epic ? epicEnergy*arrangementEnergy : baseEnergy*arrangementEnergy);
     const density = (.35 + config.density * .006) * energy;
     const harmony = chords[bar];
     const final = bar === config.bars - 1;
     if (part === 'chords') {
       const hits = intro || final || density < .45 ? [0] : style.chordHits;
-      hits.forEach((step, i) => harmony.forEach((pitch, voice) => {
+      hits.forEach((step, i) => {
         const length = final ? BAR : Math.min(((hits[i+1] ?? 8) - step) * half - 100, config.genre === 'テクノ' ? 180 : BAR);
-        add(bar, step, pitch - (voice > 1 && (contrast || config.mood === '暗い') ? 12 : 0), length, 52 + energy * 20 + rand() * 6);
-      }));
+        harmony.forEach((pitch, voice) => add(bar, step,
+          pitch - (voice > 1 && (contrast || config.mood === '暗い') ? 12 : 0),
+          length, 52 + energy * 20 + rand() * 6));
+        // Low tonic octaves anchor the harmony like trailer brass/cellos.
+        if (epic) add(bar,step,clamp(harmony[0]-12,0,127),length,60+energy*24);
+      });
     } else if (part === 'bass') {
-      const hits = final || (intro && bar === 0) ? [0] : style.bass.filter((_, i) => i === 0 || rand() < density);
+      const hits = final || (intro && bar === 0) ? [0] : style.bass.filter((_, i) => i === 0 || rand() < (epic ? Math.min(1,density+(.25*progress)) : density));
       hits.forEach((step, i) => {
         const tone = i === 0 || rand() > config.complexity * .007 ? harmony[0] : harmony[i % harmony.length];
         add(bar, step, 34 + ((tone - 34) % 12), ((hits[i+1] ?? 8) - step) * half - 105, 64 + energy * 24 + rand() * 6);
@@ -142,7 +159,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         const motifValue = motif[(melodySteps.indexOf(step) + (bar % 4 === 3 ? 1 : 0)) % motif.length];
         const jump = config.melodyStyle === '跳躍' ? (bar%2===0?6:-5)+3*motifValue :
           config.melodyStyle === '歌う' ? motifValue : 2*motifValue;
-        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump;
+        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + (epic && contrast ? 5 : 0);
         const accent = step % 4 === 0 || i === 0 || final;
         const tones = accent ? (final ? [config.key] : harmony.map(p => p % 12)) : mode.map(p => (p + config.key) % 12);
         const result = Array.from({length: 29}, (_, index) => index + 56).filter(p => tones.includes(p % 12))
@@ -158,19 +175,29 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       });
     } else if (part === 'drums') {
       style.kicks.forEach((step, i) => {
-        if ((i === 0 || rand() < density + .28) && (!final || step === 0)) add(bar, step, 36, 190, 73 + energy * 32);
+        if ((i === 0 || rand() < density + .28) && (!final || step === 0) &&
+          (!epic || !intro || step===0)) add(bar, step, 36, epic?(step===3?120:220):190, 73 + energy * 32);
       });
       if (!final && !(intro && bar === 0) && config.genre !== 'アンビエント') {
-        for (const step of [2, 6]) add(bar, step, 38, 145, 70 + energy * 23 + rand() * 8);
+        for (const step of epic ? [4] : [2, 6])
+          add(bar, step, 38, epic?195:145, 70 + energy * 23 + rand() * 8);
       }
       if (!final) for (let step = 1; step < 8; step += style.hats) {
-        if (rand() < density + .26) add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
+        if ((!epic || !intro) && rand() < density + .26)
+          add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
+      }
+      // Four accelerating impacts in the last beat of every pre-climax build bar.
+      if (epic && build && !final) for (const step of [5,6,7]) {
+        const pitch=step===7?46:42;
+        const onset=bar*BAR+step*half+(step%2?Math.round(config.swing*.95):0);
+        if (!notes.some(note=>note.pitch===pitch && note.startTick===onset))
+          add(bar,step,pitch,85,58+energy*25+step);
       }
     } else if (part === 'arp') {
       // Short notes cycle through the active chord, creating a distinct moving layer.
       if (intro && bar % 2) continue;
       for (let step = 0; step < 8; step++) {
-        if (step !== 0 && rand() > density + .17) continue;
+        if (step !== 0 && rand() > (epic ? Math.min(1,density+.12+progress*.21) : density + .17)) continue;
         const pitch = harmony[(step + bar + (contrast ? 1 : 0)) % harmony.length] + 12;
         add(bar, step, clamp(pitch, 0, 127), Math.round(half * .73), 44 + energy * 17 + rand() * 12);
       }
@@ -190,7 +217,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       // A rhythmic synth ostinato, not an additional drum channel.
       if (intro && bar % 2) continue;
       for (const step of [0, 2, 4, 6]) {
-        if (step > 0 && rand() > density + .22) continue;
+        if (step > 0 && rand() > (epic ? Math.min(1,density+.25+progress*.2) : density + .22)) continue;
         const pitch = harmony[0] + (contrast && step === 6 ? 12 : 0);
         add(bar, step, clamp(pitch, 0, 127), Math.round(half * .74), 49 + energy * 19 + rand() * 10);
       }
