@@ -5,7 +5,7 @@ import {exportMidi} from './midi';
 import {Check,GeneratorPanel,MusicPanel,Range,Select,TrackInspector,TransportControls} from './MusicPanels';
 import {PianoRoll,type RollOptions} from './PianoRoll';
 import {musicFilename,musicProjectText,parseMusicProject,saveMusicFile,validateConfig,validateNotes} from './project';
-import {BAR,DEFAULT_CONFIG,PPQ,clamp,noteOrder,randomMusicSeed,type Note,type Part,type Song} from './song';
+import {BAR,DEFAULT_CONFIG,PPQ,clamp,noteOrder,randomMusicSeed,pianoOnlySong,type Note,type Part,type Song} from './song';
 import type {Mp3Options} from './mp3';
 import './music.css';
 
@@ -31,6 +31,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const [options,setOptions]=useState(defaults);
   const [loop,setLoop]=useState<Loop>({start:0,end:song.totalTicks}), [loopOn,setLoopOn]=useState(false);
   const [metronome,setMetronome]=useState(false), [dependent,setDependent]=useState(true);
+  const [pianoOnly,setPianoOnly]=useState(false);
   const [message,setMessage]=useState(''), [error,setError]=useState('');
   const [quality,setQuality]=useState<Mp3Options>({rate:44100,bitrate:192});
   const [rangeOnly,setRangeOnly]=useState(false), [audibleMidi,setAudibleMidi]=useState(false);
@@ -40,6 +41,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const file=useRef<HTMLInputElement>(null), roll=useRef<HTMLDivElement>(null);
   const job=useRef<AbortController|null>(null);
   const [transport]=useState(()=>new MusicTransport(song));
+  const playbackSong=useMemo(()=>pianoOnly?pianoOnlySong(song):song,[song,pianoOnly]);
   const current=song.tracks.find(t=>t.id===track)!;
   const selected=useMemo(()=>current.notes.filter(n=>selection.includes(n.id)),[current,selection]);
   const effectiveLoop=useMemo(()=>({
@@ -47,10 +49,10 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
     end:clamp(loop.end,Math.min(song.totalTicks,loop.start+BAR),song.totalTicks),
   }),[loop,song.totalTicks]);
   useLayoutEffect(()=>{
-    transport.configure(song,loopOn?effectiveLoop:null,metronome);
+    transport.configure(playbackSong,loopOn?effectiveLoop:null,metronome);
     // A title change is metadata only and should not reschedule audio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[transport,song.tracks,song.mixer,song.bpm,song.totalTicks,effectiveLoop,loopOn,metronome]);
+  },[transport,playbackSong.tracks,playbackSong.mixer,playbackSong.bpm,playbackSong.totalTicks,effectiveLoop,loopOn,metronome]);
   useEffect(()=>{
     if(!active){transport.dispose();setWide(false);}
   },[active,transport]);
@@ -211,7 +213,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
     job.current=request;setProgress(0);info('音声をレンダリングしています。');
     try {
       const {exportMp3}=await import('./mp3');
-      const blob=await exportMp3(song,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress);
+      const blob=await exportMp3(playbackSong,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress);
       request.signal.throwIfAborted();
       saveMusicFile(blob,musicFilename(song,'mp3'));info('MP3の書き出しが完了しました。');
     }catch(e){
@@ -250,6 +252,11 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
           void navigator.clipboard.writeText(draft.seed).then(()=>info('シードをコピーしました。')).catch(failure);
         }}
         reroll={()=>generate(draft,'all')} staged={JSON.stringify(draft)!==JSON.stringify(song.config)}/>
+      <div className="music-buttons" role="group" aria-label="演奏モード">
+        <button aria-pressed={!pianoOnly} onClick={()=>setPianoOnly(false)}>通常編成</button>
+        <button aria-pressed={pianoOnly} onClick={()=>setPianoOnly(true)}>🎹 ピアノだけ</button>
+        <span className="music-hint">{pianoOnly?'ドラムなし・全メロディーパートをピアノで演奏（MP3/MIDIにも反映）':'元の楽器編成で演奏'}</span>
+      </div>
       <section className="music-arrangement" aria-label="楽曲編集">
         <div className={'music-roll-panel'+(wide?' is-expanded':'')} ref={roll}>
           <div className="music-roll-toolbar">
@@ -263,7 +270,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
             {song.tracks.map(t=><button key={t.id} style={{borderBottomColor:t.color}} aria-pressed={track===t.id}
               onClick={()=>{if(track!==t.id){setTrack(t.id);setSelection([]);}}}>{t.name}{t.muted?' · M':t.solo?' · S':''}</button>)}
           </div>
-          <PianoRoll song={song} active={active} track={track} tracks={tracks} options={options} selection={selection}
+          <PianoRoll song={playbackSong} active={active} track={track} tracks={tracks} options={options} selection={selection}
             transport={transport} onSelect={select} onEdit={edit} onAdd={add} onSeek={tick=>transport.seek(tick)}/>
           <TransportControls transport={transport} active={active} song={song} loop={effectiveLoop} loopOn={loopOn} setLoop={setLoop}
             setLoopOn={setLoopOn} metronome={metronome} setMetronome={setMetronome} bpm={bpm} report={report}/>
@@ -346,7 +353,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
           </div>
           <div className="music-buttons">
             <button className="music-primary" disabled={renderProgress!==null} onClick={()=>void mp3()}>MP3書き出し</button>
-            <button onClick={()=>saveMusicFile(new Blob([exportMidi(song,audibleMidi)],{type:'audio/midi'}),musicFilename(song,'mid'))}>MIDI書き出し</button>
+            <button onClick={()=>saveMusicFile(new Blob([exportMidi(playbackSong,audibleMidi)],{type:'audio/midi'}),musicFilename(song,'mid'))}>MIDI書き出し</button>
             <button onClick={saveProject}>プロジェクトJSON保存</button>
           </div>
           {renderProgress!==null&&<div className="music-buttons" aria-live="polite">
