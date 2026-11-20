@@ -86,12 +86,23 @@ function harmonies(config: Config, sections: Section[], variation: number) {
   const style = styles[config.genre];
   const rand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'harmony', variation]));
   const scale = config.scale.includes('マイナー') ? minor : major;
-  const progress = style.progressions[Math.floor(rand() * style.progressions.length)];
+  // Choose a coherent harmonic identity for each section rather than applying
+  // one four-chord loop to the entire song. A/B contrast is seed-dependent.
+  const progressions = sections.map((section, index) => {
+    const base = style.progressions[Math.floor(rand() * style.progressions.length)];
+    const rotation = index === 0 ? 0 : Math.floor(rand() * base.length);
+    const contrast = section.name.startsWith('B') || section.name === 'Bridge';
+    return {section, sequence: base, rotation: contrast ? rotation : 0};
+  });
   const offset = Math.floor(rand() * 3);
   return Array.from({length: config.bars}, (_, bar) => {
-    const section = sections.find(s => s.startBar <= bar && bar < s.startBar + s.bars)!;
+    const selected = progressions.find(item =>
+      item.section.startBar <= bar && bar < item.section.startBar + item.section.bars)!;
+    const {section, sequence, rotation} = selected;
     const alternate = section.name.startsWith('B') || config.mood === '緊張感';
-    const degree = bar === config.bars - 1 ? 0 : progress[(bar + (alternate ? offset + 1 : 0)) % progress.length];
+    const localBar = bar - section.startBar;
+    const degree = bar === config.bars - 1 ? 0 :
+      sequence[(localBar + rotation + (alternate ? offset + 1 : 0)) % sequence.length];
     const degrees = style.seventh || config.complexity > 72 ? [0, 2, 4, 6] : [0, 2, 4];
     return degrees.map(interval => {
       const index = degree + interval;
