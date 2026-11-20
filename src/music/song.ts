@@ -49,11 +49,17 @@ export const pitchName = (pitch: number) => KEYS[pitch % 12] + (Math.floor(pitch
 export const noteOrder = (a: Note, b: Note) => a.startTick - b.startTick || a.pitch - b.pitch || a.id.localeCompare(b.id);
 /** Non-destructive piano arrangement for playback and export. */
 export function pianoOnlySong(song: Song): Song {
+  const epic = song.config.genre === 'エピック';
+  // In an Epic piano rendition, playing all 7 pitched layers on the same
+  // instrument turns the score into constant high-note plinking. Keep the
+  // theme, chordal weight and octave bass, with intentional breathing room.
+  const epicPianoParts = new Set<Part>(['melody','chords','bass']);
   return {
     ...song,
-    tracks: song.tracks.map(track => track.type === 'drums'
+    tracks: song.tracks.map(track => track.type === 'drums' || (epic && !epicPianoParts.has(track.type))
       ? {...track,muted:true,solo:false}
-      : {...track,instrument:'Piano' as const,midiProgram:0,solo:false}),
+      : {...track,instrument:'Piano' as const,midiProgram:0,solo:false,
+          volume:epic ? (track.type==='melody' ? .90 : track.type==='chords' ? .72 : .80) : track.volume}),
   };
 }
 export function playableTracks(song: Song) {
