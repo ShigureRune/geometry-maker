@@ -204,6 +204,8 @@ test('cosmic-web seed changes morph the real GPU cloud, pause, and settle',async
   expect(settledWires).toBeGreaterThan(100);
   await category(page,'拡張');
   await page.getByLabel('シード変更時に粒子を再集合').uncheck();
+  // The seed generator is in Shapes, not the Extensions inspector.
+  await category(page,'図形');
   await page.getByRole('button',{name:'ランダムシードを生成'}).click();
   await expect(preview).toHaveAttribute('data-particle-seed-phase','settled');
   const active=await page.evaluate(async()=>{
