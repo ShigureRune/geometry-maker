@@ -203,3 +203,49 @@ test('falling roll shows all eight colored parts with toggleable effects without
   expect(midi.tracks).toHaveLength(8);
   expect(errors).toEqual([]);
 });
+
+test('both piano rolls use authentic white and raised black keys without affecting MIDI',async({page})=>{
+  test.setTimeout(90_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.setViewportSize({width:1440,height:900});
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('音楽シード').fill('authentic-keyboard-visual');
+  await studio.getByLabel('同時演奏パート数').selectOption('8');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  await studio.getByRole('button',{name:'落下ノーツ',exact:true}).click();
+  await studio.getByText('表示とグリッド',{exact:true}).click();
+  const canvas=studio.getByLabel('落下ノーツ型ピアノロール');
+  const sampleKeys=async(firstWhite:number,totalWhites:number)=>{
+    return canvas.evaluate((element:HTMLCanvasElement,{firstWhite,totalWhites})=>{
+      const context=element.getContext('2d')!;
+      const sx=element.width/element.clientWidth,sy=element.height/element.clientHeight;
+      const whiteWidth=element.clientWidth/totalWhites;
+      const middleC=35-firstWhite; // C4 has global white ordinal 35.
+      const y=Math.floor((element.clientHeight-40+7)*sy);
+      const pixel=(ordinal:number)=>{
+        const x=Math.floor(ordinal*whiteWidth*sx);
+        return [...context.getImageData(x,y,1,1).data].slice(0,3);
+      };
+      const white=pixel(middleC+.5);
+      const black=pixel(middleC+1); // C#4 is at the C/D white-key boundary.
+      return {
+        white,black,
+        brightnessDifference:white.reduce((sum,v)=>sum+v,0)-black.reduce((sum,v)=>sum+v,0),
+      };
+    },{firstWhite,totalWhites});
+  };
+  await studio.getByLabel('鍵盤範囲').selectOption('61');
+  await expect.poll(async()=>(await sampleKeys(21,36)).brightnessDifference).toBeGreaterThan(220);
+  await studio.getByLabel('鍵盤範囲').selectOption('88');
+  await expect.poll(async()=>(await sampleKeys(12,52)).brightnessDifference).toBeGreaterThan(180);
+  await studio.getByRole('button',{name:'横スクロール',exact:true}).click();
+  await expect(studio.getByLabel('横スクロール型ピアノロール')).toBeVisible();
+  await studio.getByRole('button',{name:'落下ノーツ',exact:true}).click();
+  await expect(studio.getByLabel('落下ノーツ型ピアノロール')).toBeVisible();
+  const download=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  expect(new Midi(await readFile((await (await download).path())!)).tracks).toHaveLength(8);
+  expect(errors).toEqual([]);
+});
