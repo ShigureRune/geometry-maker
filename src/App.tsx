@@ -653,7 +653,7 @@ export default function App() {
       }
       if(!blob.size)throw new Error('スクショ画像の作成に失敗しました。');
       setScreenshot({
-        blob,width,height,ratio,mode:renderMode,
+        blob,width,height,ratio,mode:renderMode,seed,
         filename:previewScreenshotFilename(seed,renderMode==='3d'?THREE_ALGORITHM_VERSION:version,ratio),
       });
     }catch(error){
