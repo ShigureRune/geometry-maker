@@ -182,7 +182,7 @@ test('falling roll shows all eight colored parts with toggleable effects without
   await expect(studio.getByLabel('全パート同時落下')).toBeChecked();
   await expect(studio.getByLabel('重複ノーツを左右分離')).toBeChecked();
   await expect(studio.getByLabel('ノーツカラー')).toHaveValue('track');
-  await expect(studio.getByLabel('発光強度')).toHaveValue('60');
+  await expect(studio.getByRole('slider',{name:'発光強度'})).toHaveValue('60');
   const allTracks=await canvas.evaluate((element:HTMLCanvasElement)=>element.toDataURL());
   await studio.getByLabel('全パート同時落下').uncheck();
   const oneTrack=await canvas.evaluate((element:HTMLCanvasElement)=>element.toDataURL());
@@ -192,9 +192,9 @@ test('falling roll shows all eight colored parts with toggleable effects without
   await studio.getByLabel('着地波紋').uncheck();
   await studio.getByLabel('着地フラッシュ').uncheck();
   await studio.getByLabel('エフェクト品質').selectOption('low');
-  await studio.getByLabel('発光強度').press('Home');
-  await studio.getByLabel('残像強度').press('Home');
-  await expect(studio.getByLabel('発光強度')).toHaveValue('0');
+  await studio.getByRole('slider',{name:'発光強度'}).press('Home');
+  await studio.getByRole('slider',{name:'残像強度'}).press('Home');
+  await expect(studio.getByRole('slider',{name:'発光強度'})).toHaveValue('0');
   await studio.getByRole('button',{name:'横スクロール',exact:true}).click();
   await expect(studio.getByLabel('横スクロール型ピアノロール')).toBeVisible();
   const midiDownload=page.waitForEvent('download');
