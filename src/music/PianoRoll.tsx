@@ -1,11 +1,13 @@
 import {useLayoutEffect,useMemo,useRef,useState,type PointerEvent} from 'react';
 import type {MusicTransport} from './audio';
 import {noteIndex} from './roll-layout';
+import {fallingLaneKey,fallingLaneRect,layoutFallingLanes} from './falling-layout';
+import {FALLING_HIT_SECONDS,drawFallingBar,drawFallingImpact,type FallingDrawStyle,type FallingImpact} from './falling-fx';
 import {BAR,PPQ,clamp,pitchName,playableTracks,secToTick,type Note,type Part,type Song} from './song';
 
-export type FallOptions = {
-  speed:number; keys:'auto'|'61'|'88'; color:'track'|'pitch'|'single'; shape:'square'|'round'|'glow';
-  background:string; labels:boolean; light:boolean; trails:boolean; sparks:boolean;
+export type FallOptions = FallingDrawStyle & {
+  speed:number; keys:'auto'|'61'|'88'; color:'track'|'pitch'|'single';
+  background:string; labels:boolean; light:boolean; showAll:boolean; separate:boolean;
 };
 export type RollOptions = {
   view:'horizontal'|'falling'; zoom:number; scroll:'fixed'|'follow'|'manual'; grid:number; fall:FallOptions;
@@ -35,14 +37,19 @@ export function PianoRoll(props:Props) {
   const unit=zoom/BAR;
   const timelineWidth=horizontal?Math.max(viewWidth,Math.ceil(song.totalTicks*unit+startPadding+KEYBOARD+viewWidth)):viewWidth;
   const indexed=useMemo(()=>{
-    const selected=song.tracks.filter(t=>tracks.includes(t.id)||t.id===track);
+    const selected=!horizontal && fall.showAll ? song.tracks :
+      song.tracks.filter(t=>tracks.includes(t.id)||t.id===track);
     const indices=selected.map(t=>({track:t,query:noteIndex(t.notes)}));
-    const notes=selected.flatMap(t=>t.notes);
-    const pitches=notes.map(n=>n.pitch);
-    const min=pitches.length?Math.min(...pitches):48, max=pitches.length?Math.max(...pitches):72;
+    let min=Infinity,max=-Infinity;
+    for (const t of selected) for (const note of t.notes) {
+      min=Math.min(min,note.pitch);max=Math.max(max,note.pitch);
+    }
+    if (!Number.isFinite(min)) {min=48;max=72;}
     const low=clamp(min-3,0,108), high=clamp(Math.max(max+3,low+19),low+19,127);
     return {indices,low,high};
-  },[song.tracks,tracks,track]);
+  },[song.tracks,tracks,track,horizontal,fall.showAll]);
+  const fallingLanes=useMemo(()=>horizontal ? new Map() : layoutFallingLanes(indexed.indices.flatMap(entry=>
+    entry.track.notes.map(note=>({part:entry.track.id,note})))),[horizontal,indexed]);
   const selectedIds=useMemo(()=>new Set(selection),[selection]);
   const audible=useMemo(()=>new Set(playableTracks(song).map(t=>t.id)),[song]);
   const resize=useRef<()=>void>(()=>{});
@@ -151,35 +158,37 @@ export function PianoRoll(props:Props) {
         const keyWidth=width/(high-low+1);
         const distance=keyboardY/secToTick(4/fall.speed,song.bpm);
         const future=tick+keyboardY/distance;
+        const hitWindowTicks=secToTick(FALLING_HIT_SECONDS,song.bpm);
         const lit=new Map<number,string[]>();
+        const impacts:FallingImpact[]=[];
         for (let pitch=low;pitch<=high;pitch++) {
           const x=(pitch-low)*keyWidth;
-          ctx.fillStyle=blackKey(pitch)?'#ffffff05':'#ffffff0b';ctx.fillRect(x,0,keyWidth-1,keyboardY);
+          ctx.fillStyle=blackKey(pitch)?'#ffffff05':'#ffffff0b';
+          ctx.fillRect(x,0,Math.max(.2,keyWidth-1),keyboardY);
         }
         ctx.save();ctx.beginPath();ctx.rect(0,0,width,keyboardY);ctx.clip();
-        const laneWidth=keyWidth/indexed.indices.length;
-        for (const [trackIndex,entry] of indexed.indices.entries()) for (const note of entry.query(tick,future)) {
-          if (note.pitch<low || note.pitch>high || note.startTick+note.durationTicks<=tick) continue;
-          const x=(note.pitch-low)*keyWidth+trackIndex*laneWidth+.5;
-          const y=keyboardY-(note.startTick+note.durationTicks-tick)*distance;
-          const h=note.durationTicks*distance, w=Math.max(.7,laneWidth-1);
+        for (const entry of indexed.indices) for (const note of entry.query(Math.max(0,tick-hitWindowTicks),future)) {
+          if (note.pitch<low || note.pitch>high) continue;
           const color=fall.color==='track'?entry.track.color:fall.color==='pitch'?
             'hsl('+((note.pitch%12)*30+195)+' 75% 66%)':'#a595f7';
-          const sounding=transport.playing && audible.has(entry.track.id) && note.startTick<=tick;
+          const keyLeft=(note.pitch-low)*keyWidth;
+          const lane=fallingLanes.get(fallingLaneKey(entry.track.id,note.id));
+          const {x,width:w}=fallingLaneRect(keyLeft,keyWidth,lane,fall.separate);
+          const audibleNote=audible.has(entry.track.id);
+          const sounding=transport.playing && audibleNote && note.startTick<=tick && note.startTick+note.durationTicks>tick;
           if (sounding) lit.set(note.pitch,[...(lit.get(note.pitch)??[]),color]);
-          ctx.fillStyle=color;ctx.globalAlpha=audible.has(entry.track.id)?.86:.34;
-          if (fall.trails) {ctx.globalAlpha*=.23;ctx.fillRect(x+w*.31,y-12,w*.38,12);ctx.globalAlpha=audible.has(entry.track.id)?.86:.34;}
-          if (fall.shape==='glow') {ctx.shadowColor=color;ctx.shadowBlur=9;}
-          ctx.beginPath();ctx.roundRect(x,y,w,Math.max(2,h),fall.shape==='square'?0:Math.min(w/2,4));ctx.fill();
-          ctx.shadowBlur=0;ctx.globalAlpha=1;
-          if (entry.track.id===track && selectedIds.has(note.id)) {ctx.strokeStyle='#fff';ctx.stroke();}
-          if (fall.sparks && sounding) {
-            const elapsed=tick-note.startTick;
-            for (let i=0;i<3;i++) if (elapsed<PPQ*.35) {
-              ctx.globalAlpha=(1-elapsed/(PPQ*.35))*.7;
-              ctx.fillRect(x+w*.5+(i-1)*5,keyboardY-4-elapsed*(.16+i*.05),2,2);
-            }
-            ctx.globalAlpha=1;
+          const ageSec=(tick-note.startTick)/PPQ*60/song.bpm;
+          if (transport.playing && audibleNote && ageSec>=0 && ageSec<=FALLING_HIT_SECONDS && impacts.length<150) {
+            impacts.push({x:x+w/2,y:keyboardY,keyWidth,ageSec,color,velocity:note.velocity,style:fall});
+          }
+          if (note.startTick+note.durationTicks<=tick) continue;
+          const y=keyboardY-(note.startTick+note.durationTicks-tick)*distance;
+          const h=note.durationTicks*distance;
+          drawFallingBar(ctx,{x,y,w,h,color,alpha:audibleNote?.9:.34,tick,style:fall,long:note.durationTicks>=PPQ});
+          if (entry.track.id===track && selectedIds.has(note.id)) {
+            ctx.save();ctx.strokeStyle='#fff';ctx.lineWidth=1;
+            ctx.strokeRect(x+.5,y+.5,Math.max(.5,w-1),Math.max(1,h-1));
+            ctx.restore();
           }
           repaint.push({note,part:entry.track.id,x,y,w,h:Math.min(h,keyboardY-y)});
         }
@@ -188,16 +197,20 @@ export function PianoRoll(props:Props) {
           const x=(pitch-low)*keyWidth, sharp=blackKey(pitch);
           const colors=fall.light ? lit.get(pitch) : undefined;
           ctx.fillStyle=sharp?'#343f5c':'#e6e9f1';
-          ctx.fillRect(x,keyboardY,keyWidth-1,KEYS_HEIGHT);
+          ctx.fillRect(x,keyboardY,Math.max(.2,keyWidth-1),KEYS_HEIGHT);
           colors?.forEach((color,i)=>{
             ctx.fillStyle=color;
-            ctx.fillRect(x+i*(keyWidth-1)/colors.length,keyboardY,(keyWidth-1)/colors.length,KEYS_HEIGHT);
+            ctx.fillRect(x+i*Math.max(.2,keyWidth-1)/colors.length,keyboardY,
+              Math.max(.2,keyWidth-1)/colors.length,KEYS_HEIGHT);
           });
-          if (fall.labels && (!sharp && (keyWidth>=22 || pitch%12===0))) {
+          if (fall.labels && !sharp && (keyWidth>=22 || pitch%12===0)) {
             ctx.fillStyle='#1c263d';ctx.font='10px system-ui';
             ctx.fillText(pitchName(pitch),x+2,height-8);
           }
         }
+        // Derived from the playhead; seeking never leaves stale particles behind.
+        for (const impact of impacts) drawFallingImpact(ctx,impact);
+
       }
       hits.current=repaint;
     }
