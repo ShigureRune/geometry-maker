@@ -11,7 +11,9 @@ import './music.css';
 
 const defaults: RollOptions = {
   view:'horizontal', zoom:146, scroll:'follow', grid:PPQ/4,
-  fall:{speed:1,keys:'auto',color:'track',shape:'round',background:'#11182b',labels:true,light:true,trails:false,sparks:false},
+  fall:{speed:1,keys:'auto',color:'track',shape:'round',background:'#11182b',labels:true,
+    light:true,trails:true,sparks:true,showAll:true,separate:true,glowStrength:.6,trailStrength:.4,
+    hitFlash:true,ripple:true,sustain:true,quality:'medium'},
 };
 const storageKey='geometry-maker-music-v1';
 function initialSong() {
@@ -265,6 +267,13 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
                 <Select label="スクロール" value={options.scroll} items={['fixed','follow','manual'] as const}
                   format={v=>({fixed:'固定再生ヘッド',follow:'追従再生ヘッド',manual:'手動'})[v]} change={v=>setOption('scroll',v)}/>
               </>:<>
+                <div className="music-fall-fx-settings">
+                  <div className="music-buttons">
+                    <Check label="全パート同時落下" value={options.fall.showAll} change={v=>setFall('showAll',v)}/>
+                    <Check label="重複ノーツを左右分離" value={options.fall.separate} change={v=>setFall('separate',v)}/>
+                  </div>
+                  <p className="music-hint">全パート同時落下をオフにすると、選択トラックと「重ねて表示」のトラックだけを描画します。色は「ノーツカラー」で選択できます。</p>
+                </div>
                 <Range label="落下速度" value={options.fall.speed} min={.25} max={4} step={.25} unit="倍" change={v=>setFall('speed',v)}/>
                 <Select label="鍵盤範囲" value={options.fall.keys} items={['auto','61','88'] as const}
                   format={v=>v==='auto'?'自動':v+'鍵'} change={v=>setFall('keys',v)}/>
@@ -275,10 +284,25 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
                 <label className="music-field">落下ノーツ背景<input type="color" value={options.fall.background} onChange={e=>setFall('background',e.target.value)}/></label>
                 <div className="music-buttons"><button onClick={()=>setFall('background','#000000')}>黒</button>
                   <button onClick={()=>setFall('background','#11182b')}>濃紺</button></div>
-                <div className="music-buttons"><Check label="音名" value={options.fall.labels} change={v=>setFall('labels',v)}/>
-                  <Check label="鍵盤発光" value={options.fall.light} change={v=>setFall('light',v)}/>
-                  <Check label="残像" value={options.fall.trails} change={v=>setFall('trails',v)}/>
-                  <Check label="パーティクル" value={options.fall.sparks} change={v=>setFall('sparks',v)}/></div>
+                <div className="music-fall-fx-settings">
+                  <h3>落下ノーツの演出</h3>
+                  <div className="music-buttons">
+                    <Check label="音名" value={options.fall.labels} change={v=>setFall('labels',v)}/>
+                    <Check label="鍵盤発光" value={options.fall.light} change={v=>setFall('light',v)}/>
+                    <Check label="残像" value={options.fall.trails} change={v=>setFall('trails',v)}/>
+                    <Check label="パーティクル" value={options.fall.sparks} change={v=>setFall('sparks',v)}/>
+                    <Check label="着地フラッシュ" value={options.fall.hitFlash} change={v=>setFall('hitFlash',v)}/>
+                    <Check label="着地波紋" value={options.fall.ripple} change={v=>setFall('ripple',v)}/>
+                    <Check label="長音のきらめき" value={options.fall.sustain} change={v=>setFall('sustain',v)}/>
+                  </div>
+                  <Range label="発光強度" value={Math.round(options.fall.glowStrength*100)}
+                    min={0} max={100} unit="%" change={v=>setFall('glowStrength',v/100)}/>
+                  <Range label="残像強度" value={Math.round(options.fall.trailStrength*100)}
+                    min={0} max={100} unit="%" change={v=>setFall('trailStrength',v/100)}/>
+                  <Select label="エフェクト品質" value={options.fall.quality} items={['low','medium','high'] as const}
+                    format={v=>({low:'低（軽量）',medium:'中（標準）',high:'高（高画質）'})[v]}
+                    change={v=>setFall('quality',v)}/>
+                </div>
               </>}
             </div>
           </div>

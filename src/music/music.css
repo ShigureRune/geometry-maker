@@ -62,6 +62,12 @@
 .music-hint,.music-variant {font-size:12px;color:var(--music-muted);margin:0}
 .music-subpanel {border-top:1px solid var(--music-line);padding-top:9px;display:grid;gap:8px}
 .music-subpanel h3 {font-size:13px;margin:0}
+.music-fall-fx-settings {
+  grid-column:1/-1;display:grid;gap:9px;padding:9px;
+  border:1px solid var(--music-line);border-radius:7px;background:#151f32;
+}
+.music-fall-fx-settings h3 {margin:0;color:var(--music-accent);font-size:13px}
+.music-fall-fx-settings .music-buttons {gap:3px 12px}
 .music-roll-panel {overflow:hidden}
 .music-roll-toolbar,.music-tracks {display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px}
 .music-roll-toolbar {justify-content:space-between}
