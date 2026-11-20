@@ -5,7 +5,7 @@ import {buildFallingKeyboardLayout,isBlackKey,whiteKeyBounds} from './keyboard-l
 import {drawFallingPianoKeyboard,drawHorizontalPianoKeyboard} from './keyboard-draw';
 import {fallingLaneKey,fallingLaneRect,layoutFallingLanes} from './falling-layout';
 import {FALLING_HIT_SECONDS,drawFallingBar,drawFallingImpact,type FallingDrawStyle,type FallingImpact} from './falling-fx';
-import {BAR,PPQ,clamp,pitchName,playableTracks,secToTick,type Note,type Part,type Song} from './song';
+import {BAR,PPQ,clamp,playableTracks,secToTick,type Note,type Part,type Song} from './song';
 
 export type FallOptions = FallingDrawStyle & {
   speed:number; keys:'auto'|'61'|'88'; color:'track'|'pitch'|'single';
