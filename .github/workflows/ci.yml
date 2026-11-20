@@ -36,6 +36,28 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test tests/animation.spec.ts
 
+  music-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test tests/music-studio.spec.ts
+        env:
+          PLAYWRIGHT_PRODUCTION: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: music-browser-failures
+          path: test-results/
+          retention-days: 7
+
   magic-browser:
     runs-on: ubuntu-latest
     steps:

@@ -1,0 +1,141 @@
+import {readFile} from 'node:fs/promises';
+import midiPackage from '@tonejs/midi';
+import {expect,test} from '@playwright/test';
+const {Midi}=midiPackage;
+
+test('Music keeps isolated 2D settings, edits both views and round trips genuine MIDI and MP3',async({page},testInfo)=>{
+  test.setTimeout(120_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('./?seed=geometry-music-regression');
+  const geometry=page.getByTestId('current-seed');
+  await expect(geometry).toHaveText('geometry-music-regression',{timeout:25_000});
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await expect(studio).toBeVisible();
+  await expect(page.getByTestId('three-preview')).toHaveCount(0);
+  await expect(geometry).toBeHidden();
+  await studio.getByLabel('音楽シード').fill('audio-integration-fixture');
+  await studio.getByLabel('長さ',{exact:true}).selectOption('4');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  const timeline=studio.getByLabel('再生位置',{exact:true});
+  await expect(timeline).toHaveAttribute('max','7680');
+  await studio.getByRole('button',{name:'落下ノーツ',exact:true}).click();
+  await expect(studio.getByLabel('落下ノーツ型ピアノロール')).toBeVisible();
+  await studio.getByRole('button',{name:'音符を追加'}).click();
+  await expect(studio.getByLabel('ベロシティ',{exact:true})).toHaveValue('90');
+  await studio.getByLabel('ベロシティ',{exact:true}).fill('101');
+  await studio.getByLabel('ベロシティ',{exact:true}).press('Enter');
+  await studio.getByRole('button',{name:'横スクロール',exact:true}).click();
+  await expect(studio.getByLabel('ベロシティ',{exact:true})).toHaveValue('101');
+  await studio.getByRole('button',{name:'元に戻す'}).click();
+  await studio.getByRole('button',{name:'やり直す'}).click();
+
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks).toHaveLength(4);
+  expect(midi.tracks[0].notes.some(n=>n.midi===60&&n.ticks===0&&n.durationTicks===120&&Math.round(n.velocity*127)===101)).toBe(true);
+
+  const jsonDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const json=await readFile((await (await jsonDownload).path())!);
+  const saved=JSON.parse(json.toString());
+  expect(saved.song.seed).toBe('audio-integration-fixture');
+  await studio.getByLabel('楽曲JSONファイル').setInputFiles({name:'song.json',mimeType:'application/json',buffer:json});
+  await expect(studio.getByText('楽曲JSONを読み込みました。')).toBeVisible();
+
+  await studio.getByRole('button',{name:/▶ 再生/}).click();
+  await expect.poll(async()=>Number(await timeline.inputValue())).toBeGreaterThan(40);
+  await studio.getByRole('button',{name:'落下ノーツ',exact:true}).click();
+  await expect(studio.getByRole('button',{name:'一時停止',exact:true})).toBeEnabled();
+  await studio.getByRole('button',{name:'一時停止',exact:true}).click();
+  const paused=await timeline.inputValue();
+  await expect(timeline).toHaveValue(paused);
+  await studio.getByRole('button',{name:/■ 停止/}).click();
+  await expect(timeline).toHaveValue('0');
+
+  await studio.getByLabel('サンプルレート').selectOption('48000');
+  const download=page.waitForEvent('download',{timeout:25_000});
+  // A failed Worker or offline render should surface its UI error immediately.
+  const exportFailure=studio.getByRole('alert').waitFor({timeout:25_000}).then(async()=>{
+    throw new Error(await studio.getByRole('alert').innerText());
+  });
+  await studio.getByRole('button',{name:'MP3書き出し',exact:true}).click();
+  const mp3=await Promise.race([download,exportFailure]);
+  const path=testInfo.outputPath('edited-song.mp3');
+  await mp3.saveAs(path);
+  const bytes=await readFile(path);
+  expect(bytes.length).toBeGreaterThan(160_000);
+  expect(bytes[0]).toBe(255);
+  expect(bytes[1]&224).toBe(224);
+  const audio=await page.evaluate(async input=>{
+    const context=new AudioContext({sampleRate:48000});
+    try{
+      const raw=Uint8Array.from(atob(input),v=>v.charCodeAt(0));
+      const pcm=await context.decodeAudioData(raw.buffer);
+      const channel=pcm.getChannelData(0);
+      const middle=channel.subarray(3*pcm.sampleRate,4*pcm.sampleRate);
+      const late=channel.subarray(7*pcm.sampleRate,8*pcm.sampleRate);
+      return {channels:pcm.numberOfChannels,duration:pcm.duration,
+        earlyPeak:middle.reduce((m,n)=>Math.max(m,Math.abs(n)),0),latePeak:late.reduce((m,n)=>Math.max(m,Math.abs(n)),0)};
+    }finally{await context.close();}
+  },bytes.toString('base64'));
+  expect(audio.channels).toBe(2);
+  expect(audio.duration).toBeGreaterThan(8.4);
+  expect(audio.duration).toBeLessThan(8.7);
+  expect(audio.earlyPeak).toBeGreaterThan(.04);
+  expect(audio.latePeak).toBeGreaterThan(.04);
+
+  const loopStart=studio.getByLabel('開始小節',{exact:true});
+  const loopEnd=studio.getByLabel('終了小節',{exact:true});
+  await loopStart.fill('2');
+  await loopStart.press('Enter');
+  await loopEnd.fill('2');
+  await loopEnd.press('Enter');
+  await studio.getByLabel('範囲ループ').check();
+  await studio.getByRole('button',{name:/▶ 再生/}).click();
+  await expect.poll(async()=>Number(await timeline.inputValue())).toBeGreaterThan(1920);
+  await timeline.fill('3800');
+  await expect.poll(async()=>Number(await timeline.inputValue())).toBeLessThan(2400);
+  await studio.getByRole('button',{name:/■ 停止/}).click();
+
+  await studio.getByRole('button',{name:'2Dモード',exact:true}).click();
+  await expect(geometry).toHaveText('geometry-music-regression',{timeout:25_000});
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  await expect(studio.getByLabel('音楽シード')).toHaveValue('audio-integration-fixture');
+  expect(errors).toEqual([]);
+});
+
+test('direct Music entry works at mobile width and cancels MP3 without navigation',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('heading',{name:'Seed Music Studio'});
+  await expect(studio).toBeVisible();
+  await expect(page.getByTestId('current-seed')).toHaveCount(0);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.getByText('書き出し',{exact:true}).click();
+  await page.getByRole('button',{name:'MP3書き出し',exact:true}).click();
+  await page.getByRole('button',{name:'キャンセル',exact:true}).click();
+  await expect(page.getByText('MP3の書き出しをキャンセルしました。')).toBeVisible();
+  await expect(page.getByRole('button',{name:'MP3書き出し',exact:true})).toBeEnabled();
+});
+
+test('Music releases the 3D canvas and restores the geometry project on return',async({page})=>{
+  test.setTimeout(90_000);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.goto('./?seed=geometry-3d-music');
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  const preview=page.getByTestId('three-preview');
+  await expect(preview.locator('canvas')).toBeVisible({timeout:30_000});
+  await page.getByLabel('クイック比率').selectOption('1:1');
+  const canvas=await preview.locator('canvas').elementHandle();
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Seed Music Studio'})).toBeVisible();
+  await expect(preview).toHaveCount(0);
+  await page.waitForFunction(element=>!!element&&!element.isConnected,canvas);
+  await page.getByRole('button',{name:'3Dモード',exact:true}).click();
+  await expect(preview.locator('canvas')).toBeVisible({timeout:30_000});
+  await expect(page.getByLabel('クイック比率')).toHaveValue('1:1');
+  await expect(page.getByTestId('current-seed')).toHaveText('geometry-3d-music');
+});

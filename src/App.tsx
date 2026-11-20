@@ -72,7 +72,11 @@ const initialBackground: Background = {glowIntensity:100,mode:'gradient',solid:'
 const ThreePreview = lazy(() => import('./three/ThreePreview'));
 
 
-export default function App() {
+type GeometryModeRequest = {mode:'2d'|'3d'};
+
+export default function App({active,onMusic,requestedMode}:{
+  active:boolean; onMusic:()=>void; requestedMode?:GeometryModeRequest;
+}) {
   // Read once, synchronously, before any state initializer or effect can
   // overwrite the last draft with a fresh random seed.
   const saved=useMemo(loadStudioAutosave,[]);
@@ -87,7 +91,7 @@ export default function App() {
     address.searchParams.delete('seed');
     window.history.replaceState(window.history.state,'',address.pathname+address.search+address.hash);
   },[sharedSeed]);
-  const [renderMode,setRenderMode]=useState<'2d'|'3d'>(saved?.mode??'2d');
+  const [renderMode,setRenderMode]=useState<'2d'|'3d'>(requestedMode?.mode??saved?.mode??'2d');
   const [category,setCategory]=useState<Category|null>(saved?.category??'shapes');
   const [threeCategory,setThreeCategory]=useState<Category|null>(saved?.threeCategory??'shapes');
   const activeCategory=renderMode==='2d'?category:threeCategory;
@@ -373,7 +377,10 @@ export default function App() {
     version,seed,ratio,density,visualTheme,enabledShapeKinds,background,
     activeColors,textOverlay,magicSettings,ambient,animation,threeSettings,
     threeRestore.time,threeRestore.floorTime,standbyFinishedSeed]);
-  useEffect(()=>{playback.restart(true);},[]);
+  const startedPlayback=useRef(false);
+  useEffect(()=>{
+    if(!startedPlayback.current){startedPlayback.current=true;playback.restart(true);}
+  },[]);
   // The continuous 2D clock must not consume CPU while a restored project is
   // already in 3D mode or while the independent ambient renderer is active.
   // Run after the initial restart effect so it also covers startup.
@@ -465,12 +472,31 @@ export default function App() {
     }
     setRenderMode(next);
   }
+  const appliedMode=useRef<GeometryModeRequest|undefined>(undefined);
+  useLayoutEffect(()=>{
+    if(active&&requestedMode&&appliedMode.current!==requestedMode){
+      appliedMode.current=requestedMode;
+      switchRenderMode(requestedMode.mode);
+    }
+  },[active,requestedMode]);
+  function openMusic(){
+    if(threeExportBusy)return;
+    if(renderMode==='3d'){
+      const time=threeApi.current?.getElapsedSeconds?.();
+      const floorTime=threeApi.current?.getFloorElapsedSeconds?.();
+      setThreeRestore(previous=>({...previous, serial:previous.serial+1,
+        time:standbyTransition?0:time??previous.time,floorTime:floorTime??previous.floorTime}));
+      setStandbyTransition(null);
+      setThreeReady(false);
+    }
+    onMusic();
+  }
   // Transform spacing only after deterministic geometry has been generated.
   // The scene seed, candidate selection, IDs and density remain unchanged.
   const voidEnabled=!!threeSettings.voidMode?.enabled;
   const voidVersion=threeSettings.voidMode?.version;
-  const threeBaseComposition=useMemo(()=>renderMode==='3d'?
-    voidEnabled?(voidVersion===VOID_WEB_VERSION?generateVoidWeb(seed,ratio):generateVoidComposition(seed,ratio)):generateThreeComposition(seed,ratio):null,[renderMode,seed,ratio,voidEnabled,voidVersion]);
+  const threeBaseComposition=useMemo(()=>active&&renderMode==='3d'?
+    voidEnabled?(voidVersion===VOID_WEB_VERSION?generateVoidWeb(seed,ratio):generateVoidComposition(seed,ratio)):generateThreeComposition(seed,ratio):null,[active,renderMode,seed,ratio,voidEnabled,voidVersion]);
   const threeComposition=useMemo(()=>threeBaseComposition?
     isVoidComposition(threeBaseComposition)?spaceVoidComposition(threeBaseComposition,threeSettings.spacingPercent??100):spaceThreeComposition(threeBaseComposition,threeSettings.spacingPercent??100):null,
     [threeBaseComposition,threeSettings.spacingPercent]);
@@ -709,6 +735,7 @@ export default function App() {
       <div className="render-mode-switch segmented" role="group" aria-label="描画モード">
         <button type="button" aria-pressed={renderMode==='2d'} disabled={threeExportBusy} onClick={()=>switchRenderMode('2d')}>2Dモード</button>
         <button type="button" aria-pressed={renderMode==='3d'} disabled={threeExportBusy} onClick={()=>switchRenderMode('3d')}>3Dモード</button>
+        <button type="button" aria-pressed={false} disabled={threeExportBusy} onClick={openMusic}>Musicモード</button>
       </div>
       <div className="studio-topbar-tools">
         <button type="button" className="studio-command-launch" aria-label="コマンド検索"
@@ -1093,7 +1120,7 @@ export default function App() {
         {screenshotError&&<p className="studio-screenshot-error" role="alert">{screenshotError}</p>}
         {galleryNotice&&<p className="studio-gallery-notice" role="status">{galleryNotice}</p>}
         <div className="canvas-stage">
-          {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
+          {active&&(renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
               {ambient.enabled&&version!==MAGIC_ALGORITHM_VERSION?<AmbientStage input={{seed,version,ratio,density,background,colors:activeColors,animation,settings:ambient,visualTheme,enabledShapeKinds,textOverlay}} clock={ambientClock}/>:version===MAGIC_ALGORITHM_VERSION?<MagicCirclePreview scene={scene} background={twoDBackground} settings={magicSettings} animation={animation} growth={growth}/>:<Preview scene={scene} background={twoDBackground} growth={growth} flow={completedFlow} textOverlay={textOverlay} textSeconds={entrancePreview.seconds} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>}
             </div>
@@ -1115,7 +1142,7 @@ export default function App() {
                    }}/>}
               </Suspense>
             </ThreeBoundary>
-          </div>}
+          </div>)}
         </div>
         <div className="studio-quickbar" role="group" aria-label="クイック調整">
           <div className="studio-quickbar-caption"><span className="studio-quickbar-symbol" aria-hidden="true">✳</span>
