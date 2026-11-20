@@ -446,3 +446,52 @@ test('Epic recommendation builds a dramatic minor-key score and a clean three-pa
   expect(project.song.tracks).toHaveLength(8);
   expect(project.song.sections.some((section:{name:string})=>section.name==='Build')).toBe(true);
 });
+
+test('Epic orchestra plays CC0 sampled instruments and exports matching MP3/MIDI without changing the JSON',async({page})=>{
+  test.setTimeout(90_000);
+  // Network-independent test: return a valid short WAV from every pack URL.
+  // The samples are decoded through exactly the same AudioContext path as MP3.
+  const rate=22050,frames=rate;
+  const wav=Buffer.alloc(44+frames*2);
+  wav.write('RIFF',0);wav.writeUInt32LE(wav.length-8,4);wav.write('WAVE',8);
+  wav.write('fmt ',12);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);
+  wav.writeUInt16LE(1,22);wav.writeUInt32LE(rate,24);wav.writeUInt32LE(rate*2,28);
+  wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);
+  wav.write('data',36);wav.writeUInt32LE(frames*2,40);
+  for(let i=0;i<frames;i++)wav.writeInt16LE(Math.round(Math.sin(i*2*Math.PI*330/rate)*8000),44+i*2);
+  let requested=0;
+  await page.route('https://koulaxizis.github.io/oros-sounds/packs/**',async route=>{
+    requested++;
+    await route.fulfill({status:200,contentType:'audio/wav',body:wav,
+      headers:{'access-control-allow-origin':'*'}});
+  });
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('ジャンル',{exact:true}).selectOption('エピック');
+  await studio.getByLabel('長さ',{exact:true}).selectOption('4');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  const orchestra=studio.getByRole('button',{name:'🎻 Epicオーケストラ',exact:true});
+  await orchestra.click();
+  await expect(orchestra).toHaveAttribute('aria-pressed','true',{timeout:30_000});
+  expect(requested).toBeGreaterThanOrEqual(20);
+  await expect(studio.getByText(/VSCO 2の録音オーケストラ音源を読み込みました/)).toBeVisible();
+  const play=studio.getByRole('button',{name:/▶ 再生/});
+  await play.click();
+  await expect(studio.getByRole('button',{name:'一時停止',exact:true})).toBeEnabled();
+  await studio.getByRole('button',{name:/■ 停止/}).click();
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks.slice(0,3).map(track=>track.instrument.number)).toEqual([60,48,42]);
+  expect(midi.tracks[3].channel).toBe(9);
+  const jsonDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const project=JSON.parse((await readFile((await (await jsonDownload).path())!)).toString());
+  expect(project.song.tracks[0].midiProgram).toBe(81);
+  const mp3Download=page.waitForEvent('download',{timeout:45_000});
+  await studio.getByRole('button',{name:'MP3書き出し',exact:true}).click();
+  const mp3=await readFile((await (await mp3Download).path())!);
+  expect(mp3.length).toBeGreaterThan(20_000);
+  await studio.getByRole('button',{name:'通常編成',exact:true}).click();
+  await expect(orchestra).toHaveAttribute('aria-pressed','false');
+});
