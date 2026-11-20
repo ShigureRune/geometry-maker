@@ -176,7 +176,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     } else if (part === 'drums') {
       style.kicks.forEach((step, i) => {
         if ((i === 0 || rand() < density + .28) && (!final || step === 0) &&
-          (!epic || !intro || step===0)) add(bar, step, 36, epic?235:190, 73 + energy * 32);
+          (!epic || !intro || step===0)) add(bar, step, 36, epic?(step===3?120:220):190, 73 + energy * 32);
       });
       if (!final && !(intro && bar === 0) && config.genre !== 'アンビエント') {
         for (const step of epic ? [4] : [2, 6])
