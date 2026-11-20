@@ -18,6 +18,10 @@ on:
       - 'src/preview-screenshot.ts'
       - 'src/preview-screenshot.test.ts'
       - 'tests/preview-screenshot.spec.ts'
+      - 'src/ScreenshotGalleryDialog.tsx'
+      - 'src/screenshot-gallery.ts'
+      - 'src/screenshot-gallery.test.ts'
+      - 'tests/screenshot-gallery.spec.ts'
       - 'src/command-workspaces.ts'
       - 'src/command-workspaces.test.ts'
       - 'tests/command-workspaces.spec.ts'
@@ -74,6 +78,10 @@ on:
       - 'src/preview-screenshot.ts'
       - 'src/preview-screenshot.test.ts'
       - 'tests/preview-screenshot.spec.ts'
+      - 'src/ScreenshotGalleryDialog.tsx'
+      - 'src/screenshot-gallery.ts'
+      - 'src/screenshot-gallery.test.ts'
+      - 'tests/screenshot-gallery.spec.ts'
       - 'src/command-workspaces.ts'
       - 'src/command-workspaces.test.ts'
       - 'tests/command-workspaces.spec.ts'
@@ -268,5 +276,27 @@ jobs:
         if: failure()
         with:
           name: preview-screenshot-failures
+          path: test-results/
+          retention-days: 7
+
+  screenshot-gallery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx vitest run src/screenshot-gallery.test.ts
+      - run: npx playwright install --with-deps chromium
+      - name: Test persisted gallery, iPhone thumbnail filters, PNG reuse and deletion
+        run: npx playwright test tests/screenshot-gallery.spec.ts tests/preview-screenshot.spec.ts
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshot-gallery-failures
           path: test-results/
           retention-days: 7
