@@ -219,13 +219,30 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         if ((i === 0 || rand() < density + .28) && (!final || step === 0) &&
           (!epic || !intro || step===0)) add(bar, step, 36, epic?(step===3?120:220):190, 73 + energy * 32);
       });
+      // Each section family owns a reproducible groove. Keep the main backbeat
+      // recognizable, but vary ghost snares, kick pickups and hat accents by seed.
+      const grooveRand = musicRandom(JSON.stringify([
+        MUSIC_VERSION, config.seed, 'drum-groove', variation, section.name.replace('′', ''),
+      ]));
+      const ghostStep = [1, 3, 5, 7][Math.floor(grooveRand() * 4)];
+      const pickupStep = [1, 3, 5, 7][Math.floor(grooveRand() * 4)];
+      const hatAccent = Math.floor(grooveRand() * 4);
       if (!final && !(intro && bar === 0) && config.genre !== 'アンビエント') {
         for (const step of epic ? [4] : [2, 6])
           add(bar, step, 38, epic?195:145, 70 + energy * 23 + rand() * 8);
+        // A quiet ghost note only on selected phrase bars, not every beat.
+        if (!epic && density > .48 && (bar - section.startBar) % 4 === 3 &&
+            rand() < .35 + config.complexity * .004)
+          add(bar, ghostStep, 38, 85, 29 + energy * 15);
       }
+      if (!final && !intro && !epic && config.genre !== 'アンビエント' &&
+          (bar - section.startBar) % 4 === 3 && rand() < density * .6 &&
+          !style.kicks.includes(pickupStep))
+        add(bar, pickupStep, 36, 100, 42 + energy * 18);
       if (!final) for (let step = 1; step < 8; step += style.hats) {
         if ((!epic || !intro) && rand() < density + .26)
-          add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
+          add(bar, step, step === 7 && contrast ? 46 : 42, 100,
+            42 + energy * 21 + rand() * 12 + (step % 4 === hatAccent ? 9 : 0));
       }
       // Four accelerating impacts in the last beat of every pre-climax build bar.
       if (epic && build && !final) for (const step of [5,6,7]) {
