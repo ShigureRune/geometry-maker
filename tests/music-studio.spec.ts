@@ -249,3 +249,40 @@ test('both piano rolls use authentic white and raised black keys without affecti
   expect(new Midi(await readFile((await (await download).path())!)).tracks).toHaveLength(8);
   expect(errors).toEqual([]);
 });
+
+test('ten-genre generator supports arrangement and melody variants through MIDI and JSON',async({page})=>{
+  test.setTimeout(90_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  const genre=studio.getByLabel('ジャンル',{exact:true});
+  await expect(genre.locator('option')).toHaveCount(10);
+  await genre.selectOption('ドラムンベース');
+  await studio.getByLabel('曲構成').selectOption('サビ重視');
+  await studio.getByLabel('メロディーの動き').selectOption('疾走');
+  await studio.getByLabel('音楽シード').fill('breakbeats-deterministic');
+  await studio.getByLabel('長さ',{exact:true}).selectOption('16');
+  await studio.getByLabel('同時演奏パート数').selectOption('8');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  await expect(studio.getByLabel('ジャンル',{exact:true})).toHaveValue('ドラムンベース');
+  await studio.getByRole('button',{name:'落下ノーツ',exact:true}).click();
+  await expect(studio.getByLabel('落下ノーツ型ピアノロール')).toBeVisible();
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks).toHaveLength(8);
+  expect(midi.tracks.some(track=>track.notes.length>0)).toBe(true);
+  const jsonDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const content=await readFile((await (await jsonDownload).path())!);
+  const saved=JSON.parse(content.toString());
+  expect(saved.song.config.genre).toBe('ドラムンベース');
+  expect(saved.song.config.arrangement).toBe('サビ重視');
+  expect(saved.song.config.melodyStyle).toBe('疾走');
+  await studio.getByLabel('楽曲JSONファイル').setInputFiles({name:'variations.json',
+    mimeType:'application/json',buffer:content});
+  await expect(studio.getByLabel('曲構成')).toHaveValue('サビ重視');
+  await expect(studio.getByLabel('メロディーの動き')).toHaveValue('疾走');
+  expect(errors).toEqual([]);
+});
