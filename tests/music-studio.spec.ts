@@ -192,8 +192,8 @@ test('falling roll shows all eight colored parts with toggleable effects without
   await studio.getByLabel('着地波紋').uncheck();
   await studio.getByLabel('着地フラッシュ').uncheck();
   await studio.getByLabel('エフェクト品質').selectOption('low');
-  await studio.getByLabel('発光強度').fill('0');
-  await studio.getByLabel('残像強度').fill('0');
+  await studio.getByLabel('発光強度').press('Home');
+  await studio.getByLabel('残像強度').press('Home');
   await expect(studio.getByLabel('発光強度')).toHaveValue('0');
   await studio.getByRole('button',{name:'横スクロール',exact:true}).click();
   await expect(studio.getByLabel('横スクロール型ピアノロール')).toBeVisible();
