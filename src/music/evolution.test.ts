@@ -48,4 +48,19 @@ describe('SEED EVOLUTION harmonic diversity', () => {
     expect(fingerprints.size).toBeGreaterThan(80);
   });
 
+  it('keeps seed-specific rhythmic fingerprints distinct and every melody note inside its bar', () => {
+    const fingerprints = new Set<string>();
+    for (let i = 0; i < 160; i++) {
+      const config = {...DEFAULT_CONFIG, genre: 'ファンク' as const, seed: 'rhythm-evolution-' + i, bars: 32 as const};
+      const melody = generateSong(config).tracks.find(track => track.id === 'melody')!.notes;
+      const rhythm = melody.filter(note => note.startTick < 16 * BAR)
+        .map(note => note.startTick % BAR).join(',');
+      fingerprints.add(rhythm);
+      expect(melody.every(note => note.durationTicks > 0 &&
+        note.startTick + note.durationTicks <= (Math.floor(note.startTick / BAR) + 1) * BAR)).toBe(true);
+      expect(melody.every(note => note.pitch >= 56 && note.pitch <= 84)).toBe(true);
+    }
+    expect(fingerprints.size).toBeGreaterThan(100);
+  });
+
 });
