@@ -4,6 +4,11 @@ import {mkdir,readFile} from 'node:fs/promises';
 import {GALAXY_TYPES} from '../src/three/galaxy';
 test.setTimeout(120_000);
 async function category(page:Page,name:string){await openSettingsCategory(page,name);}
+async function selectGalaxyQuality(page:Page,quality:'low'|'high'){
+  await category(page,'図形');
+  await page.getByLabel('3D描画品質').selectOption(quality);
+  await category(page,'拡張');
+}
 async function openGalaxy(page:Page,gasOnly=false,starsOnly=false,detailOnly=false){
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.goto(detailOnly?'./?galaxyDetailOnly=1&legacy-ui=1':
@@ -216,7 +221,7 @@ test('moving galactic nuclei attract, drag their luminous bulges and can be swit
 test('faint 3D disk keeps distinct face-on and steep edge-on silhouettes',async({page})=>{
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   await page.locator('#galaxy-count').fill('12000');
   await expect(preview).toHaveAttribute('data-galaxy-disk-representation',
     '3d-thin-stellar-volume');
@@ -245,7 +250,7 @@ test('extreme zoom reveals sharp additional stars with no distant extra glow',as
   await openGalaxy(page,false,false,true);
   const preview=page.getByTestId('three-preview');
   const canvas=preview.locator('canvas');
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   await page.locator('#galaxy-count').fill('9000');
   await expect(preview).toHaveAttribute('data-galaxy-camera-near','0.025');
   await expect(preview).toHaveAttribute('data-galaxy-detail-only-probe','true');
@@ -305,7 +310,7 @@ test('deep zoom keeps the stellar disk colorful without a washed-out white field
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
   const canvas=preview.locator('canvas');
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   await page.locator('#galaxy-count').fill('9000');
   await page.locator('#galaxy-inclination').fill('0');
   await canvas.hover();
@@ -460,7 +465,7 @@ async function galaxyExposure(page:Page,filename:string,galaxyType='grand_design
 test('PNG export preserves the preview gas and star glow at a larger resolution',async({page})=>{
   test.setTimeout(160_000);
   await openGalaxy(page);
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   const preview=page.getByTestId('three-preview');
   await expect(preview).toHaveAttribute('data-quality','high');
   await page.locator('#galaxy-count').fill('7500');
@@ -531,10 +536,10 @@ test('high quality preserves galaxy colors with volumetric 3D gas',async({page})
   const preview=page.getByTestId('three-preview');
   await mkdir('test-results',{recursive:true});
   await page.locator('#galaxy-count').fill('30000');
-  await page.getByLabel('3D描画品質').selectOption('low');
+  await selectGalaxyQuality(page,'low');
   await expect(preview).toHaveAttribute('data-quality','low');
   const normal=await galaxyExposure(page,'test-results/galaxy-exposure-low.png');
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   await expect(preview).toHaveAttribute('data-quality','high');
   await expect(preview).toHaveAttribute('data-galaxy-count','30000');
   for(const type of ['grand_design','ring','interacting'] as const){
@@ -702,7 +707,7 @@ test('volumetric central nucleus brightens with glow setting, not the whole disk
 test('central photographic hotspot intensifies without washing out distant arms',async({page})=>{
   await openGalaxy(page);
   const preview=page.getByTestId('three-preview');
-  await page.getByLabel('3D描画品質').selectOption('high');
+  await selectGalaxyQuality(page,'high');
   await page.locator('#galaxy-count').fill('12000');
   await page.locator('#galaxy-inclination').fill('0');
   await expect(preview).toHaveAttribute('data-quality','high');
