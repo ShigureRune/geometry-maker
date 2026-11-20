@@ -63,4 +63,25 @@ describe('SEED EVOLUTION harmonic diversity', () => {
     expect(fingerprints.size).toBeGreaterThan(100);
   });
 
+  it('varies seeded drum grooves without losing the backbeat or deterministic output', () => {
+    const fingerprints = new Set<string>();
+    for (let i = 0; i < 96; i++) {
+      const config = {...DEFAULT_CONFIG, genre: 'ファンク' as const,
+        seed: 'groove-evolution-' + i, bars: 32 as const, density: 80};
+      const song = generateSong(config);
+      const drums = song.tracks.find(track => track.id === 'drums')!.notes;
+      const repeat = generateSong(config).tracks.find(track => track.id === 'drums')!.notes;
+      expect(drums).toEqual(repeat);
+      const backbeats = drums.filter(note => note.pitch === 38 &&
+        [2, 6].includes(Math.floor((note.startTick % BAR) / (BAR / 8))) &&
+        note.startTick < 31 * BAR);
+      expect(backbeats.length).toBeGreaterThan(30);
+      expect(drums.every(note => note.startTick >= 0 &&
+        note.startTick + note.durationTicks <= song.totalTicks)).toBe(true);
+      fingerprints.add(drums.filter(note => note.startTick < 16 * BAR)
+        .map(note => [note.pitch, note.startTick, note.velocity].join(':')).join('|'));
+    }
+    expect(fingerprints.size).toBeGreaterThan(80);
+  });
+
 });
