@@ -44,7 +44,8 @@ describe('Falling notes collision layout',()=>{
   it('can draw without separation and remains within tiny mobile keys',()=>{
     const samePitch=[make('melody','one',0,480),make('chords','two',0,480)];
     const lanes=layoutFallingLanes(samePitch);
-    const overlapping=samePitch.map(n=>fallingLaneRect(0,3.4,lanes.get(fallingLaneKey(n.part,n.note.id)),true));
+    const overlapping=samePitch.map(n=>fallingLaneRect(0,3.4,lanes.get(fallingLaneKey(n.part,n.note.id)),true))
+      .sort((a,b)=>a.x-b.x);
     expect(overlapping[0].x+overlapping[0].width).toBeLessThanOrEqual(overlapping[1].x);
     expect(overlapping.every(rect=>rect.width>0&&rect.x>=0&&rect.x+rect.width<3.4)).toBe(true);
     expect(fallingLaneRect(2,6,lanes.get('melody:one'),false))
