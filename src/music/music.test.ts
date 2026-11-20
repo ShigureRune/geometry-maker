@@ -5,9 +5,25 @@ import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {musicProjectText, parseMusicProject, validateNotes} from './project';
 import {noteIndex} from './roll-layout';
-import {BAR, DEFAULT_CONFIG, GENRES, PPQ, secToTick, tickToSec} from './song';
+import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, playableTracks, secToTick, tickToSec} from './song';
 
 describe('Seed Music Studio',()=>{
+  it('renders a piano-only arrangement without changing the source song or seed',()=>{
+    const original=generateSong({...DEFAULT_CONFIG,seed:'piano-only-regression',trackCount:8});
+    const snapshot=JSON.stringify(original);
+    const piano=pianoOnlySong(original);
+    expect(piano.tracks).toHaveLength(original.tracks.length);
+    expect(piano.tracks.filter(track=>track.type==='drums').every(track=>track.muted)).toBe(true);
+    expect(playableTracks(piano).every(track=>track.instrument==='Piano')).toBe(true);
+    expect(piano.tracks.filter(track=>track.type!=='drums').every(track=>track.midiProgram===0)).toBe(true);
+    expect(piano.tracks.map(track=>track.notes)).toEqual(original.tracks.map(track=>track.notes));
+    expect(JSON.stringify(original)).toBe(snapshot);
+    expect(audioPlan(piano).events.every(event=>event.instrument==='Piano')).toBe(true);
+    const midi=new Midi(exportMidi(piano,true));
+    expect(midi.tracks).toHaveLength(original.tracks.length-1);
+    expect(midi.tracks.every(track=>track.instrument.number===0)).toBe(true);
+  });
+
   it.each(GENRES)('generates repeatable arrangement, harmony and playable notes for %s',genre=>{
     const config={...DEFAULT_CONFIG,genre,seed:'sample-♯',bars:64 as const,complexity:100,swing:100,density:100,key:11};
     const song=generateSong(config);
