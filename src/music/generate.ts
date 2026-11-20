@@ -178,11 +178,23 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     } else if (part === 'melody') {
       if (intro && bar !== 0 && bar % 2 !== 0) continue;
       const extraDensity = config.melodyStyle === '疾走' ? .23 : config.melodyStyle === '歌う' ? -.10 : 0;
-      const steps = final ? [0] : melodySteps.filter((_, i) => i === 0 || rand() < density + .15 + extraDensity);
+      // A seed-specific rhythmic identity is reused within a section family,
+      // with small bar-level variations. Anchor beat zero and keep onsets unique.
+      const rhythmRand = musicRandom(JSON.stringify([
+        MUSIC_VERSION, config.seed, 'rhythm', variation, section.name.replace('′', ''),
+      ]));
+      const rhythmPattern = Array.from({length: 8}, (_, step) =>
+        step === 0 || rhythmRand() < (.35 + config.density * .005));
+      const rhythmPhase = (bar - section.startBar) % 4;
+      const steps = final ? [0] : melodySteps
+        .filter((step, i) => i === 0 || (rhythmPattern[step] && rand() < density + .26 + extraDensity))
+        .map((step, i) => i === 0 || rhythmPhase !== 3 ? step : Math.min(7, step + (step % 2 === 0 ? 1 : 0)))
+        .filter((step, i, all) => all.indexOf(step) === i)
+        .sort((a, b) => a - b);
       steps.forEach((step, i) => {
         const motif = motifFor(section.name);
         const localPhraseBar = (bar - section.startBar) % 4;
-        const motifValue = motif[(melodySteps.indexOf(step) + (localPhraseBar === 3 ? 1 : 0)) % motif.length];
+        const motifValue = motif[(i + (localPhraseBar === 3 ? 1 : 0)) % motif.length];
         // Answer phrases rise/fall relative to their opening; section repeats
         // retain their recognizable contour instead of drawing unrelated notes.
         const phraseDevelopment = localPhraseBar === 1 ? 2 : localPhraseBar === 2 ? -2 : 0;
