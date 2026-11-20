@@ -9,6 +9,37 @@ import {noteIndex} from './roll-layout';
 import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, playableTracks, secToTick, tickToSec} from './song';
 
 describe('Seed Music Studio',()=>{
+  it('builds an expressive Epic climax and a focused piano rendition without modifying the score',()=>{
+    const config={...DEFAULT_CONFIG,genre:'エピック' as const,seed:'epic-drama-regression',
+      bars:32 as const,trackCount:8 as const,scale:'ナチュラルマイナー' as const,
+      arrangement:'標準' as const};
+    const song=generateSong(config);
+    expect(generateSong(config)).toEqual(song);
+    const intro=song.sections.find(section=>section.name==='Intro')!;
+    const climax=song.sections.find(section=>section.name==='B′')!;
+    expect(song.sections.some(section=>section.name==='Build')).toBe(true);
+    const inSection=(part:string,section:typeof intro)=>song.tracks.find(t=>t.id===part)!.notes
+      .filter(note=>note.startTick>=section.startBar*BAR && note.startTick<(section.startBar+section.bars)*BAR);
+    expect(inSection('melody',climax).length/climax.bars).toBeGreaterThan(inSection('melody',intro).length/intro.bars);
+    expect(inSection('drums',climax).length/climax.bars).toBeGreaterThan(inSection('drums',intro).length/intro.bars);
+    const average=(notes:{velocity:number}[])=>notes.reduce((sum,note)=>sum+note.velocity,0)/notes.length;
+    expect(average(inSection('melody',climax))).toBeGreaterThan(average(inSection('melody',intro))*2);
+    for(const track of song.tracks) {
+      const until=new Map<number,number>();
+      for(const note of track.notes) {
+        expect(note.startTick).toBeGreaterThanOrEqual(until.get(note.pitch)??0);
+        until.set(note.pitch,note.startTick+note.durationTicks);
+      }
+    }
+    const original=JSON.stringify(song);
+    const piano=pianoOnlySong(song);
+    expect(playableTracks(piano).map(track=>track.id)).toEqual(['melody','chords','bass']);
+    expect(audioPlan(piano).events.every(event=>event.instrument==='Piano')).toBe(true);
+    expect(new Midi(exportMidi(piano,true)).tracks).toHaveLength(3);
+    expect(JSON.stringify(song)).toBe(original);
+    expect(parseMusicProject(musicProjectText(song))).toEqual(song);
+  });
+
   it('builds a distinct deterministic Epic trailer with rising tension and a climax',()=>{
     const config={...DEFAULT_CONFIG,genre:'エピック' as const,seed:'epic-trailer-suite',bars:32 as const,trackCount:8 as const,
       scale:'ナチュラルマイナー' as const,arrangement:'標準' as const};
@@ -25,7 +56,7 @@ describe('Seed Music Studio',()=>{
       note.startTick>=section.startBar*BAR && note.startTick<(section.startBar+section.bars)*BAR).length/section.bars;
     expect(accents(build)).toBeGreaterThan(accents(intro));
     expect(drums.notes.some(note=>note.pitch===38 && note.startTick%BAR===4*PPQ/2)).toBe(true);
-    expect(epic.tracks.find(track=>track.id==='chords')!.notes.some(note=>note.pitch<48)).toBe(true);
+    expect(epic.tracks.find(track=>track.id==='bass')!.notes.some(note=>note.pitch<48)).toBe(true);
     expect(parseMusicProject(musicProjectText(epic))).toEqual(epic);
   });
 

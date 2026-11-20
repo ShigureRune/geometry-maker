@@ -51,6 +51,13 @@ export function GeneratorPanel({config,change,generate,randomize,copy,reroll,sta
       onChange={e=>edit('seed',e.target.value)} onKeyDown={e=>{if(e.key==='Enter')generate();}}/></label>
     <div className="music-buttons"><button onClick={randomize}>ランダム</button><button onClick={copy}>シードをコピー</button></div>
     <Select label="ジャンル" value={config.genre} items={GENRES} change={value=>edit('genre',value)}/>
+    {config.genre==='エピック'&&<div className="music-buttons">
+      <button onClick={()=>change({...config,bpm:140,scale:'ナチュラルマイナー',bars:32,
+        trackCount:8,mood:'緊張感',arrangement:'標準',complexity:70,density:75,swing:0})}>
+        🎬 Epic向け推奨設定
+      </button>
+      <span className="music-hint">32小節・マイナー・後半に大きな盛り上がり。ドラムも聴くなら「通常編成」に切り替えてください。</span>
+    </div>}
     <NumberField label="作曲BPM" value={config.bpm} min={60} max={200} change={bpm}/>
     <Select label="雰囲気" value={config.mood} items={MOODS} change={value=>edit('mood',value)}/>
     <div className="music-columns">
