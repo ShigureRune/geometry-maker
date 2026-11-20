@@ -364,3 +364,35 @@ test('Music playback recovers after app backgrounding, context shutdown and mode
   await expect(pause).toBeEnabled();
   expect(errors).toEqual([]);
 });
+
+
+test('Piano-only mode changes playback and MIDI without destroying the original project',async({page})=>{
+  await page.goto('./?seed=piano-only-mode');
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('音楽シード').fill('piano-only-mode');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  const piano=studio.getByRole('button',{name:/ピアノだけ/});
+  await piano.click();
+  await expect(piano).toHaveAttribute('aria-pressed','true');
+  await studio.getByRole('button',{name:/▶ 再生/}).click();
+  await expect(studio.getByRole('button',{name:'一時停止',exact:true})).toBeEnabled();
+  await studio.getByRole('button',{name:/■ 停止/}).click();
+
+  const pianoDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const pianoMidi=new Midi(await readFile((await (await pianoDownload).path())!));
+  expect(pianoMidi.tracks.filter(track=>track.notes.length).every(track=>track.instrument.number===0)).toBe(true);
+
+  const jsonDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const saved=JSON.parse((await readFile((await (await jsonDownload).path())!)).toString());
+  expect(saved.song.tracks.some((track:{instrument:string})=>track.instrument==='Drum Kit')).toBe(true);
+
+  await studio.getByRole('button',{name:'通常編成',exact:true}).click();
+  await expect(piano).toHaveAttribute('aria-pressed','false');
+  const normalDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const normalMidi=new Midi(await readFile((await (await normalDownload).path())!));
+  expect(normalMidi.tracks.some(track=>track.channel===9)).toBe(true);
+});

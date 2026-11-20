@@ -47,6 +47,15 @@ export const tickToSec = (tick: number, bpm: number) => tick / PPQ * 60 / bpm;
 export const secToTick = (seconds: number, bpm: number) => seconds * bpm / 60 * PPQ;
 export const pitchName = (pitch: number) => KEYS[pitch % 12] + (Math.floor(pitch / 12) - 1);
 export const noteOrder = (a: Note, b: Note) => a.startTick - b.startTick || a.pitch - b.pitch || a.id.localeCompare(b.id);
+/** Non-destructive piano arrangement for playback and export. */
+export function pianoOnlySong(song: Song): Song {
+  return {
+    ...song,
+    tracks: song.tracks.map(track => track.type === 'drums'
+      ? {...track,muted:true,solo:false}
+      : {...track,instrument:'Piano' as const,midiProgram:0,solo:false}),
+  };
+}
 export function playableTracks(song: Song) {
   const solo = song.tracks.some(track => track.solo);
   return song.tracks.filter(track => !track.muted && (!solo || track.solo));
