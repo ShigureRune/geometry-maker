@@ -17,6 +17,12 @@ describe('Seed Music Studio',()=>{
     expect(song.tracks.map(t=>t.type)).toEqual(['melody','chords','bass','drums']);
     for(const t of song.tracks){
       expect(t.notes.length).toBeGreaterThan(64);
+      const lastEnd=new Map<number,number>();
+      for(const note of t.notes) {
+        const end=lastEnd.get(note.pitch)??0;
+        expect(end,genre+' / '+t.id+' / '+note.pitch+' / '+note.startTick).toBeLessThanOrEqual(note.startTick);
+        lastEnd.set(note.pitch,note.startTick+note.durationTicks);
+      }
       expect(()=>validateNotes(t.notes,song.totalTicks)).not.toThrow();
     }
     expect(parseMusicProject(musicProjectText(song))).toEqual(song);
