@@ -1,5 +1,5 @@
 import {
-  BAR, GENRES, INSTRUMENTS, KEYS, LENGTHS, MOODS, MUSIC_VERSION, PARTS, PPQ, PROGRAMS, SCALES,
+  BAR, GENRES, INSTRUMENTS, KEYS, LENGTHS, MOODS, MUSIC_VERSION, PARTS, TRACK_COUNTS, PPQ, PROGRAMS, SCALES,
   noteOrder, type Config, type Note, type Section, type Song, type Track,
 } from './song';
 
@@ -29,6 +29,8 @@ export function validateConfig(value: unknown): Config {
   return {
     seed: str(v.seed,'seed'), genre: choice(v.genre,GENRES,'genre'), bpm: num(v.bpm,'bpm',60,200),
     key: num(v.key,'key',0,KEYS.length-1), scale: choice(v.scale,SCALES,'scale'), bars: choice(v.bars,LENGTHS,'bars'),
+    // Previous v1 song JSON did not store trackCount and always contained four tracks.
+    trackCount: v.trackCount === undefined ? 4 : choice(v.trackCount,TRACK_COUNTS,'trackCount'),
     mood: choice(v.mood,MOODS,'mood'), complexity: num(v.complexity,'complexity',0,100),
     density: num(v.density,'density',0,100), swing: num(v.swing,'swing',0,100),
   };
@@ -77,9 +79,9 @@ export function parseMusicProject(text: string): Song {
     sections.push({name:str(s.name,'section.name',40),startBar:nextBar,bars});
     nextBar += bars;
   }
-  if (nextBar !== config.bars || !Array.isArray(v.tracks) || v.tracks.length !== PARTS.length) invalid('sections / tracks');
+  if (nextBar !== config.bars || !Array.isArray(v.tracks) || v.tracks.length !== config.trackCount) invalid('sections / tracks');
   const rows = v.tracks;
-  const tracks: Track[] = PARTS.map((part,index) => {
+  const tracks: Track[] = PARTS.slice(0,config.trackCount).map((part,index) => {
     const t = object(rows.find((row: unknown) => object(row).id === part));
     const instrument = choice(t.instrument,INSTRUMENTS,'instrument');
     const channel = part === 'drums' ? 9 : index;

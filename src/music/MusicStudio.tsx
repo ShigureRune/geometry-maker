@@ -73,12 +73,16 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
     if(!previous)return;
     setHistory({past:history.past.slice(0,-1),next:[song,...history.next]});
     setSong(previous);setDraft(previous.config);setSelection([]);setError('');
+    setTrack(id=>previous.tracks.some(t=>t.id===id)?id:'melody');
+    setTracks(ids=>ids.filter(id=>previous.tracks.some(t=>t.id===id)));
   }
   function redo(){
     const next=history.next[0];
     if(!next)return;
     setHistory({past:[...history.past,song],next:history.next.slice(1)});
     setSong(next);setDraft(next.config);setSelection([]);setError('');
+    setTrack(id=>next.tracks.some(t=>t.id===id)?id:'melody');
+    setTracks(ids=>ids.filter(id=>next.tracks.some(t=>t.id===id)));
   }
   function generate(config=draft,mode?:Part|'all'){
     try {
@@ -86,6 +90,8 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
       const next=generateSong(validateConfig(partial?song.config:config),{previous:song,reroll:mode,regenerateDependents:dependent});
       if(!partial) {
         transport.stop();setDraft(next.config);setLoop({start:0,end:next.totalTicks});
+        setTrack(id=>next.tracks.some(t=>t.id===id)?id:'melody');
+        setTracks(ids=>ids.filter(id=>next.tracks.some(t=>t.id===id)));
         setSelection([]);
       } else if (mode===track) setSelection([]);
       commit(next);info(partial?'パートを再生成しました。':'楽曲を生成しました。');
@@ -165,6 +171,8 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
       if(source.size>4_000_000)throw new Error('楽曲JSONは4 MB以下にしてください。');
       const restored=parseMusicProject(await source.text());
       transport.stop();commit(restored);setDraft(restored.config);
+      setTrack(id=>restored.tracks.some(t=>t.id===id)?id:'melody');
+      setTracks(ids=>ids.filter(id=>restored.tracks.some(t=>t.id===id)));
       setLoop({start:0,end:restored.totalTicks});setSelection([]);
       info('楽曲JSONを読み込みました。');
     }catch(e){failure(e);}

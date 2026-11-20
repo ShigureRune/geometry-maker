@@ -27,8 +27,18 @@ const styles: Record<Config['genre'], Style> = {
     melody:[0,3,6], bass:[0,4], kicks:[0], hats:4, chordHits:[0], seventh:true},
 };
 
+/** Extra parts layer over the four original voices; the original seed output is unchanged at 4 tracks. */
+const layeredInstruments: Record<Config['genre'], [Instrument,Instrument,Instrument,Instrument]> = {
+  チップチューン: ['8-bit Lead','Pad','Synth Pluck','8-bit Lead'],
+  EDM: ['Synth Pluck','Pad','Synth Lead','Synth Pluck'],
+  テクノ: ['Synth Pluck','Pad','8-bit Lead','Synth Bass'],
+  'Lo-fi': ['Electric Piano','Pad','Piano','Synth Pluck'],
+  アンビエント: ['Synth Pluck','Pad','Electric Piano','Synth Pluck'],
+};
+
 function arrangement(config: Config): Section[] {
-  const names = config.bars === 4 ? ['Intro','A','B','Outro'] :
+  const names = config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
+    config.bars === 4 ? ['Intro','A','B','Outro'] :
     config.bars >= 32 ? ['Intro','A','B','A′','B′','Outro'] : ['Intro','A','B','Outro'];
   return names.map((name, i) => {
     const startBar = Math.floor(i * config.bars / names.length);
@@ -103,7 +113,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         add(bar, step, pitch, final ? BAR * .88 : ((steps[i+1] ?? 8) - step) * half - 106,
           66 + energy * 25 + rand() * 8 + (accent ? 6 : 0));
       });
-    } else {
+    } else if (part === 'drums') {
       style.kicks.forEach((step, i) => {
         if ((i === 0 || rand() < density + .28) && (!final || step === 0)) add(bar, step, 36, 190, 73 + energy * 32);
       });
@@ -112,6 +122,34 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       }
       if (!final) for (let step = 1; step < 8; step += style.hats) {
         if (rand() < density + .26) add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
+      }
+    } else if (part === 'arp') {
+      // Short notes cycle through the active chord, creating a distinct moving layer.
+      if (intro && bar % 2) continue;
+      for (let step = 0; step < 8; step++) {
+        if (step !== 0 && rand() > density + .17) continue;
+        const pitch = harmony[(step + bar + (contrast ? 1 : 0)) % harmony.length] + 12;
+        add(bar, step, clamp(pitch, 0, 127), Math.round(half * .73), 44 + energy * 17 + rand() * 12);
+      }
+    } else if (part === 'pad') {
+      // Sustained harmony remains on a separate track for independent mixing/editing.
+      for (const pitch of harmony)
+        add(bar, 0, clamp(pitch + 12, 0, 127), BAR - 28, 38 + energy * 13 + rand() * 8);
+    } else if (part === 'counter') {
+      // A slower answering phrase, kept separate from the original melody.
+      if (intro && bar % 2) continue;
+      for (const step of [0, 4]) {
+        if (step === 4 && rand() > density + .18) continue;
+        const pitch = harmony[(bar + step / 4) % harmony.length] + 12;
+        add(bar, step, clamp(pitch, 0, 127), Math.round(half * 3.2), 48 + energy * 18 + rand() * 9);
+      }
+    } else if (part === 'pulse') {
+      // A rhythmic synth ostinato, not an additional drum channel.
+      if (intro && bar % 2) continue;
+      for (const step of [0, 2, 4, 6]) {
+        if (step > 0 && rand() > density + .22) continue;
+        const pitch = harmony[0] + (contrast && step === 6 ? 12 : 0);
+        add(bar, step, clamp(pitch, 0, 127), Math.round(half * .74), 49 + energy * 19 + rand() * 10);
       }
     }
   }
@@ -146,19 +184,20 @@ export function generateSong(config: Config, options: {
       if (pitches.length) tonal[bar] = [...new Set(pitches)];
     });
   }
-  const tracks = PARTS.map((part, i): Track => {
+  const tracks = PARTS.slice(0, config.trackCount).map((part, i): Track => {
     const existing = old(part);
     if (existing && (existing.locked || (reroll && !isRerolled(part)))) {
       if (existing.notes.some(n => n.startTick+n.durationTicks > totalTicks))
         throw new Error('固定中のパートに曲の長さを超える音符があります。固定を解除するか小節数を戻してください。');
       return existing;
     }
-    const instrument = part === 'drums' ? 'Drum Kit' :
-      existing && (reroll || previous?.config.genre === config.genre) ? existing.instrument : styles[config.genre].instruments[i];
+    const genreInstrument = i < 4 ? styles[config.genre].instruments[i] : layeredInstruments[config.genre][i - 4];
+    const instrument: Instrument = part === 'drums' ? 'Drum Kit' :
+      existing && (reroll || previous?.config.genre === config.genre) ? existing.instrument : genreInstrument;
     return {
       id: part, type: part, name: NAMES[i], color: existing?.color ?? COLORS[i], instrument,
       midiChannel: part === 'drums' ? 9 : i, midiProgram: PROGRAMS[INSTRUMENTS.indexOf(instrument)],
-      volume: existing?.volume ?? [.69,.55,.63,.64][i], pan: existing?.pan ?? [.06,-.16,0,.09][i],
+      volume: existing?.volume ?? [.69,.55,.63,.64,.32,.28,.36,.24][i], pan: existing?.pan ?? [.06,-.16,0,.09,-.2,.15,.22,-.12][i],
       muted: existing?.muted ?? false, solo: existing?.solo ?? false, locked: false,
       velocityScale: existing?.velocityScale ?? 1, variation: variation(part),
       notes: generateNotes(part, config, sections, variation(part), tonal),

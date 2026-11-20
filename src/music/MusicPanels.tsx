@@ -1,6 +1,6 @@
 import {useEffect,useState,type ReactNode} from 'react';
 import type {Loop,MusicTransport} from './audio';
-import {BAR,GENRES,INSTRUMENTS,KEYS,LENGTHS,MOODS,PPQ,PROGRAMS,SCALES,clamp,pitchName,tickToSec,type Config,type Note,type Song,type Track} from './song';
+import {BAR,GENRES,INSTRUMENTS,KEYS,LENGTHS,MOODS,PPQ,PROGRAMS,SCALES,TRACK_COUNTS,clamp,pitchName,tickToSec,type Config,type Note,type Song,type Track} from './song';
 
 export function Select<T extends string|number>({label,value,items,change,format=String}:{
   label:string; value:T; items:readonly T[]; change:(value:T)=>void; format?:(value:T)=>string;
@@ -38,6 +38,10 @@ export function MusicPanel({title,children,className=''}:{title:string;children:
     <summary>{title}</summary><div className="music-panel-body">{children}</div>
   </details>;
 }
+const durationLabel = (bars:number,bpm:number) => {
+  const seconds=Math.round(bars*4*60/bpm);
+  return Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+};
 export function GeneratorPanel({config,change,generate,randomize,copy,reroll,staged,bpm}:{
   config:Config;change:(config:Config)=>void;generate:()=>void;randomize:()=>void;copy:()=>void;reroll:()=>void;staged:boolean;bpm:(value:number)=>void;
 }){
@@ -51,8 +55,11 @@ export function GeneratorPanel({config,change,generate,randomize,copy,reroll,sta
     <Select label="雰囲気" value={config.mood} items={MOODS} change={value=>edit('mood',value)}/>
     <div className="music-columns">
       <Select label="キー" value={config.key} items={KEYS.map((_,i)=>i)} format={i=>KEYS[i]} change={value=>edit('key',value)}/>
-      <Select label="長さ" value={config.bars} items={LENGTHS} format={n=>n+'小節'} change={value=>edit('bars',value)}/>
+      <Select label="長さ" value={config.bars} items={LENGTHS} format={n=>n+'小節（'+durationLabel(n,config.bpm)+'）'} change={value=>edit('bars',value)}/>
     </div>
+    <Select label="同時演奏パート数" value={config.trackCount} items={TRACK_COUNTS}
+      format={n=>n+'パート'} change={value=>edit('trackCount',value)}/>
+    <p className="music-hint">4パート：基本編成 / 6パート：アルペジオ・パッド追加 / 8パート：副旋律・リズムシンセも追加。長尺ではMP3の処理時間が増えます。</p>
     <Select label="スケール" value={config.scale} items={SCALES} change={value=>edit('scale',value)}/>
     <Range label="複雑さ" value={config.complexity} min={0} max={100} change={value=>edit('complexity',value)}/>
     <Range label="音数" value={config.density} min={0} max={100} change={value=>edit('density',value)}/>
