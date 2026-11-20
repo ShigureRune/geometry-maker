@@ -27,7 +27,7 @@ const styles: Record<Config['genre'], Style> = {
     melody:[0,3,6], bass:[0,4], kicks:[0], hats:4, chordHits:[0], seventh:true},
   シンセウェーブ: {instruments:['Synth Lead','Pad','Synth Bass'],
     progressions:[[5,3,0,4],[0,4,5,3],[0,5,3,4]],
-    melody:[0,2,4,5,7], bass:[0,2,4,6], kicks:[0,2,4,6], hats:2, chordHits:[0,4], seventh:false},
+    melody:[0,2,4,5,7], bass:[0,2,4,6], kicks:[0,2,4,6], hats:4, chordHits:[0,4], seventh:false},
   ジャズ: {instruments:['Piano','Electric Piano','Synth Bass'],
     progressions:[[0,5,1,4],[1,4,0,5],[2,5,1,4]],
     melody:[0,1,3,4,6], bass:[0,2,4,6], kicks:[0,4], hats:2, chordHits:[0,3,6], seventh:true},
