@@ -71,6 +71,18 @@ function arrangement(config: Config): Section[] {
     : config.bars >= 128 ? ['Intro','A','A′','B','B′','A','Bridge','B','Break','A′','B′','Outro'] :
     config.bars === 4 ? ['Intro','A','B','Outro'] :
     config.bars >= 32 ? ['Intro','A','B','A′','B′','Outro'] : ['Intro','A','B','Outro'];
+  // The opening and ending stay predictable, while longer standard songs
+  // gain seed-dependent section order and contrasting returns.
+  const sectionRand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'form']));
+  const variedStandard = config.bars >= 32 && config.genre !== 'エピック'
+    ? (config.bars >= 128
+      ? (sectionRand() < .5
+        ? ['Intro','A','B','A′','Bridge','B′','A','Break','B','A′','B′','Outro']
+        : ['Intro','A','A′','Bridge','B','A','B′','Break','A′','B','B′','Outro'])
+      : (sectionRand() < .5
+        ? ['Intro','A','B','A′','B′','Outro']
+        : ['Intro','A','A′','B','B′','Outro']))
+    : standard;
   const names = config.arrangement === 'サビ重視'
     ? (config.bars <= 8 ? ['Intro','A','B','B′'] : ['Intro','A','B','A′','B′','B','Outro'])
     : config.arrangement === 'ビルドアップ'
