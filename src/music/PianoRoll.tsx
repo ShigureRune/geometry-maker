@@ -1,9 +1,11 @@
 import {useLayoutEffect,useMemo,useRef,useState,type PointerEvent} from 'react';
 import type {MusicTransport} from './audio';
 import {noteIndex} from './roll-layout';
+import {buildFallingKeyboardLayout,isBlackKey,whiteKeyBounds} from './keyboard-layout';
+import {drawFallingPianoKeyboard,drawHorizontalPianoKeyboard} from './keyboard-draw';
 import {fallingLaneKey,fallingLaneRect,layoutFallingLanes} from './falling-layout';
 import {FALLING_HIT_SECONDS,drawFallingBar,drawFallingImpact,type FallingDrawStyle,type FallingImpact} from './falling-fx';
-import {BAR,PPQ,clamp,pitchName,playableTracks,secToTick,type Note,type Part,type Song} from './song';
+import {BAR,PPQ,clamp,playableTracks,secToTick,type Note,type Part,type Song} from './song';
 
 export type FallOptions = FallingDrawStyle & {
   speed:number; keys:'auto'|'61'|'88'; color:'track'|'pitch'|'single';
@@ -22,7 +24,7 @@ type Props = {
 };
 
 const HEADER=31, KEYBOARD=56, KEYS_HEIGHT=40;
-const blackKey = (pitch:number) => [1,3,6,8,10].includes(pitch%12);
+const blackKey = isBlackKey;
 const includes = (box:Box,x:number,y:number) => x>=box.x && x<=box.x+box.w && y>=box.y && y<=box.y+box.h;
 
 export function PianoRoll(props:Props) {
@@ -83,6 +85,7 @@ export function PianoRoll(props:Props) {
       let {low,high}=indexed;
       if (!horizontal && fall.keys==='61') {low=36;high=96;}
       if (!horizontal && fall.keys==='88') {low=21;high=108;}
+      if (!horizontal && fall.keys==='auto') [low,high]=whiteKeyBounds(low,high);
       ctx.clearRect(0,0,width,height);
       ctx.fillStyle=horizontal?'#131929':fall.background;
       ctx.fillRect(0,0,width,height);
@@ -142,44 +145,42 @@ export function PianoRoll(props:Props) {
         ctx.restore();
         const x=left+tick*unit;
         if (x>=KEYBOARD && x<width) {ctx.fillStyle='#fce1a8';ctx.fillRect(x,0,1.5,height);}
-        ctx.fillStyle='#171d30';ctx.fillRect(0,0,KEYBOARD,height);
         const playingNotes=new Set(indexed.indices.flatMap(entry=>audible.has(entry.track.id)?entry.query(tick,tick)
           .filter(n=>n.startTick+n.durationTicks>tick).map(n=>n.pitch):[]));
-        for (let pitch=low;pitch<=high;pitch++) {
-          const y=HEADER+(high-pitch)*row, isBlack=blackKey(pitch);
-          ctx.fillStyle=transport.playing&&playingNotes.has(pitch)?'#bca3ff':isBlack?'#303954':'#c7d0e5';
-          ctx.fillRect(0,y,isBlack?43:KEYBOARD-2,row-.6);
-          if (row>=10 || pitch%12===0) {
-            ctx.fillStyle=isBlack?'#fff':'#1d2639';ctx.fillText(pitchName(pitch),5,y+Math.min(row-1,11));
-          }
-        }
+        drawHorizontalPianoKeyboard(ctx,low,high,HEADER,row,KEYBOARD,
+          transport.playing?playingNotes:new Set<number>());
       } else {
         const keyboardY=height-KEYS_HEIGHT;
-        const keyWidth=width/(high-low+1);
+        const piano=buildFallingKeyboardLayout(low,high,width,keyboardY,KEYS_HEIGHT);
         const distance=keyboardY/secToTick(4/fall.speed,song.bpm);
         const future=tick+keyboardY/distance;
         const hitWindowTicks=secToTick(FALLING_HIT_SECONDS,song.bpm);
         const lit=new Map<number,string[]>();
         const impacts:FallingImpact[]=[];
-        for (let pitch=low;pitch<=high;pitch++) {
-          const x=(pitch-low)*keyWidth;
-          ctx.fillStyle=blackKey(pitch)?'#ffffff05':'#ffffff0b';
-          ctx.fillRect(x,0,Math.max(.2,keyWidth-1),keyboardY);
+        for (const key of piano.whites) {
+          ctx.fillStyle='#ffffff0b';
+          ctx.fillRect(key.x,0,Math.max(.2,key.w-.6),keyboardY);
+          ctx.fillStyle='#ffffff20';
+          ctx.fillRect(key.x+key.w-.7,0,.6,keyboardY);
+        }
+        for (const key of piano.blacks) {
+          ctx.fillStyle='#ffffff05';
+          ctx.fillRect(key.noteX,0,key.noteWidth,keyboardY);
         }
         ctx.save();ctx.beginPath();ctx.rect(0,0,width,keyboardY);ctx.clip();
         for (const entry of indexed.indices) for (const note of entry.query(Math.max(0,tick-hitWindowTicks),future)) {
           if (note.pitch<low || note.pitch>high) continue;
           const color=fall.color==='track'?entry.track.color:fall.color==='pitch'?
             'hsl('+((note.pitch%12)*30+195)+' 75% 66%)':'#a595f7';
-          const keyLeft=(note.pitch-low)*keyWidth;
+          const key=piano.byPitch.get(note.pitch)!;
           const lane=fallingLanes.get(fallingLaneKey(entry.track.id,note.id));
-          const {x,width:w}=fallingLaneRect(keyLeft,keyWidth,lane,fall.separate);
+          const {x,width:w}=fallingLaneRect(key.noteX,key.noteWidth,lane,fall.separate);
           const audibleNote=audible.has(entry.track.id);
           const sounding=transport.playing && audibleNote && note.startTick<=tick && note.startTick+note.durationTicks>tick;
           if (sounding) lit.set(note.pitch,[...(lit.get(note.pitch)??[]),color]);
           const ageSec=(tick-note.startTick)/PPQ*60/song.bpm;
           if (transport.playing && audibleNote && ageSec>=0 && ageSec<=FALLING_HIT_SECONDS && impacts.length<150) {
-            impacts.push({x:x+w/2,y:keyboardY,keyWidth,ageSec,color,velocity:note.velocity,style:fall});
+            impacts.push({x:x+w/2,y:keyboardY,keyWidth:key.noteWidth,ageSec,color,velocity:note.velocity,style:fall});
           }
           if (note.startTick+note.durationTicks<=tick) continue;
           const y=keyboardY-(note.startTick+note.durationTicks-tick)*distance;
@@ -193,21 +194,7 @@ export function PianoRoll(props:Props) {
           repaint.push({note,part:entry.track.id,x,y,w,h:Math.min(h,keyboardY-y)});
         }
         ctx.restore();
-        for (let pitch=low;pitch<=high;pitch++) {
-          const x=(pitch-low)*keyWidth, sharp=blackKey(pitch);
-          const colors=fall.light ? lit.get(pitch) : undefined;
-          ctx.fillStyle=sharp?'#343f5c':'#e6e9f1';
-          ctx.fillRect(x,keyboardY,Math.max(.2,keyWidth-1),KEYS_HEIGHT);
-          colors?.forEach((color,i)=>{
-            ctx.fillStyle=color;
-            ctx.fillRect(x+i*Math.max(.2,keyWidth-1)/colors.length,keyboardY,
-              Math.max(.2,keyWidth-1)/colors.length,KEYS_HEIGHT);
-          });
-          if (fall.labels && !sharp && (keyWidth>=22 || pitch%12===0)) {
-            ctx.fillStyle='#1c263d';ctx.font='10px system-ui';
-            ctx.fillText(pitchName(pitch),x+2,height-8);
-          }
-        }
+        drawFallingPianoKeyboard(ctx,piano,fall.light?lit:new Map<number,string[]>(),fall.labels);
         // Derived from the playhead; seeking never leaves stale particles behind.
         for (const impact of impacts) drawFallingImpact(ctx,impact);
 
