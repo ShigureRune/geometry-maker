@@ -40,42 +40,42 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
     downloadBlob(screenshot.blob,screenshot.filename);
     setMessage('PNGの保存を開始しました。');
   }
-  async function copy(){
-    setMessage('');
+  async function copy(forX=false){
+    // Call clipboard.write from the original tap, before any await. On the X
+    // link do NOT cancel the normal anchor navigation: iOS may not offer X in
+    // the system share sheet, and a delayed window.open would be blocked.
+    setMessage(forX?'PNGのコピーを試みています。Xの投稿画面を開きます…':'');
     try{
       if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')
         throw new Error('このブラウザでは画像コピーに対応していません。');
       await navigator.clipboard.write([new ClipboardItem({'image/png':screenshot.blob})]);
-      setMessage('画像をコピーしました。投稿やチャットに貼り付けられます！');
+      setMessage(forX
+        ? 'PNGをコピーしました！ Xで画像を貼り付けてください。貼り付けできない場合はPNGを保存して添付してください。'
+        : '画像をコピーしました。投稿やチャットに貼り付けられます！');
     }catch(error){
-      setMessage(error instanceof Error&&error.message.startsWith('このブラウザ')?error.message:
-        '画像をコピーできませんでした。ブラウザの許可を確認するか「保存」を使ってください。');
+      setMessage(forX
+        ? 'Xの投稿画面は開きますが、画像をコピーできませんでした。「保存」したPNGをXで添付してください。'
+        : error instanceof Error&&error.message.startsWith('このブラウザ')?error.message:
+          '画像をコピーできませんでした。ブラウザの許可を確認するか「保存」を使ってください。');
     }
   }
-  async function share(target:'general'|'x'){
+  async function share(){
     if(sharing)return;
     setMessage('');
     try{
       const image=file();
       if(!canShareFile(image))throw new Error('unsupported');
       setSharing(true);
-      // The share sheet can pass the actual PNG to X, unlike an X intent URL.
-      // The receiving app decides whether to use the accompanying text.
-      setMessage(target==='x'
-        ? '共有先からXを選んでね！ 投稿前に画像とシード値が入っているか確認してください。'
-        : '共有するアプリを選んでください。画像とシード値を渡します。');
+      // General sharing still offers the PNG file and seed-filled caption.
+      setMessage('共有するアプリを選んでください。画像とシード値を渡します。');
       await navigator.share({title:'幾何学メーカーのスクショ',text:shareText,files:[image]});
-      setMessage(target==='x'
-        ? '共有操作が完了しました。Xでシード値が抜けていたら「投稿文をコピー」で貼り付けてね。'
-        : '画像とシード値を共有先に渡しました。');
+      setMessage('画像とシード値を共有先に渡しました。');
     }catch(error){
       if(error instanceof DOMException&&error.name==='AbortError'){
         setMessage('共有をキャンセルしました。');
         return;
       }
-      setMessage(target==='x'
-        ? '画像をXに直接渡せませんでした。「保存」でPNGを保存し、下の「X投稿ページ」で画像を添付してください。'
-        : 'この端末では画像を直接共有できません。「保存」して共有アプリに添付してください。');
+      setMessage('この端末では画像を直接共有できません。「保存」して共有アプリに添付してください。');
     }finally{setSharing(false);}
   }
   return <dialog ref={dialogRef} className="studio-screenshot-dialog"
@@ -99,14 +99,10 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
       <div className="studio-screenshot-actions" role="group" aria-label="スクショの操作">
         <button type="button" onClick={save}><span aria-hidden="true">↓</span> 保存</button>
         <button type="button" onClick={()=>{void copy();}}><span aria-hidden="true">▣</span> コピー</button>
-        <button type="button" disabled={sharing} onClick={()=>{void share('general');}}><span aria-hidden="true">↗</span> 共有</button>
+        <button type="button" disabled={sharing} onClick={()=>{void share();}}><span aria-hidden="true">↗</span> 共有</button>
         <a className="studio-screenshot-x" href={xIntent}
           target="_blank" rel="noopener noreferrer" aria-label="Xで共有"
-          onClick={event=>{
-            if(!canShareFile(file()))return; // Browser fallback: X text only.
-            event.preventDefault();
-            void share('x'); // iPhone share sheet: choose X to attach the PNG.
-          }}>
+          onClick={()=>{void copy(true);}}>
           <span aria-hidden="true">𝕏</span> Xで共有
         </a>
       </div>
@@ -118,10 +114,10 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
         <p data-testid="screenshot-share-text">{shareText}</p>
       </div>
       <p className="studio-screenshot-x-hint">
-        iPhoneの「Xで共有」は共有シートを開きます。<strong>Xを選ぶと画像を添付して共有できます</strong>（X側の対応状況によります）。
-        アプリによって投稿文が省略される場合は「投稿文をコピー」でシード値を貼り付けてください。
-        Xが共有先に表示されない場合はPNGを保存し、
-        <a href={xIntent} target="_blank" rel="noopener noreferrer">X投稿ページを開いて画像を添付</a>できます。
+        「Xで共有」は<strong>画像をクリップボードにコピーし、シード値入りのX投稿画面を別タブで開きます</strong>。
+        Xの投稿画面で画像を貼り付けてください。X側で画像の貼り付けに対応していない場合は
+        「保存」でPNGを保存してから添付してください。コピーが許可されなくてもXは開きます。
+        <a href={xIntent} target="_blank" rel="noopener noreferrer">Xの投稿画面だけ開く</a>
       </p>
       <p className="studio-screenshot-status" role="status" aria-live="polite">{message}</p>
     </div>
