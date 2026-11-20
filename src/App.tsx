@@ -26,6 +26,8 @@ import {gridBackgroundDefaults} from './grid-background';
 import {useGridClock} from './useGridClock';
 import {ImagePaletteControls} from './ImagePaletteControls';
 import {PaletteExportControls} from './PaletteExportControls';
+import {PreviewScreenshotDialog} from './PreviewScreenshotDialog';
+import {captureLiveSvg,previewScreenshotFilename,previewScreenshotSize,type PreviewScreenshot} from './preview-screenshot';
 import {TextControls} from './TextControls';
 import {useTextEntrancePreview} from './preview-text-animation';
 import {PreviewTextEditor} from './PreviewTextEditor';
@@ -196,6 +198,9 @@ export default function App() {
   const [standbyTransition,setStandbyTransition]=useState<ThreeStandbyTransition|null>(null);
   const [standbyFinishedSeed,setStandbyFinishedSeed]=useState<string|null>(saved?.threeD.standbyComplete?saved.threeD.seed:null);
   const [threeExportBusy,setThreeExportBusy]=useState(false);
+  const [screenshotBusy,setScreenshotBusy]=useState(false);
+  const [screenshotError,setScreenshotError]=useState('');
+  const [screenshot,setScreenshot]=useState<PreviewScreenshot|null>(null);
   const standbyInteractionUntil=useRef(0);
   const standbySerial=useRef(0);
   const resume2D=useRef({growth:false,ambient:false});
@@ -628,6 +633,33 @@ export default function App() {
       animation.motionStrength,animation.motionSpeed,animation.motionPreset,
       version,playback.motionSeconds]);
   function completedArtwork(transparentOnly=false){return new DOMParser().parseFromString(renderToStaticMarkup(<Preview scene={scene} background={twoDBackground} transparent={version===MAGIC_ALGORITHM_VERSION&&transparentOnly} textOverlay={version===MAGIC_ALGORITHM_VERSION?undefined:textOverlay} gridSeconds={gridSeconds} gridFigureAngle={figureScrollAngle(ambient,ratio)}/>),'image/svg+xml').documentElement as unknown as SVGSVGElement;}
+  async function captureScreenshot(){
+    if(screenshotBusy||threeExportBusy)return;
+    setScreenshotError('');
+    setScreenshotBusy(true);
+    try{
+      const {width,height}=previewScreenshotSize(ratio);
+      let blob:Blob;
+      if(renderMode==='3d'){
+        if(!threeReady||!threeApi.current)
+          throw new Error('3Dプレビューの準備ができてから撮影してください。');
+        // Reuse the existing renderer: this preserves camera, animation
+        // playhead, bloom, galaxy and the world-space NEBULA layer.
+        blob=await threeApi.current.savePNG(width,height);
+      }else{
+        const svg=artworkRef.current?.querySelector<SVGSVGElement>('svg.artwork');
+        if(!svg)throw new Error('2Dプレビューを表示してから撮影してください。');
+        blob=await captureLiveSvg(svg,ratio);
+      }
+      if(!blob.size)throw new Error('スクショ画像の作成に失敗しました。');
+      setScreenshot({
+        blob,width,height,ratio,mode:renderMode,
+        filename:previewScreenshotFilename(seed,renderMode==='3d'?THREE_ALGORITHM_VERSION:version,ratio),
+      });
+    }catch(error){
+      setScreenshotError(error instanceof Error?error.message:'スクショに失敗しました。');
+    }finally{setScreenshotBusy(false);}
+  }
   const studioCommands:StudioCommand[]=[
     ...categories.filter(item=>
       (item.id!=='text'||(renderMode==='2d'&&version!==MAGIC_ALGORITHM_VERSION))&&
@@ -1025,6 +1057,11 @@ export default function App() {
             <p>アイデアを即座に描画、すべてリアルタイムに反映。</p>
           </div>
           <div className="studio-preview-toolbar-actions">
+            <button type="button" className="studio-screenshot-launch"
+              aria-label="スクショ" disabled={screenshotBusy||threeExportBusy||(renderMode==='3d'&&!threeReady)}
+              onClick={()=>{void captureScreenshot();}}>
+              <span aria-hidden="true">📸</span> {screenshotBusy?'撮影中…':'スクショ'}
+            </button>
             <span className="live-indicator"><i/> リアルタイム反映</span>
             <button type="button" className="studio-focus-button" aria-pressed={studioFocus}
               onClick={()=>setStudioFocus(v=>!v)}>
@@ -1033,6 +1070,7 @@ export default function App() {
             </button>
           </div>
         </div>
+        {screenshotError&&<p className="studio-screenshot-error" role="alert">{screenshotError}</p>}
         <div className="canvas-stage">
           {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
@@ -1087,6 +1125,7 @@ export default function App() {
 
     </main>
     <StudioCommandPalette open={commandOpen} onClose={closeCommands} commands={studioCommands}/>
+    {screenshot&&<PreviewScreenshotDialog screenshot={screenshot} onClose={()=>setScreenshot(null)}/>}
     {explorerOpen&&renderMode==='2d'&&<SeedExplorerBoard
       activeSeed={seed} ratio={ratio} version={version} shapeKinds={enabledShapeKinds}
       magicSettings={magicSettings} density={density} visualTheme={visualTheme}
