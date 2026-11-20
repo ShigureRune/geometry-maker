@@ -36,7 +36,7 @@ export function generateEpicNotes(part:Part,config:Config,sections:Section[],var
     const last=bar===config.bars-1;
     const within=(bar-section.startBar)/Math.max(1,section.bars-1);
     const progression=bar/Math.max(1,config.bars-1);
-    const active=intro?.24 : outro?.43 : build?.48+.52*within : climax?(second?1.20:1.06) : .56+.10*progression;
+    const active=intro ? .24 : outro ? .43 : build ? .48+.52*within : climax ? (second ? 1.20 : 1.06) : .56+.10*progression;
     const velocity=(base:number)=>clamp(Math.round(base*active+(random()-.5)*5),1,127);
     const harmony=chords[bar];
     const root=harmony[0],third=harmony[1]??root+3,fifth=harmony[2]??root+7;
@@ -60,7 +60,7 @@ export function generateEpicNotes(part:Part,config:Config,sections:Section[],var
       const phraseOrder=[motif[phrase],motif[(phrase+2)%4],motif[(phrase+1)%4],motif[(phrase+3)%4]];
       const steps=intro?[0]:climax?[0,3,4,6]:build?[0,4,6]:outro?[0,4]:[0,4];
       steps.forEach((step,index)=>{
-        const tone=tones[phraseOrder[index]]+(climax && index===0?0:0);
+        const tone=tones[phraseOrder[index]];
         const length=(steps[index+1]??8)*stepTicks-step*stepTicks-(climax?45:65);
         const accent=(index===0?12:0)+(climax?8:0);
         add(bar,step,clamp(tone,59,88),length,velocity(66+accent));
