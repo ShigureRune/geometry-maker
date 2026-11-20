@@ -62,6 +62,16 @@ export function pianoOnlySong(song: Song): Song {
           volume:epic ? (track.type==='melody' ? .90 : track.type==='chords' ? .72 : .80) : track.volume}),
   };
 }
+/** GM orchestra programs for sampled Epic mode; keep the original project intact. */
+export function orchestraMidiSong(song:Song):Song {
+  if(song.config.genre!=='エピック')return song;
+  const programs:Partial<Record<Part,number>>={
+    melody:60, chords:48, bass:42, arp:45, pad:49, counter:60, pulse:42,
+  };
+  return {...song,tracks:song.tracks.map(track=>({
+    ...track,midiProgram:programs[track.type]??track.midiProgram,
+  }))};
+}
 export function playableTracks(song: Song) {
   const solo = song.tracks.some(track => track.solo);
   return song.tracks.filter(track => !track.muted && (!solo || track.solo));

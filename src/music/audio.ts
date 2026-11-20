@@ -1,5 +1,6 @@
 import {PPQ, clamp, musicRandom, playableTracks, secToTick, tickToSec, type Instrument, type Song} from './song';
 import {nearestGrandPianoPitch,type PianoSamples} from './piano-samples';
+import {orchestraRole,pickOrchestraSample,type OrchestraSamples} from './orchestra-samples';
 
 export const AUDIO_TAIL = .48;
 const CYCLE = 1024;
@@ -53,13 +54,25 @@ function patch(event: Event, limit: number) {
   return {duration:limit,points:[...points.filter(([time])=>time<fall),[fall,atEnvelope(points,fall)],[limit,0]]};
 }
 
+function orchestraPatch(event:Event,limit:number,percussion:boolean,boost:number){
+  const attack=percussion?.003:event.route==='chords'||event.route==='pad'?.065:.029;
+  const held=percussion?Math.min(.26,event.duration):event.duration;
+  const release=percussion?.42:.34;
+  const end=Math.min(limit,held+release);
+  const peak=(percussion?.44:.38)*event.gain*boost;
+  const points=[[0,0],[Math.min(attack,end*.3),peak],[Math.min(held,end*.75),peak*.82],[held+release,0]];
+  if(end>=held+release)return {duration:end,points};
+  const fall=Math.max(0,end-.005);
+  return {duration:end,points:[...points.filter(([t])=>t<fall),[fall,atEnvelope(points,fall)],[end,0]]};
+}
+
 export class MusicSynth {
   private buffers = new Map<string,AudioBuffer>();
   private voices = new Set<AudioBufferSourceNode>();
   private outputs = new Map<string,AudioNode>();
   readonly meter: AnalyserNode | null;
 
-  constructor(private context: BaseAudioContext, plan: AudioPlan, realtime: boolean, private retainBuffers = true, private pianoSamples?:PianoSamples) {
+  constructor(private context: BaseAudioContext, plan: AudioPlan, realtime: boolean, private retainBuffers = true, private pianoSamples?:PianoSamples, private orchestraSamples?:OrchestraSamples) {
     const master = context.createGain();
     master.gain.value = plan.mixer.muted ? 0 : plan.mixer.volume*.66;
     let output: AudioNode = master;
@@ -118,13 +131,18 @@ export class MusicSynth {
 
   schedule(event: Event, at: number, offset: number, limit: number, horizon = Infinity) {
     const target = this.outputs.get(event.route);
-    const shape = patch(event,limit);
+    const orchestral=this.orchestraSamples ? pickOrchestraSample(this.orchestraSamples,event.route,event.pitch) : undefined;
+    const shape=orchestral
+      ? orchestraPatch(event,limit,orchestraRole(event.route)==='percussion',orchestral.gain)
+      : patch(event,limit);
     const end = Math.min(shape.duration,offset+horizon);
     if (!target || end <= offset) return;
     const source = this.context.createBufferSource(), envelope = this.context.createGain();
     const sampled = event.instrument==='Piano' && this.pianoSamples?.size ? nearestGrandPianoPitch(event.pitch,this.pianoSamples.keys()) : undefined;
-    source.buffer = sampled===undefined ? this.buffer(event) : this.pianoSamples!.get(sampled)!;
-    if (sampled!==undefined) {
+    source.buffer=orchestral?.buffer ?? (sampled===undefined ? this.buffer(event) : this.pianoSamples!.get(sampled)!);
+    if (orchestral) {
+      source.playbackRate.value=orchestraRole(event.route)==='percussion'?1:2**((event.pitch-orchestral.root)/12);
+    } else if (sampled!==undefined) {
       source.playbackRate.value=2**((event.pitch-sampled)/12);
     } else if (event.instrument !== 'Drum Kit') {
       source.loop = true;
@@ -179,6 +197,7 @@ export class MusicTransport {
   private generation = 0;
   private plan: AudioPlan;
   private pianoSamples?:PianoSamples;
+  private orchestraSamples?:OrchestraSamples;
   private meterData = new Float32Array(256);
   private listeners = new Set<()=>void>();
   private readonly onAudioStateChange = () => {
@@ -188,6 +207,13 @@ export class MusicTransport {
   };
   playing = false;
 
+  setOrchestraSamples(samples?:OrchestraSamples) {
+    if(this.orchestraSamples===samples)return;
+    this.orchestraSamples=samples;
+    const wasPlaying=this.playing;
+    this.pause();
+    if(wasPlaying&&this.context?.state==='running')this.start();
+  }
   setPianoSamples(samples?:PianoSamples) {
     if(this.pianoSamples===samples)return;
     this.pianoSamples=samples;
@@ -250,7 +276,7 @@ export class MusicTransport {
     this.originPosition = position < start || position >= end ? start : position;
     this.origin = context.currentTime + .02;
     this.scheduleUntil = this.origin;
-    this.synth = new MusicSynth(context,this.plan,true,true,this.pianoSamples);
+    this.synth = new MusicSynth(context,this.plan,true,true,this.pianoSamples,this.orchestraSamples);
     this.playing = true;
     this.schedule();
     this.timer = window.setInterval(()=>this.schedule(),25);
@@ -337,9 +363,9 @@ export class MusicTransport {
 }
 
 /** Bounded stereo chunks with phase and envelope continuity across boundaries. */
-export async function renderAudioChunk(plan: AudioPlan, rate: number, frame: number, count: number, rangeEnd: number, pianoSamples?:PianoSamples) {
+export async function renderAudioChunk(plan: AudioPlan, rate: number, frame: number, count: number, rangeEnd: number, pianoSamples?:PianoSamples, orchestraSamples?:OrchestraSamples) {
   const context = new OfflineAudioContext(2,count,rate);
-  const synth = new MusicSynth(context,plan,false,true,pianoSamples);
+  const synth = new MusicSynth(context,plan,false,true,pianoSamples,orchestraSamples);
   const start = frame/rate, end = (frame+count)/rate;
   for (let i=firstEvent(plan.events,start-plan.maxVoiceSpan);i<plan.events.length;i++) {
     const event = plan.events[i];

@@ -2,11 +2,12 @@ import encoderUrl from '@breezystack/lamejs?url';
 import {AUDIO_TAIL, audioPlan, renderAudioChunk, type Loop} from './audio';
 import {tickToSec, type Song} from './song';
 import type {PianoSamples} from './piano-samples';
+import type {OrchestraSamples} from './orchestra-samples';
 
 export type Mp3Options = {rate:44100|48000; bitrate:128|192|320; range?:Loop};
 type WorkerReply = {kind:'ready'} | {kind:'done';blob:Blob} | {kind:'error';message:string};
 
-export async function exportMp3(song: Song, options: Mp3Options, signal: AbortSignal, progress: (value:number)=>void, pianoSamples?:PianoSamples) {
+export async function exportMp3(song: Song, options: Mp3Options, signal: AbortSignal, progress: (value:number)=>void, pianoSamples?:PianoSamples, orchestraSamples?:OrchestraSamples) {
   if (!globalThis.OfflineAudioContext || !globalThis.Worker) throw new Error('このブラウザはオフラインMP3出力に対応していません。');
   const from = options.range?.start ?? 0, to = options.range?.end ?? song.totalTicks;
   if (!(from >= 0 && to <= song.totalTicks && from < to)) throw new Error('書き出し範囲が不正です。');
@@ -45,7 +46,7 @@ export async function exportMp3(song: Song, options: Mp3Options, signal: AbortSi
       for (let offset=0;offset<total;offset+=chunk) {
         signal.throwIfAborted();
         const count = Math.min(chunk,total-offset);
-        const pcm = await renderAudioChunk(plan,rate,first+offset,count,end,pianoSamples);
+        const pcm = await renderAudioChunk(plan,rate,first+offset,count,end,pianoSamples,orchestraSamples);
         for (let channel=0;channel<2;channel++) {
           for (const sample of pcm.getChannelData(channel)) peak=Math.max(peak,Math.abs(sample));
         }
@@ -57,7 +58,7 @@ export async function exportMp3(song: Song, options: Mp3Options, signal: AbortSi
     for (let offset=0;offset<total;offset+=chunk) {
       signal.throwIfAborted();
       const count = Math.min(chunk,total-offset);
-      const pcm = await renderAudioChunk(plan,rate,first+offset,count,end,pianoSamples);
+      const pcm = await renderAudioChunk(plan,rate,first+offset,count,end,pianoSamples,orchestraSamples);
       signal.throwIfAborted();
       const left = new Float32Array(pcm.getChannelData(0)), right = new Float32Array(pcm.getChannelData(1));
       if (scale!==1) for (let i=0;i<count;i++) {

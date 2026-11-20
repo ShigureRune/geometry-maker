@@ -1,12 +1,13 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState,type ChangeEvent,type KeyboardEvent} from 'react';
 import {MusicTransport,type Loop} from './audio';
 import {GRAND_PIANO_CREDIT,loadGrandPianoSamples,type PianoSamples} from './piano-samples';
+import {ORCHESTRA_CREDIT,loadOrchestraSamples,type OrchestraSamples} from './orchestra-samples';
 import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {Check,GeneratorPanel,MusicPanel,Range,Select,TrackInspector,TransportControls} from './MusicPanels';
 import {PianoRoll,type RollOptions} from './PianoRoll';
 import {musicFilename,musicProjectText,parseMusicProject,saveMusicFile,validateConfig,validateNotes} from './project';
-import {BAR,DEFAULT_CONFIG,PPQ,clamp,noteOrder,randomMusicSeed,pianoOnlySong,type Note,type Part,type Song} from './song';
+import {BAR,DEFAULT_CONFIG,PPQ,clamp,noteOrder,randomMusicSeed,pianoOnlySong,orchestraMidiSong,type Note,type Part,type Song} from './song';
 import type {Mp3Options} from './mp3';
 import './music.css';
 
@@ -33,6 +34,10 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const [loop,setLoop]=useState<Loop>({start:0,end:song.totalTicks}), [loopOn,setLoopOn]=useState(false);
   const [metronome,setMetronome]=useState(false), [dependent,setDependent]=useState(true);
   const [pianoOnly,setPianoOnly]=useState(false);
+  const [orchestraMode,setOrchestraMode]=useState(false);
+  const [orchestraLoading,setOrchestraLoading]=useState(false);
+  const [orchestraProgress,setOrchestraProgress]=useState(0);
+  const [orchestraSamples,setOrchestraSamples]=useState<OrchestraSamples|undefined>();
   const [recordedPiano,setRecordedPiano]=useState(false);
   const [pianoLoading,setPianoLoading]=useState(false);
   const [pianoSamples,setPianoSamples]=useState<PianoSamples|undefined>();
@@ -45,8 +50,10 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   const file=useRef<HTMLInputElement>(null), roll=useRef<HTMLDivElement>(null);
   const job=useRef<AbortController|null>(null);
   const [transport]=useState(()=>new MusicTransport(song));
-  const playbackSong=useMemo(()=>pianoOnly?pianoOnlySong(song):song,[song,pianoOnly]);
+  const epicOrchestra=orchestraMode&&!pianoOnly&&song.config.genre==='エピック';
+  const playbackSong=useMemo(()=>pianoOnly?pianoOnlySong(song):epicOrchestra?orchestraMidiSong(song):song,[song,pianoOnly,epicOrchestra]);
   useEffect(()=>{transport.setPianoSamples(recordedPiano&&pianoOnly?pianoSamples:undefined);},[transport,recordedPiano,pianoOnly,pianoSamples]);
+  useEffect(()=>{transport.setOrchestraSamples(epicOrchestra?orchestraSamples:undefined);},[transport,epicOrchestra,orchestraSamples]);
   const current=song.tracks.find(t=>t.id===track)!;
   const selected=useMemo(()=>current.notes.filter(n=>selection.includes(n.id)),[current,selection]);
   const effectiveLoop=useMemo(()=>({
@@ -222,13 +229,23 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
     }catch(error){failure(error);}
     finally{setPianoLoading(false);}
   }
+  async function enableOrchestra(){
+    if(epicOrchestra){setOrchestraMode(false);return;}
+    setOrchestraLoading(true);setOrchestraProgress(0);setError('');
+    try{
+      const samples=await loadOrchestraSamples((loaded,total)=>setOrchestraProgress(Math.round(loaded/total*100)));
+      setOrchestraSamples(samples);setPianoOnly(false);setOrchestraMode(true);
+      info('VSCO 2の録音オーケストラ音源を読み込みました。');
+    }catch(error){failure(error);}
+    finally{setOrchestraLoading(false);}
+  }
   async function mp3(){
     if(job.current)return;
     const request=new AbortController();
     job.current=request;setProgress(0);info('音声をレンダリングしています。');
     try {
       const {exportMp3}=await import('./mp3');
-      const blob=await exportMp3(playbackSong,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress,recordedPiano&&pianoOnly?pianoSamples:undefined);
+      const blob=await exportMp3(playbackSong,{...quality,range:rangeOnly?effectiveLoop:undefined},request.signal,setProgress,recordedPiano&&pianoOnly?pianoSamples:undefined,epicOrchestra?orchestraSamples:undefined);
       request.signal.throwIfAborted();
       saveMusicFile(blob,musicFilename(song,'mp3'));info('MP3の書き出しが完了しました。');
     }catch(e){
@@ -268,10 +285,20 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
         }}
         reroll={()=>generate(draft,'all')} staged={JSON.stringify(draft)!==JSON.stringify(song.config)}/>
       <div className="music-buttons" role="group" aria-label="演奏モード">
-        <button aria-pressed={!pianoOnly} onClick={()=>setPianoOnly(false)}>通常編成</button>
-        <button aria-pressed={pianoOnly} onClick={()=>setPianoOnly(true)}>🎹 ピアノだけ</button>
-        <span className="music-hint">{pianoOnly?'ドラムなし・全メロディーパートをピアノで演奏（MP3/MIDIにも反映）':'元の楽器編成で演奏'}</span>
+        <button aria-pressed={!pianoOnly&&!epicOrchestra} disabled={orchestraLoading}
+          onClick={()=>{setPianoOnly(false);setOrchestraMode(false);}}>通常編成</button>
+        <button aria-pressed={pianoOnly} disabled={orchestraLoading}
+          onClick={()=>{setPianoOnly(true);setOrchestraMode(false);}}>🎹 ピアノだけ</button>
+        {song.config.genre==='エピック'&&<button aria-pressed={epicOrchestra} disabled={orchestraLoading}
+          onClick={()=>void enableOrchestra()}>{orchestraLoading?'🎻 読み込み '+orchestraProgress+'%':'🎻 Epicオーケストラ'}</button>}
+        <span className="music-hint">{pianoOnly?'ドラムなし・ピアノ演奏（MP3/MIDIに反映）':
+          epicOrchestra?'録音された弦楽器・ホルン・チェロ・打楽器で演奏（MP3/MIDIに反映）':'元の楽器編成で演奏'}</span>
       </div>
+      {song.config.genre==='エピック'&&<p className="music-hint">
+        {ORCHESTRA_CREDIT} · 録音サンプルは初回選択時に外部から取得します ·
+        <a href="https://github.com/sgossner/VSCO-2-CE" target="_blank" rel="noreferrer">原音源とCC0ライセンス</a> ·
+        <a href="https://github.com/koulaxizis/oros-sounds" target="_blank" rel="noreferrer">軽量音源パック</a>
+      </p>}
       {pianoOnly&&<div className="music-buttons" role="group" aria-label="ピアノ音源">
         <button aria-pressed={!recordedPiano} onClick={()=>setRecordedPiano(false)}>合成ピアノ</button>
         <button aria-pressed={recordedPiano} disabled={pianoLoading} onClick={()=>void enableRecordedPiano()}>{pianoLoading?'録音音源を読み込み中…':'🎹 録音グランドピアノ'}</button>

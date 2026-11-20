@@ -2,13 +2,44 @@ import {Midi} from '@tonejs/midi';
 import {describe, expect, it} from 'vitest';
 import {audioPlan} from './audio';
 import {nearestGrandPianoPitch} from './piano-samples';
+import {nearestOrchestraRoot,orchestraRole,pickOrchestraSample,type OrchestraSamples,type OrchestralRole,type OrchestraSample} from './orchestra-samples';
 import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {musicProjectText, parseMusicProject, validateNotes} from './project';
 import {noteIndex} from './roll-layout';
-import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, playableTracks, secToTick, tickToSec} from './song';
+import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, orchestraMidiSong, playableTracks, secToTick, tickToSec} from './song';
 
 describe('Seed Music Studio',()=>{
+  it('maps real orchestral sample banks to the Epic track roles and exact drum hits',()=>{
+    expect(orchestraRole('melody')).toBe('horn');
+    expect(orchestraRole('chords')).toBe('strings');
+    expect(orchestraRole('bass')).toBe('cello');
+    expect(orchestraRole('drums')).toBe('percussion');
+    expect(orchestraRole('click')).toBeUndefined();
+    expect(nearestOrchestraRoot('strings',74,[69,76,83])).toBe(76);
+    expect(nearestOrchestraRoot('percussion',36,[36,38,42,46])).toBe(36);
+    expect(nearestOrchestraRoot('percussion',37,[36,38,42,46])).toBeUndefined();
+    const audio={} as AudioBuffer;
+    const samples:OrchestraSamples=new Map<OrchestralRole,readonly OrchestraSample[]>([
+      ['horn',[{root:60,buffer:audio,gain:1}]],
+      ['percussion',[{root:36,buffer:audio,gain:1}]],
+    ]);
+    expect(pickOrchestraSample(samples,'melody',63)?.root).toBe(60);
+    expect(pickOrchestraSample(samples,'drums',42)).toBeUndefined();
+    expect(pickOrchestraSample(samples,'click',60)).toBeUndefined();
+  });
+  it('converts Epic MIDI to orchestral instruments without rewriting saved song data',()=>{
+    const original=generateSong({...DEFAULT_CONFIG,genre:'エピック',trackCount:8,seed:'orchestra-midi'});
+    const before=JSON.stringify(original);
+    const arranged=orchestraMidiSong(original);
+    const programs=arranged.tracks.map(t=>t.midiProgram);
+    expect(programs).toEqual([60,48,42,0,45,49,60,42]);
+    expect(new Midi(exportMidi(arranged)).tracks.map(t=>t.instrument.number)).toEqual(programs);
+    expect(original.tracks[0].midiProgram).toBe(81);
+    expect(JSON.stringify(original)).toBe(before);
+    expect(parseMusicProject(musicProjectText(original))).toEqual(original);
+  });
+
   it('builds an expressive Epic climax and a focused piano rendition without modifying the score',()=>{
     const config={...DEFAULT_CONFIG,genre:'エピック' as const,seed:'epic-drama-regression',
       bars:32 as const,trackCount:8 as const,scale:'ナチュラルマイナー' as const,
