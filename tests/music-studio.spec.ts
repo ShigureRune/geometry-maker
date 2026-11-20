@@ -420,3 +420,29 @@ test('Epic genre generates trailer-style sections and survives JSON plus MIDI ex
   await studio.getByLabel('楽曲JSONファイル').setInputFiles({name:'epic.json',mimeType:'application/json',buffer:json});
   await expect(studio.getByLabel('ジャンル',{exact:true})).toHaveValue('エピック');
 });
+
+test('Epic recommendation builds a dramatic minor-key score and a clean three-part piano edition',async({page})=>{
+  await page.goto('./?mode=music');
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  await studio.getByLabel('ジャンル',{exact:true}).selectOption('エピック');
+  await studio.getByRole('button',{name:/Epic向け推奨設定/}).click();
+  await expect(studio.getByLabel('スケール')).toHaveValue('ナチュラルマイナー');
+  await expect(studio.getByLabel('同時演奏パート数')).toHaveValue('8');
+  await expect(studio.getByLabel('長さ',{exact:true})).toHaveValue('32');
+  await expect(studio.getByLabel('作曲BPM')).toHaveValue('140');
+  await studio.getByLabel('音楽シード').fill('epic-piano-contrast');
+  await studio.getByRole('button',{name:'シードから生成'}).click();
+  const piano=studio.getByRole('button',{name:/ピアノだけ/});
+  await piano.click();
+  await expect(piano).toHaveAttribute('aria-pressed','true');
+  const midiDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'MIDI書き出し',exact:true}).click();
+  const midi=new Midi(await readFile((await (await midiDownload).path())!));
+  expect(midi.tracks).toHaveLength(3);
+  expect(midi.tracks.every(track=>track.instrument.number===0)).toBe(true);
+  const projectDownload=page.waitForEvent('download');
+  await studio.getByRole('button',{name:'JSON保存',exact:true}).click();
+  const project=JSON.parse((await readFile((await (await projectDownload).path())!)).toString());
+  expect(project.song.tracks).toHaveLength(8);
+  expect(project.song.sections.some((section:{name:string})=>section.name==='Build')).toBe(true);
+});
