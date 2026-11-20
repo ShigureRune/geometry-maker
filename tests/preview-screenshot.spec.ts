@@ -56,6 +56,7 @@ test('native share and X button pass the real PNG and capture-time seed together
     }});
   });
   await page.goto('./?seed='+encodeURIComponent(seed));
+  const pageUrl=page.url();
   await page.getByLabel('クイック比率').selectOption('1:1');
   await page.getByRole('button',{name:'スクショ',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
@@ -79,7 +80,7 @@ test('native share and X button pass the real PNG and capture-time seed together
     expect(item.type).toBe('image/png');
     expect(item.size).toBeGreaterThan(100);
   }
-  await expect(page).toHaveURL(/geometry-maker/);
+  expect(page.url()).toBe(pageUrl);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
