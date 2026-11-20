@@ -2,6 +2,7 @@ import {
   BAR, COLORS, INSTRUMENTS, MUSIC_VERSION, NAMES, PARTS, PPQ, PROGRAMS, clamp, hashSeed, musicRandom, noteOrder,
   type Config, type Instrument, type Note, type Part, type Section, type Song, type Track,
 } from './song';
+import {generateEpicNotes} from './epic';
 
 const major = [0, 2, 4, 5, 7, 9, 11];
 const minor = [0, 2, 3, 5, 7, 8, 10];
@@ -270,7 +271,8 @@ export function generateSong(config: Config, options: {
       volume: existing?.volume ?? [.69,.55,.63,.64,.32,.28,.36,.24][i], pan: existing?.pan ?? [.06,-.16,0,.09,-.2,.15,.22,-.12][i],
       muted: existing?.muted ?? false, solo: existing?.solo ?? false, locked: false,
       velocityScale: existing?.velocityScale ?? 1, variation: variation(part),
-      notes: generateNotes(part, config, sections, variation(part), tonal),
+      notes: config.genre==='エピック' ? generateEpicNotes(part,config,sections,variation(part),tonal)
+        : generateNotes(part, config, sections, variation(part), tonal),
     };
   });
   return {
