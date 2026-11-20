@@ -3,7 +3,9 @@ export const PPQ = 480;
 export const BAR = PPQ * 4;
 export const PARTS = ['melody', 'chords', 'bass', 'drums', 'arp', 'pad', 'counter', 'pulse'] as const;
 export const TRACK_COUNTS = [4, 6, 8] as const;
-export const GENRES = ['チップチューン', 'EDM', 'テクノ', 'Lo-fi', 'アンビエント'] as const;
+export const GENRES = ['チップチューン', 'EDM', 'テクノ', 'Lo-fi', 'アンビエント', 'シンセウェーブ', 'ジャズ', 'ファンク', 'ドラムンベース', 'シネマティック'] as const;
+export const ARRANGEMENTS = ['標準', 'サビ重視', 'ビルドアップ', 'ループ'] as const;
+export const MELODY_STYLES = ['標準', '歌う', '疾走', '跳躍'] as const;
 export const SCALES = ['メジャー', 'ナチュラルマイナー', 'メジャーペンタトニック', 'マイナーペンタトニック'] as const;
 export const MOODS = ['明るい', '暗い', '幻想的', '緊張感'] as const;
 export const KEYS = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const;
@@ -19,6 +21,7 @@ export type Config = {
   seed: string; genre: typeof GENRES[number]; bpm: number; key: number;
   scale: typeof SCALES[number]; bars: typeof LENGTHS[number]; trackCount: typeof TRACK_COUNTS[number]; mood: typeof MOODS[number];
   complexity: number; density: number; swing: number;
+  arrangement: typeof ARRANGEMENTS[number]; melodyStyle: typeof MELODY_STYLES[number];
 };
 export type Note = {id: string; pitch: number; startTick: number; durationTicks: number; velocity: number};
 export type Track = {
@@ -36,6 +39,7 @@ export type Song = {
 export const DEFAULT_CONFIG: Config = {
   seed: 'violet-horizon', genre: 'Lo-fi', bpm: 120, key: 0, scale: 'メジャー', bars: 16, trackCount: 4,
   mood: '幻想的', complexity: 50, density: 55, swing: 20,
+  arrangement: '標準', melodyStyle: '標準',
 };
 
 export const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
