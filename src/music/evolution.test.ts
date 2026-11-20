@@ -84,4 +84,19 @@ describe('SEED EVOLUTION harmonic diversity', () => {
     expect(fingerprints.size).toBeGreaterThan(80);
   });
 
+  it('varies long-form section order by seed without losing opening, ending or coverage', () => {
+    const forms = new Set<string>();
+    for (let i = 0; i < 128; i++) {
+      const config = {...DEFAULT_CONFIG, seed: 'form-evolution-' + i, bars: 64 as const};
+      const song = generateSong(config);
+      expect(song.sections[0].name).toBe('Intro');
+      expect(song.sections[song.sections.length - 1].name).toBe('Outro');
+      expect(song.sections.reduce((total, section) => total + section.bars, 0)).toBe(64);
+      expect(song.sections.every(section => section.bars > 0)).toBe(true);
+      expect(song.sections.map(section => section.name)).toEqual(generateSong(config).sections.map(section => section.name));
+      forms.add(song.sections.map(section => section.name).join(','));
+    }
+    expect(forms.size).toBeGreaterThan(1);
+  });
+
 });
