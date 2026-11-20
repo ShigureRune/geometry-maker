@@ -240,8 +240,11 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       const pickupStep = [1, 3, 5, 7][Math.floor(grooveRand() * 4)];
       const hatAccent = Math.floor(grooveRand() * 4);
       if (!final && !(intro && bar === 0) && config.genre !== 'アンビエント') {
+        // A subtle, genre-specific backbeat accent keeps closely related styles
+        // distinguishable without adding unnatural extra hits or changing timing.
+        const backbeatAccent = Object.keys(styles).indexOf(config.genre) * 1.5;
         for (const step of epic ? [4] : [2, 6])
-          add(bar, step, 38, epic?195:145, 70 + energy * 23 + rand() * 8);
+          add(bar, step, 38, epic?195:145, 70 + energy * 23 + backbeatAccent + rand() * 8);
         // A quiet ghost note only on selected phrase bars, not every beat.
         if (!epic && density > .48 && (bar - section.startBar) % 4 === 3 &&
             rand() < .35 + config.complexity * .004)
