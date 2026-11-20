@@ -174,6 +174,11 @@ export class MusicTransport {
   private plan: AudioPlan;
   private meterData = new Float32Array(256);
   private listeners = new Set<()=>void>();
+  private readonly onAudioStateChange = () => {
+    // iOS Safari can interrupt an AudioContext when the app loses audio focus.
+    // Do not leave the UI stuck in the "playing" state with a silent context.
+    if (this.playing && this.context?.state !== 'running') this.pause();
+  };
   playing = false;
 
   subscribe(listener:()=>void) {
@@ -203,10 +208,25 @@ export class MusicTransport {
     return this.meterData.reduce((peak,value)=>Math.max(peak,Math.abs(value)),0);
   }
   async play() {
+    if (this.playing) {
+      if (this.context?.state === 'running') return;
+      this.pause();
+    }
     const generation = ++this.generation;
-    const context = this.context ??= new AudioContext();
-    await context.resume();
-    if (generation !== this.generation || this.playing) return;
+    // A previously closed context cannot be resumed. This can happen after
+    // an app/tab switch or when the OS reclaims the audio session.
+    if (!this.context || this.context.state === 'closed') {
+      this.context?.removeEventListener('statechange',this.onAudioStateChange);
+      this.context = new AudioContext();
+      this.context.addEventListener('statechange',this.onAudioStateChange);
+    }
+    const context = this.context;
+    try { await context.resume(); }
+    catch (error) {
+      if (generation !== this.generation) return;
+      throw error;
+    }
+    if (generation !== this.generation || this.playing || this.context !== context || context.state !== 'running') return;
     this.start();
   }
   private start() {
@@ -273,7 +293,7 @@ export class MusicTransport {
     const wasPlaying = this.playing;
     this.pause();
     this.stoppedTick = clamp(tick,0,this.song.totalTicks);
-    if (wasPlaying) this.start();
+    if (wasPlaying && this.context?.state === 'running') this.start();
     else this.notify();
   }
   stop() { this.pause(); this.stoppedTick = 0; this.notify(); }
@@ -282,10 +302,24 @@ export class MusicTransport {
     this.pause();
     this.song = song; this.loop = loop; this.plan = audioPlan(song,metronome);
     this.stoppedTick = clamp(tick,0,song.totalTicks);
-    if (wasPlaying) this.start();
+    if (wasPlaying && this.context?.state === 'running') this.start();
     else this.notify();
   }
-  dispose() { this.pause(); void this.context?.close(); this.context = undefined; }
+  /** Release the browser audio session while keeping the current song position. */
+  background() {
+    const wasPlaying = this.playing;
+    this.dispose();
+    return wasPlaying;
+  }
+  dispose() {
+    this.pause();
+    const context = this.context;
+    this.context = undefined;
+    if (context) {
+      context.removeEventListener('statechange',this.onAudioStateChange);
+      if (context.state !== 'closed') void context.close().catch(()=>{});
+    }
+  }
 }
 
 /** Bounded stereo chunks with phase and envelope continuity across boundaries. */

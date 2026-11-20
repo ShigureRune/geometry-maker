@@ -286,3 +286,81 @@ test('ten-genre generator supports arrangement and melody variants through MIDI 
   await expect(studio.getByLabel('メロディーの動き')).toHaveValue('疾走');
   expect(errors).toEqual([]);
 });
+
+
+test('Music playback recovers after app backgrounding, context shutdown and mode switching',async({page})=>{
+  test.setTimeout(60_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.addInitScript(()=>{
+    const NativeAudioContext=window.AudioContext;
+    const contexts:AudioContext[]=[];
+    (window as typeof window & {__musicContexts:AudioContext[]}).__musicContexts=contexts;
+    window.AudioContext=class extends NativeAudioContext {
+      constructor(...args:ConstructorParameters<typeof AudioContext>) {
+        super(...args);
+        contexts.push(this);
+      }
+    };
+  });
+  await page.goto('./?seed=music-foreground-regression');
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  const studio=page.getByRole('main').filter({has:page.getByRole('heading',{name:'Seed Music Studio'})});
+  const play=studio.getByRole('button',{name:/▶ 再生/});
+  const pause=studio.getByRole('button',{name:'一時停止',exact:true});
+  const timeline=studio.getByLabel('再生位置',{exact:true});
+  await play.click();
+  await expect(pause).toBeEnabled();
+  await expect.poll(async()=>Number(await timeline.inputValue())).toBeGreaterThan(20);
+
+  // Mimic iOS/Android switching to another app. The old AudioContext must
+  // be released, with an enabled play button even if autoplay is denied.
+  await page.evaluate(()=>{
+    Object.defineProperty(document,'hidden',{configurable:true,value:true});
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(play).toBeEnabled();
+  await expect.poll(()=>page.evaluate(()=>
+    (window as typeof window & {__musicContexts:AudioContext[]}).__musicContexts[0].state
+  )).toBe('closed');
+  const savedTick=Number(await timeline.inputValue());
+  expect(savedTick).toBeGreaterThan(0);
+
+  await page.evaluate(()=>{
+    Object.defineProperty(document,'hidden',{configurable:true,value:false});
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(()=>page.evaluate(()=>
+    (window as typeof window & {__musicContexts:AudioContext[]}).__musicContexts.length
+  )).toBeGreaterThanOrEqual(2);
+  // Auto-resume is best effort: a browser may require another user gesture.
+  if (await play.isEnabled()) await play.click();
+  await expect(pause).toBeEnabled();
+  await expect.poll(async()=>Number(await timeline.inputValue())).toBeGreaterThan(savedTick);
+
+  // The OS may also close the audio device without firing visibilitychange.
+  await page.evaluate(async()=>{
+    const contexts=(window as typeof window & {__musicContexts:AudioContext[]}).__musicContexts;
+    await contexts[contexts.length-1].close();
+  });
+  await expect(play).toBeEnabled();
+  await play.click();
+  await expect(pause).toBeEnabled();
+  await expect.poll(()=>page.evaluate(()=>
+    (window as typeof window & {__musicContexts:AudioContext[]}).__musicContexts.length
+  )).toBeGreaterThanOrEqual(3);
+
+  await pause.click();
+  await page.evaluate(()=>{
+    Object.defineProperty(document,'hidden',{configurable:true,value:true});
+    document.dispatchEvent(new Event('visibilitychange'));
+    Object.defineProperty(document,'hidden',{configurable:true,value:false});
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(play).toBeEnabled(); // A user pause must not trigger auto-resume.
+  await studio.getByRole('button',{name:'2Dモード',exact:true}).click();
+  await page.getByRole('button',{name:'Musicモード',exact:true}).click();
+  await play.click();
+  await expect(pause).toBeEnabled();
+  expect(errors).toEqual([]);
+});

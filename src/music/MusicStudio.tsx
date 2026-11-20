@@ -56,6 +56,32 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
   },[active,transport]);
   useEffect(()=>()=>{transport.dispose();job.current?.abort();},[transport]);
   useEffect(()=>{
+    if (!active) return;
+    let resumeOnReturn = false;
+    const background = () => {
+      // Mobile browsers may suspend or destroy their audio session in another app.
+      // Pause at the audible position and release it instead of keeping stale voices.
+      resumeOnReturn = transport.background() || resumeOnReturn;
+    };
+    const foreground = () => {
+      if (document.hidden || !resumeOnReturn) return;
+      resumeOnReturn = false;
+      // Browsers that disallow automatic playback still leave ▶ enabled for a tap.
+      void transport.play().catch(error=>setError(error instanceof Error?error.message:String(error)));
+    };
+    const visibility = () => document.hidden ? background() : foreground();
+    document.addEventListener('visibilitychange',visibility);
+    window.addEventListener('pagehide',background);
+    window.addEventListener('pageshow',foreground);
+    window.addEventListener('focus',foreground);
+    return ()=>{
+      document.removeEventListener('visibilitychange',visibility);
+      window.removeEventListener('pagehide',background);
+      window.removeEventListener('pageshow',foreground);
+      window.removeEventListener('focus',foreground);
+    };
+  },[active,transport]);
+  useEffect(()=>{
     const save=()=>{try{localStorage.setItem(storageKey,musicProjectText(song));}catch{}};
     const timer=window.setTimeout(save,240);
     window.addEventListener('pagehide',save);
