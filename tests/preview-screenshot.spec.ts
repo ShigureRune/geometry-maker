@@ -87,7 +87,10 @@ test('native share and X button pass the real PNG and capture-time seed together
     expect(item.type).toBe('image/png');
     expect(item.size).toBeGreaterThan(100);
   }
-  expect(page.url()).toBe(pageUrl);
+  // The editor intentionally removes shared ?seed= from its URL after load.
+  // Native X sharing must not navigate away from the studio itself.
+  expect(new URL(page.url()).pathname).toBe(new URL(pageUrl).pathname);
+  expect(page.url()).not.toContain('twitter.com');
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
