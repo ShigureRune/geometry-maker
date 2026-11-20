@@ -23,7 +23,10 @@ test('screenshot opens real photo with preview portrait ratio and PNG save/X act
   await expect(x).toBeVisible();
   await expect(x).toHaveAttribute('target','_blank');
   expect(new URL(await x.getAttribute('href')??'').pathname).toBe('/intent/tweet');
-  await expect(dialog).toContainText('画像の自動添付には対応していない');
+  await expect(dialog).toContainText('シード値：'+seedBefore);
+  await expect(dialog).toContainText('Xを選ぶと画像を添付して共有できます');
+  const fallback=new URL(await x.getAttribute('href')??'');
+  expect(fallback.searchParams.get('text')).toContain('シード値：'+seedBefore);
 
   const download=page.waitForEvent('download');
   await actions.getByRole('button',{name:'保存'}).click();
@@ -41,32 +44,63 @@ test('screenshot opens real photo with preview portrait ratio and PNG save/X act
   expect(errors).toEqual([]);
 });
 
-test('screenshot delivers PNG files to native share and works in square format',async({page})=>{
+test('native share and X button pass the real PNG and capture-time seed together',async({page})=>{
+  const seed='X用-紫雨+2026-🌌';
   await page.addInitScript(()=>{
-    Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:({files}:ShareData)=>!!files?.length});
     Object.defineProperty(navigator,'share',{configurable:true,value:async(data:ShareData)=>{
       const file=data.files?.[0];
-      Object.assign(window,{screenshotSharedFile:file?{
-        name:file.name,type:file.type,size:file.size,
-      }:null});
+      const existing=(window as Window & {screenshotShareCalls?:unknown[]}).screenshotShareCalls??[];
+      existing.push({title:data.title,text:data.text,filename:file?.name,type:file?.type,size:file?.size});
+      Object.assign(window,{screenshotShareCalls:existing});
     }});
   });
-  await page.goto('./');
+  await page.goto('./?seed='+encodeURIComponent(seed));
   await page.getByLabel('クイック比率').selectOption('1:1');
   await page.getByRole('button',{name:'スクショ',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
   await expect(dialog).toBeVisible();
   await expect(dialog.getByTestId('screenshot-image')).toHaveJSProperty('naturalHeight',1200);
+  await expect(dialog.getByTestId('screenshot-share-text')).toContainText('シード値：'+seed);
   await dialog.getByRole('button',{name:'共有',exact:true}).click();
+  await dialog.getByRole('link',{name:'Xで共有'}).click();
   await expect.poll(async()=>page.evaluate(()=>(
-    window as Window & {screenshotSharedFile?:{name:string;type:string;size:number}}
-  ).screenshotSharedFile)).toMatchObject({
-    name:/_screenshot_1200x1200\.png$/,type:'image/png',
+    window as Window & {screenshotShareCalls?:unknown[]}
+  ).screenshotShareCalls?.length)).toBe(2);
+  const calls=await page.evaluate(()=>(
+    window as Window & {screenshotShareCalls?:{
+      title:string;text:string;filename:string;type:string;size:number
+    }[]}
+  ).screenshotShareCalls??[]);
+  for(const item of calls){
+    expect(item.text).toContain('シード値：'+seed);
+    expect(item.text).toContain('https://');
+    expect(item.filename).toMatch(/_screenshot_1200x1200\.png$/);
+    expect(item.type).toBe('image/png');
+    expect(item.size).toBeGreaterThan(100);
+  }
+  await expect(page).toHaveURL(/geometry-maker/);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+});
+
+test('X fallback prefills seed when device does not support image sharing',async({page})=>{
+  const seed='fallback-seed-2026';
+  await page.addInitScript(()=>{
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>false});
+    Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('must not be called')}});
   });
-  const shared=await page.evaluate(()=>(
-    window as Window & {screenshotSharedFile?:{size:number}}
-  ).screenshotSharedFile?.size??0);
-  expect(shared).toBeGreaterThan(100);
+  await page.goto('./?seed='+seed);
+  await page.getByRole('button',{name:'スクショ',exact:true}).click();
+  const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
+  await expect(dialog).toBeVisible();
+  const x=dialog.getByRole('link',{name:'Xで共有'});
+  const href=new URL(await x.getAttribute('href')??'');
+  expect(href.hostname).toBe('twitter.com');
+  expect(href.pathname).toBe('/intent/tweet');
+  expect(href.searchParams.get('text')).toContain('シード値：'+seed);
+  await expect(dialog.getByRole('link',{name:'X投稿ページを開いて画像を添付'})).toBeVisible();
+  await expect(dialog.getByRole('button',{name:'投稿文をコピー'})).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
