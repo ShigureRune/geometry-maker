@@ -79,4 +79,46 @@ describe('Seed Music Studio',()=>{
     const ended={...long,id:'ended',durationTicks:10};
     expect(noteIndex([ended,long])(BAR,BAR*2)).toEqual([long]);
   });
+
+  it('supports reproducible 128-bar songs with eight independent instrument tracks',()=>{
+    const config={...DEFAULT_CONFIG,seed:'long-form-polyphony',bars:128 as const,trackCount:8 as const};
+    const song=generateSong(config);
+    expect(song.totalTicks).toBe(128*BAR);
+    expect(song.tracks.map(track=>track.type)).toEqual([
+      'melody','chords','bass','drums','arp','pad','counter','pulse',
+    ]);
+    expect(new Set(song.tracks.map(track=>track.midiChannel)).size).toBe(8);
+    expect(song.sections.reduce((sum,section)=>sum+section.bars,0)).toBe(128);
+    expect(song.tracks.slice(4).every(track=>track.notes.length>0)).toBe(true);
+    expect(generateSong(config)).toEqual(song);
+    for(const track of song.tracks) expect(()=>validateNotes(track.notes,song.totalTicks)).not.toThrow();
+    expect(parseMusicProject(musicProjectText(song))).toEqual(song);
+    const midi=new Midi(exportMidi(song));
+    expect(midi.tracks).toHaveLength(8);
+    midi.tracks.forEach((track,index)=>{
+      expect(track.channel).toBe(song.tracks[index].midiChannel);
+      expect(track.notes.length).toBe(song.tracks[index].notes.length);
+    });
+    expect(audioPlan(song).tracks).toHaveLength(8);
+  });
+
+  it('keeps the original four parts unchanged and imports previous JSON with no trackCount',()=>{
+    const original=generateSong({...DEFAULT_CONFIG,seed:'legacy-seed'});
+    const expanded=generateSong({...original.config,trackCount:8},{previous:original});
+    expect(expanded.tracks.slice(0,4).map(track=>track.notes))
+      .toEqual(original.tracks.map(track=>track.notes));
+    const six=generateSong({...original.config,trackCount:6},{previous:original});
+    expect(six.tracks).toHaveLength(6);
+    const changed=generateSong(expanded.config,{previous:expanded,reroll:'arp'});
+    expect(changed.tracks.find(track=>track.id==='arp')?.notes)
+      .not.toEqual(expanded.tracks.find(track=>track.id==='arp')?.notes);
+    expect(changed.tracks.find(track=>track.id==='pad'))
+      .toBe(expanded.tracks.find(track=>track.id==='pad'));
+    const oldProject=JSON.parse(musicProjectText(original)) as {song:{config:Record<string,unknown>}};
+    delete oldProject.song.config.trackCount;
+    const imported=parseMusicProject(JSON.stringify(oldProject));
+    expect(imported.config.trackCount).toBe(4);
+    expect(imported.tracks.map(track=>track.notes)).toEqual(original.tracks.map(track=>track.notes));
+  });
+
 });
