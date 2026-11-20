@@ -24,7 +24,7 @@ test('screenshot opens real photo with preview portrait ratio and PNG save/X act
   await expect(x).toHaveAttribute('target','_blank');
   expect(new URL(await x.getAttribute('href')??'').pathname).toBe('/intent/tweet');
   await expect(dialog).toContainText('シード値：'+seedBefore);
-  await expect(dialog).toContainText('Xを選ぶと画像を添付して共有できます');
+  await expect(dialog).toContainText('画像をクリップボードにコピーし、シード値入りのX投稿画面を別タブで開きます');
   const fallback=new URL(await x.getAttribute('href')??'');
   expect(fallback.searchParams.get('text')).toContain('シード値：'+seedBefore);
 
@@ -44,8 +44,7 @@ test('screenshot opens real photo with preview portrait ratio and PNG save/X act
   expect(errors).toEqual([]);
 });
 
-test('native share and X button pass the real PNG and capture-time seed together',async({page})=>{
-  // SVG rasterization can take longer under fully loaded GitHub CI workers.
+test('X opens directly while copying the PNG; native share still sends the seed',async({page})=>{
   test.setTimeout(100000);
   const seed='X用-紫雨+2026-🌌';
   await page.addInitScript(()=>{
@@ -56,51 +55,75 @@ test('native share and X button pass the real PNG and capture-time seed together
       existing.push({title:data.title,text:data.text,filename:file?.name,type:file?.type,size:file?.size});
       Object.assign(window,{screenshotShareCalls:existing});
     }});
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      write:async(items:ClipboardItem[])=>{
+        const png=await items[0].getType('image/png');
+        Object.assign(window,{screenshotCopiedPng:{type:png.type,size:png.size}});
+      },
+    }});
   });
+  // Never rely on an external X server in CI: the browser still executes
+  // actual target=_blank navigation, intercepted on its first request.
+  await page.context().route('https://twitter.com/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:'<title>X composer</title>'}));
   await page.goto('./?seed='+encodeURIComponent(seed));
-  const pageUrl=page.url();
+  const originalPath=new URL(page.url()).pathname;
   await page.getByLabel('クイック比率').selectOption('1:1');
   await page.getByRole('button',{name:'スクショ',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
-  try{await expect(dialog).toBeVisible({timeout:45000});}
-  catch(error){
-    console.log('Screenshot status:',await page.locator('.studio-screenshot-error').allTextContents());
-    console.log('Screenshot busy:',await page.getByRole('button',{name:'スクショ'}).textContent());
-    throw error;
-  }
+  await expect(dialog).toBeVisible({timeout:45000});
   await expect(dialog.getByTestId('screenshot-image')).toHaveJSProperty('naturalHeight',1200);
   await expect(dialog.getByTestId('screenshot-share-text')).toContainText('シード値：'+seed);
   await dialog.getByRole('button',{name:'共有',exact:true}).click();
-  await dialog.getByRole('link',{name:'Xで共有'}).click();
   await expect.poll(async()=>page.evaluate(()=>(
     window as Window & {screenshotShareCalls?:unknown[]}
-  ).screenshotShareCalls?.length)).toBe(2);
+  ).screenshotShareCalls?.length)).toBe(1);
   const calls=await page.evaluate(()=>(
     window as Window & {screenshotShareCalls?:{
       title:string;text:string;filename:string;type:string;size:number
     }[]}
   ).screenshotShareCalls??[]);
-  for(const item of calls){
-    expect(item.text).toContain('シード値：'+seed);
-    expect(item.text).toMatch(/https?:\/\/\S+/);
-    expect(item.filename).toMatch(/_screenshot_1200x1200\.png$/);
-    expect(item.type).toBe('image/png');
-    expect(item.size).toBeGreaterThan(100);
-  }
-  // The editor intentionally removes shared ?seed= from its URL after load.
-  // Native X sharing must not navigate away from the studio itself.
-  expect(new URL(page.url()).pathname).toBe(new URL(pageUrl).pathname);
-  expect(page.url()).not.toContain('twitter.com');
+  expect(calls[0].text).toContain('シード値：'+seed);
+  expect(calls[0].filename).toMatch(/_screenshot_1200x1200\.png$/);
+  expect(calls[0].type).toBe('image/png');
+  expect(calls[0].size).toBeGreaterThan(100);
+
+  const x=dialog.getByRole('link',{name:'Xで共有'});
+  await expect(x).toHaveAttribute('target','_blank');
+  const href=new URL(await x.getAttribute('href')??'');
+  expect(href.searchParams.get('text')).toContain('シード値：'+seed);
+  const popupPromise=page.waitForEvent('popup');
+  await x.click();
+  const popup=await popupPromise;
+  await expect.poll(()=>popup.url()).toContain('/intent/tweet');
+  await expect.poll(async()=>page.evaluate(()=>(
+    window as Window & {screenshotCopiedPng?:{type:string;size:number}}
+  ).screenshotCopiedPng?.size??0)).toBeGreaterThan(100);
+  const copied=await page.evaluate(()=>(
+    window as Window & {screenshotCopiedPng?:{type:string;size:number}}
+  ).screenshotCopiedPng);
+  expect(copied?.type).toBe('image/png');
+  // X launch is never intercepted by navigator.share, even if available.
+  expect(await page.evaluate(()=>(
+    window as Window & {screenshotShareCalls?:unknown[]}
+  ).screenshotShareCalls?.length)).toBe(1);
+  expect(new URL(page.url()).pathname).toBe(originalPath);
+  await popup.close();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
 
-test('X fallback prefills seed when device does not support image sharing',async({page})=>{
+test('X still opens with seed when clipboard copying is forbidden',async({page})=>{
   const seed='fallback-seed-2026';
   await page.addInitScript(()=>{
-    Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>false});
-    Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('must not be called')}});
+    Object.defineProperty(navigator,'canShare',{configurable:true,value:()=>true});
+    Object.defineProperty(navigator,'share',{configurable:true,value:async()=>{throw Error('X must not use native share')}});
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      write:async()=>{throw new Error('Clipboard permission denied');},
+    }});
   });
+  await page.context().route('https://twitter.com/**',route=>
+    route.fulfill({status:200,contentType:'text/html',body:'<title>X composer</title>'}));
   await page.goto('./?seed='+seed);
   await page.getByRole('button',{name:'スクショ',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
@@ -110,8 +133,13 @@ test('X fallback prefills seed when device does not support image sharing',async
   expect(href.hostname).toBe('twitter.com');
   expect(href.pathname).toBe('/intent/tweet');
   expect(href.searchParams.get('text')).toContain('シード値：'+seed);
-  await expect(dialog.getByRole('link',{name:'X投稿ページを開いて画像を添付'})).toBeVisible();
+  const popupPromise=page.waitForEvent('popup');
+  await x.click();
+  const popup=await popupPromise;
+  await expect.poll(()=>popup.url()).toContain('/intent/tweet');
+  await expect(dialog.getByRole('status').last()).toContainText('画像をコピーできませんでした');
   await expect(dialog.getByRole('button',{name:'投稿文をコピー'})).toBeVisible();
+  await popup.close();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
