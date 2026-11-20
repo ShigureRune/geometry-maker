@@ -1,6 +1,6 @@
 import {useEffect,useRef,useState} from 'react';
 import {downloadBlob} from './export';
-import {screenshotXIntent,type PreviewScreenshot} from './preview-screenshot';
+import {screenshotXIntent,screenshotShareText,type PreviewScreenshot} from './preview-screenshot';
 
 type Props={screenshot:PreviewScreenshot;onClose:()=>void};
 
@@ -19,8 +19,22 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
   },[]);
   const appUrl=typeof window==='undefined'?'https://shugurerune.github.io/geometry-maker/':
     new URL(window.location.pathname,window.location.origin).toString();
+  const shareText=screenshotShareText(screenshot.seed,appUrl);
+  const xIntent=screenshotXIntent(appUrl,screenshot.seed);
   function file(){
     return new File([screenshot.blob],screenshot.filename,{type:'image/png'});
+  }
+  function canShareFile(image:File){
+    try{return typeof navigator.share==='function'&&
+      (typeof navigator.canShare!=='function'||navigator.canShare({files:[image]}));}
+    catch{return false;}
+  }
+  async function copyCaption(){
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error('unsupported');
+      await navigator.clipboard.writeText(shareText);
+      setMessage('シード値とURLを含む投稿文をコピーしました。Xの投稿欄に貼り付けられます。');
+    }catch{setMessage('投稿文をコピーできませんでした。表示されている文章を選択してコピーしてください。');}
   }
   function save(){
     downloadBlob(screenshot.blob,screenshot.filename);
@@ -38,21 +52,30 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
         '画像をコピーできませんでした。ブラウザの許可を確認するか「保存」を使ってください。');
     }
   }
-  async function share(){
+  async function share(target:'general'|'x'){
     if(sharing)return;
     setMessage('');
     try{
-      if(!navigator.share)throw new Error('unsupported');
       const image=file();
-      if(navigator.canShare&&!navigator.canShare({files:[image]}))
-        throw new Error('unsupported');
+      if(!canShareFile(image))throw new Error('unsupported');
       setSharing(true);
-      // Files, not an image URL: supported apps receive the actual PNG.
-      await navigator.share({title:'幾何学メーカーのスクショ',files:[image]});
-      setMessage('画像の共有先を選択しました。');
+      // The share sheet can pass the actual PNG to X, unlike an X intent URL.
+      // The receiving app decides whether to use the accompanying text.
+      setMessage(target==='x'
+        ? '共有先からXを選んでね！ 投稿前に画像とシード値が入っているか確認してください。'
+        : '共有するアプリを選んでください。画像とシード値を渡します。');
+      await navigator.share({title:'幾何学メーカーのスクショ',text:shareText,files:[image]});
+      setMessage(target==='x'
+        ? '共有操作が完了しました。Xでシード値が抜けていたら「投稿文をコピー」で貼り付けてね。'
+        : '画像とシード値を共有先に渡しました。');
     }catch(error){
-      if(error instanceof DOMException&&error.name==='AbortError')return;
-      setMessage('この端末では画像を直接共有できません。「保存」して共有アプリに添付してください。');
+      if(error instanceof DOMException&&error.name==='AbortError'){
+        setMessage('共有をキャンセルしました。');
+        return;
+      }
+      setMessage(target==='x'
+        ? '画像をXに直接渡せませんでした。「保存」でPNGを保存し、下の「X投稿ページ」で画像を添付してください。'
+        : 'この端末では画像を直接共有できません。「保存」して共有アプリに添付してください。');
     }finally{setSharing(false);}
   }
   return <dialog ref={dialogRef} className="studio-screenshot-dialog"
@@ -76,13 +99,30 @@ export function PreviewScreenshotDialog({screenshot,onClose}:Props){
       <div className="studio-screenshot-actions" role="group" aria-label="スクショの操作">
         <button type="button" onClick={save}><span aria-hidden="true">↓</span> 保存</button>
         <button type="button" onClick={()=>{void copy();}}><span aria-hidden="true">▣</span> コピー</button>
-        <button type="button" disabled={sharing} onClick={()=>{void share();}}><span aria-hidden="true">↗</span> 共有</button>
-        <a className="studio-screenshot-x" href={screenshotXIntent(appUrl)}
-          target="_blank" rel="noopener noreferrer" aria-label="Xで共有">
+        <button type="button" disabled={sharing} onClick={()=>{void share('general');}}><span aria-hidden="true">↗</span> 共有</button>
+        <a className="studio-screenshot-x" href={xIntent}
+          target="_blank" rel="noopener noreferrer" aria-label="Xで共有"
+          onClick={event=>{
+            if(!canShareFile(file()))return; // Browser fallback: X text only.
+            event.preventDefault();
+            void share('x'); // iPhone share sheet: choose X to attach the PNG.
+          }}>
           <span aria-hidden="true">𝕏</span> Xで共有
         </a>
       </div>
-      <p className="studio-screenshot-x-hint">Xで共有は投稿画面を開きます。画像の自動添付には対応していないため、保存したPNGを添付するか、コピーして貼り付けてください。端末の「共有」からXを選ぶと画像を渡せる場合もあります。</p>
+      <div className="studio-screenshot-caption">
+        <div className="studio-screenshot-caption-header">
+          <strong>投稿文プレビュー</strong>
+          <button type="button" onClick={()=>{void copyCaption();}}>投稿文をコピー</button>
+        </div>
+        <p data-testid="screenshot-share-text">{shareText}</p>
+      </div>
+      <p className="studio-screenshot-x-hint">
+        iPhoneの「Xで共有」は共有シートを開きます。<strong>Xを選ぶと画像を添付して共有できます</strong>（X側の対応状況によります）。
+        アプリによって投稿文が省略される場合は「投稿文をコピー」でシード値を貼り付けてください。
+        Xが共有先に表示されない場合はPNGを保存し、
+        <a href={xIntent} target="_blank" rel="noopener noreferrer">X投稿ページを開いて画像を添付</a>できます。
+      </p>
       <p className="studio-screenshot-status" role="status" aria-live="polite">{message}</p>
     </div>
   </dialog>;
