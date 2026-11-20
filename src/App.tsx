@@ -27,6 +27,8 @@ import {useGridClock} from './useGridClock';
 import {ImagePaletteControls} from './ImagePaletteControls';
 import {PaletteExportControls} from './PaletteExportControls';
 import {PreviewScreenshotDialog} from './PreviewScreenshotDialog';
+import {ScreenshotGalleryDialog} from './ScreenshotGalleryDialog';
+import {addScreenshotToGallery} from './screenshot-gallery';
 import {captureLiveSvg,previewScreenshotFilename,previewScreenshotSize,type PreviewScreenshot} from './preview-screenshot';
 import {TextControls} from './TextControls';
 import {useTextEntrancePreview} from './preview-text-animation';
@@ -201,6 +203,9 @@ export default function App() {
   const [screenshotBusy,setScreenshotBusy]=useState(false);
   const [screenshotError,setScreenshotError]=useState('');
   const [screenshot,setScreenshot]=useState<PreviewScreenshot|null>(null);
+  const [galleryOpen,setGalleryOpen]=useState(false);
+  const [galleryRevision,setGalleryRevision]=useState(0);
+  const [galleryNotice,setGalleryNotice]=useState('');
   const standbyInteractionUntil=useRef(0);
   const standbySerial=useRef(0);
   const resume2D=useRef({growth:false,ambient:false});
@@ -652,9 +657,18 @@ export default function App() {
         blob=await captureLiveSvg(svg,ratio);
       }
       if(!blob.size)throw new Error('スクショ画像の作成に失敗しました。');
-      setScreenshot({
+      const snapshot:PreviewScreenshot={
         blob,width,height,ratio,mode:renderMode,seed,
         filename:previewScreenshotFilename(seed,renderMode==='3d'?THREE_ALGORITHM_VERSION:version,ratio),
+      };
+      setScreenshot(snapshot);
+      // PNG preview opens immediately, independent of browser storage.
+      // The gallery is intentionally separate from studio project autosave.
+      void addScreenshotToGallery(snapshot).then(()=>{
+        setGalleryRevision(value=>value+1);
+        setGalleryNotice('');
+      }).catch(()=>{
+        setGalleryNotice('ギャラリーに自動保存できませんでした。大切な画像は「保存」でPNGとして残してね。');
       });
     }catch(error){
       setScreenshotError(error instanceof Error?error.message:'スクショに失敗しました。');
@@ -672,6 +686,8 @@ export default function App() {
     ...(renderMode==='2d'?[{id:'seed-explorer',title:'構図探索ボードを開く',
       description:'4〜8案のサムネイルを比較・保存',keywords:'compare gallery candidate 比較 候補',
       run:()=>setExplorerOpen(true)}]:[]),
+    {id:'screenshot-gallery',title:'スクショ作品ギャラリーを開く',
+      description:'撮影した画像を一覧で見返し・保存・共有',keywords:'photo screenshot archive 履歴 写真',run:()=>setGalleryOpen(true)},
     {id:'focus',title:studioFocus?'集中表示を終了':'プレビューに集中',
       description:'作業パネルを隠してキャンバスを広げる',keywords:'full screen canvas',run:()=>setStudioFocus(v=>!v)},
     {id:'panel',title:'設定パネルの表示を切り替える',
@@ -1062,6 +1078,10 @@ export default function App() {
               onClick={()=>{void captureScreenshot();}}>
               <span aria-hidden="true">📸</span> {screenshotBusy?'撮影中…':'スクショ'}
             </button>
+            <button type="button" className="studio-screenshot-gallery-launch"
+              aria-label="スクショギャラリー" onClick={()=>setGalleryOpen(true)}>
+              <span aria-hidden="true">🖼️</span> ギャラリー
+            </button>
             <span className="live-indicator"><i/> リアルタイム反映</span>
             <button type="button" className="studio-focus-button" aria-pressed={studioFocus}
               onClick={()=>setStudioFocus(v=>!v)}>
@@ -1071,6 +1091,7 @@ export default function App() {
           </div>
         </div>
         {screenshotError&&<p className="studio-screenshot-error" role="alert">{screenshotError}</p>}
+        {galleryNotice&&<p className="studio-gallery-notice" role="status">{galleryNotice}</p>}
         <div className="canvas-stage">
           {renderMode==='2d'?<PreviewTextEditor settings={textOverlay} onChange={setTextOverlay} onAdvanced={()=>goToSettings('text')}>
             <div ref={artworkRef} className="canvas-frame" style={{ aspectRatio: `${scene.width} / ${scene.height}`, width: `min(100%, calc(var(--preview-height, 70vh) * ${scene.width / scene.height}))` }}>
@@ -1126,6 +1147,8 @@ export default function App() {
     </main>
     <StudioCommandPalette open={commandOpen} onClose={closeCommands} commands={studioCommands}/>
     {screenshot&&<PreviewScreenshotDialog screenshot={screenshot} onClose={()=>setScreenshot(null)}/>}
+    {galleryOpen&&<ScreenshotGalleryDialog revision={galleryRevision} onClose={()=>setGalleryOpen(false)}
+      onOpen={photo=>{setGalleryOpen(false);setScreenshot(photo);}}/>}
     {explorerOpen&&renderMode==='2d'&&<SeedExplorerBoard
       activeSeed={seed} ratio={ratio} version={version} shapeKinds={enabledShapeKinds}
       magicSettings={magicSettings} density={density} visualTheme={visualTheme}
