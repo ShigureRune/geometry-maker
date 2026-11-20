@@ -9,6 +9,26 @@ import {noteIndex} from './roll-layout';
 import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, playableTracks, secToTick, tickToSec} from './song';
 
 describe('Seed Music Studio',()=>{
+  it('builds a distinct deterministic Epic trailer with rising tension and a climax',()=>{
+    const config={...DEFAULT_CONFIG,genre:'エピック' as const,seed:'epic-trailer-suite',bars:32 as const,trackCount:8 as const,
+      scale:'ナチュラルマイナー' as const,arrangement:'標準' as const};
+    const epic=generateSong(config);
+    const cinematic=generateSong({...config,genre:'シネマティック'});
+    expect(generateSong(config)).toEqual(epic);
+    expect(epic.sections.map(section=>section.name)).toContain('Build');
+    expect(epic.sections.map(section=>section.name)).toContain('B′');
+    expect(epic.tracks.map(track=>track.notes)).not.toEqual(cinematic.tracks.map(track=>track.notes));
+    const drums=epic.tracks.find(track=>track.id==='drums')!;
+    const intro=epic.sections.find(section=>section.name==='Intro')!;
+    const build=epic.sections.find(section=>section.name==='Build')!;
+    const accents=(section:typeof intro)=>drums.notes.filter(note=>
+      note.startTick>=section.startBar*BAR && note.startTick<(section.startBar+section.bars)*BAR).length/section.bars;
+    expect(accents(build)).toBeGreaterThan(accents(intro));
+    expect(drums.notes.some(note=>note.pitch===38 && note.startTick%BAR===4*PPQ/2)).toBe(true);
+    expect(epic.tracks.find(track=>track.id==='chords')!.notes.some(note=>note.pitch<48)).toBe(true);
+    expect(parseMusicProject(musicProjectText(epic))).toEqual(epic);
+  });
+
   it('maps recorded grand-piano samples to nearest available pitch',()=>{
     const keys=[21,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108];
     expect(nearestGrandPianoPitch(60,keys)).toBe(60);
