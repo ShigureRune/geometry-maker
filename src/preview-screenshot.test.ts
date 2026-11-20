@@ -1,6 +1,6 @@
 import {describe,it,expect} from 'vitest';
 import {RATIOS} from './scene';
-import {previewScreenshotSize,previewScreenshotFilename,screenshotXIntent} from './preview-screenshot';
+import {previewScreenshotSize,previewScreenshotFilename,screenshotXIntent,screenshotShareText,screenshotShareCaption} from './preview-screenshot';
 
 describe('instant preview screenshot',()=>{
   it('uses exactly the current preview canvas ratio, including A4 and portrait',()=>{
@@ -22,11 +22,17 @@ describe('instant preview screenshot',()=>{
     expect(seed).toBe('♡紫雨 / ☆ ../ Rune');
   });
   it('X link only prepares a post; no unsupported image-upload claim',()=>{
-    const url=new URL(screenshotXIntent('https://shugurerune.github.io/geometry-maker/'));
+    const seed='紫雨-ねこ+2026 #/🌌';
+    const url=new URL(screenshotXIntent('https://shugurerune.github.io/geometry-maker/',seed));
     expect(url.origin).toBe('https://twitter.com');
     expect(url.pathname).toBe('/intent/tweet');
     expect(url.searchParams.get('url')).toBe('https://shugurerune.github.io/geometry-maker/');
     expect(url.searchParams.get('text')).toContain('幾何学メーカー');
+    expect(url.searchParams.get('text')).toContain('シード値：'+seed);
+    expect(url.searchParams.get('text')).not.toContain('https://shugurerune.github.io');
+    expect(screenshotShareText(seed,'https://shugurerune.github.io/geometry-maker/'))
+      .toContain('シード値：'+seed+'\nhttps://shugurerune.github.io/geometry-maker/');
+    expect(screenshotShareCaption('')).toContain('シード値：（空文字）');
     expect(url.searchParams.has('media')).toBe(false);
   });
 });
