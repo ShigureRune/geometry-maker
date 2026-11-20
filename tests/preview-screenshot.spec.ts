@@ -82,7 +82,7 @@ test('native share and X button pass the real PNG and capture-time seed together
   ).screenshotShareCalls??[]);
   for(const item of calls){
     expect(item.text).toContain('シード値：'+seed);
-    expect(item.text).toContain('https://');
+    expect(item.text).toMatch(/https?:\/\/\S+/);
     expect(item.filename).toMatch(/_screenshot_1200x1200\.png$/);
     expect(item.type).toBe('image/png');
     expect(item.size).toBeGreaterThan(100);
