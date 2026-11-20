@@ -353,7 +353,7 @@ export default function MusicStudio({active,onGeometry}:{active:boolean;onGeomet
           </div>
           <div className="music-buttons">
             <button className="music-primary" disabled={renderProgress!==null} onClick={()=>void mp3()}>MP3書き出し</button>
-            <button onClick={()=>saveMusicFile(new Blob([exportMidi(playbackSong,audibleMidi)],{type:'audio/midi'}),musicFilename(song,'mid'))}>MIDI書き出し</button>
+            <button onClick={()=>saveMusicFile(new Blob([exportMidi(playbackSong,pianoOnly||audibleMidi)],{type:'audio/midi'}),musicFilename(song,'mid'))}>MIDI書き出し</button>
             <button onClick={saveProject}>プロジェクトJSON保存</button>
           </div>
           {renderProgress!==null&&<div className="music-buttons" aria-live="polite">
