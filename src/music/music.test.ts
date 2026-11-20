@@ -56,7 +56,7 @@ describe('Seed Music Studio',()=>{
       note.startTick>=section.startBar*BAR && note.startTick<(section.startBar+section.bars)*BAR).length/section.bars;
     expect(accents(build)).toBeGreaterThan(accents(intro));
     expect(drums.notes.some(note=>note.pitch===38 && note.startTick%BAR===4*PPQ/2)).toBe(true);
-    expect(epic.tracks.find(track=>track.id==='chords')!.notes.some(note=>note.pitch<48)).toBe(true);
+    expect(epic.tracks.find(track=>track.id==='bass')!.notes.some(note=>note.pitch<48)).toBe(true);
     expect(parseMusicProject(musicProjectText(epic))).toEqual(epic);
   });
 
