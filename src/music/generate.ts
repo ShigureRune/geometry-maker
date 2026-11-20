@@ -33,7 +33,7 @@ const styles: Record<Config['genre'], Style> = {
     melody:[0,1,3,4,6], bass:[0,2,4,6], kicks:[0,4], hats:2, chordHits:[0,3,6], seventh:true},
   ファンク: {instruments:['Synth Pluck','Electric Piano','Synth Bass'],
     progressions:[[0,3,4,3],[0,4,3,4],[0,5,3,4]],
-    melody:[0,2,3,5,6,7], bass:[0,1,3,4,6], kicks:[0,3,5,6], hats:1, chordHits:[1,3,5,7], seventh:true},
+    melody:[0,2,3,5,6,7], bass:[0,1,3,4,6], kicks:[0,3,5,7], hats:1, chordHits:[1,3,5,7], seventh:true},
   ドラムンベース: {instruments:['Synth Lead','Synth Pluck','Synth Bass'],
     progressions:[[0,4,5,3],[5,3,0,4],[0,5,4,3]],
     melody:[0,1,3,4,6,7], bass:[0,1,3,5,6], kicks:[0,3,6], hats:1, chordHits:[0,4], seventh:false},
