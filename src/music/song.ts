@@ -1,22 +1,23 @@
 export const MUSIC_VERSION = 'seed-music-v1';
 export const PPQ = 480;
 export const BAR = PPQ * 4;
-export const PARTS = ['melody', 'chords', 'bass', 'drums'] as const;
+export const PARTS = ['melody', 'chords', 'bass', 'drums', 'arp', 'pad', 'counter', 'pulse'] as const;
+export const TRACK_COUNTS = [4, 6, 8] as const;
 export const GENRES = ['チップチューン', 'EDM', 'テクノ', 'Lo-fi', 'アンビエント'] as const;
 export const SCALES = ['メジャー', 'ナチュラルマイナー', 'メジャーペンタトニック', 'マイナーペンタトニック'] as const;
 export const MOODS = ['明るい', '暗い', '幻想的', '緊張感'] as const;
 export const KEYS = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'] as const;
-export const LENGTHS = [4, 8, 16, 32, 64] as const;
+export const LENGTHS = [4, 8, 16, 32, 64, 128] as const;
 export const INSTRUMENTS = ['Piano', 'Electric Piano', 'Synth Lead', 'Synth Pluck', 'Synth Bass', 'Pad', '8-bit Lead', 'Drum Kit'] as const;
 export const PROGRAMS = [0, 4, 81, 11, 38, 89, 80, 0];
-export const NAMES = ['メロディー', 'コード', 'ベース', 'ドラム'];
-export const COLORS = ['#bca3ff', '#51cbd6', '#f2b76f', '#ee83a9'];
+export const NAMES = ['メロディー', 'コード', 'ベース', 'ドラム', 'アルペジオ', 'パッド', '副旋律', 'リズムシンセ'];
+export const COLORS = ['#bca3ff', '#51cbd6', '#f2b76f', '#ee83a9', '#95d987', '#93b7ff', '#ffc8a0', '#d8a3e8'];
 
 export type Part = typeof PARTS[number];
 export type Instrument = typeof INSTRUMENTS[number];
 export type Config = {
   seed: string; genre: typeof GENRES[number]; bpm: number; key: number;
-  scale: typeof SCALES[number]; bars: typeof LENGTHS[number]; mood: typeof MOODS[number];
+  scale: typeof SCALES[number]; bars: typeof LENGTHS[number]; trackCount: typeof TRACK_COUNTS[number]; mood: typeof MOODS[number];
   complexity: number; density: number; swing: number;
 };
 export type Note = {id: string; pitch: number; startTick: number; durationTicks: number; velocity: number};
@@ -33,7 +34,7 @@ export type Song = {
   mixer: {volume: number; muted: boolean; limiter: boolean};
 };
 export const DEFAULT_CONFIG: Config = {
-  seed: 'violet-horizon', genre: 'Lo-fi', bpm: 120, key: 0, scale: 'メジャー', bars: 16,
+  seed: 'violet-horizon', genre: 'Lo-fi', bpm: 120, key: 0, scale: 'メジャー', bars: 16, trackCount: 4,
   mood: '幻想的', complexity: 50, density: 55, swing: 20,
 };
 
