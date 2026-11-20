@@ -1,6 +1,7 @@
 import {Midi} from '@tonejs/midi';
 import {describe, expect, it} from 'vitest';
 import {audioPlan} from './audio';
+import {nearestGrandPianoPitch} from './piano-samples';
 import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {musicProjectText, parseMusicProject, validateNotes} from './project';
@@ -8,6 +9,16 @@ import {noteIndex} from './roll-layout';
 import {BAR, DEFAULT_CONFIG, GENRES, PPQ, pianoOnlySong, playableTracks, secToTick, tickToSec} from './song';
 
 describe('Seed Music Studio',()=>{
+  it('maps recorded grand-piano samples to nearest available pitch',()=>{
+    const keys=[21,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108];
+    expect(nearestGrandPianoPitch(60,keys)).toBe(60);
+    expect(nearestGrandPianoPitch(63,keys)).toBe(60);
+    expect(nearestGrandPianoPitch(65,keys)).toBe(66);
+    expect(nearestGrandPianoPitch(0,keys)).toBe(21);
+    expect(nearestGrandPianoPitch(127,keys)).toBe(108);
+    expect(nearestGrandPianoPitch(60,[])).toBeUndefined();
+  });
+
   it('renders a piano-only arrangement without changing the source song or seed',()=>{
     const original=generateSong({...DEFAULT_CONFIG,seed:'piano-only-regression',trackCount:8});
     const snapshot=JSON.stringify(original);
