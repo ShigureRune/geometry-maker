@@ -121,7 +121,19 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     ? config.melodyStyle === '歌う' ? [0,2,4,6] :
       config.melodyStyle === '疾走' ? [0,1,2,3,4,5,6,7] : [0,2,3,5,7]
     : style.melody;
-  const motif = melodySteps.map((_, i) => i === 0 ? 0 : Math.floor(rand() * 5) - 2);
+  // Stable phrase identities give each seed a distinct melodic contour, while
+  // repeated sections reuse their motif with controlled phrase development.
+  const phraseMotifs = new Map<string, number[]>();
+  const motifFor = (name: string) => {
+    const family = name.replace('′', '');
+    if (!phraseMotifs.has(family)) {
+      const phraseRand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'motif', part, variation, family]));
+      const contour = Array.from({length: melodySteps.length}, (_, i) =>
+        i === 0 ? 0 : Math.floor(phraseRand() * 7) - 3);
+      phraseMotifs.set(family, contour);
+    }
+    return phraseMotifs.get(family)!;
+  };
   const add = (bar: number, step: number, pitch: number, length: number, velocity: number) => {
     const micro = step % 2 ? Math.round(config.swing * .95) : 0;
     const startTick = bar * BAR + step * half + micro;
@@ -168,10 +180,15 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       const extraDensity = config.melodyStyle === '疾走' ? .23 : config.melodyStyle === '歌う' ? -.10 : 0;
       const steps = final ? [0] : melodySteps.filter((_, i) => i === 0 || rand() < density + .15 + extraDensity);
       steps.forEach((step, i) => {
-        const motifValue = motif[(melodySteps.indexOf(step) + (bar % 4 === 3 ? 1 : 0)) % motif.length];
+        const motif = motifFor(section.name);
+        const localPhraseBar = (bar - section.startBar) % 4;
+        const motifValue = motif[(melodySteps.indexOf(step) + (localPhraseBar === 3 ? 1 : 0)) % motif.length];
+        // Answer phrases rise/fall relative to their opening; section repeats
+        // retain their recognizable contour instead of drawing unrelated notes.
+        const phraseDevelopment = localPhraseBar === 1 ? 2 : localPhraseBar === 2 ? -2 : 0;
         const jump = config.melodyStyle === '跳躍' ? (bar%2===0?6:-5)+3*motifValue :
           config.melodyStyle === '歌う' ? motifValue : 2*motifValue;
-        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + (epic && contrast ? 5 : 0);
+        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + phraseDevelopment + (epic && contrast ? 5 : 0);
         const accent = step % 4 === 0 || i === 0 || final;
         const tones = accent ? (final ? [config.key] : harmony.map(p => p % 12)) : mode.map(p => (p + config.key) % 12);
         const result = Array.from({length: 29}, (_, index) => index + 56).filter(p => tones.includes(p % 12))
