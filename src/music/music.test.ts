@@ -2,7 +2,7 @@ import {Midi} from '@tonejs/midi';
 import {describe, expect, it} from 'vitest';
 import {audioPlan} from './audio';
 import {nearestGrandPianoPitch} from './piano-samples';
-import {nearestOrchestraRoot,orchestraRole,pickOrchestraSample,type OrchestraSamples} from './orchestra-samples';
+import {nearestOrchestraRoot,orchestraRole,pickOrchestraSample,type OrchestraSamples,type OrchestralRole,type OrchestraSample} from './orchestra-samples';
 import {generateSong} from './generate';
 import {exportMidi} from './midi';
 import {musicProjectText, parseMusicProject, validateNotes} from './project';
@@ -20,7 +20,7 @@ describe('Seed Music Studio',()=>{
     expect(nearestOrchestraRoot('percussion',36,[36,38,42,46])).toBe(36);
     expect(nearestOrchestraRoot('percussion',37,[36,38,42,46])).toBeUndefined();
     const audio={} as AudioBuffer;
-    const samples:OrchestraSamples=new Map([
+    const samples:OrchestraSamples=new Map<OrchestralRole,readonly OrchestraSample[]>([
       ['horn',[{root:60,buffer:audio,gain:1}]],
       ['percussion',[{root:36,buffer:audio,gain:1}]],
     ]);
