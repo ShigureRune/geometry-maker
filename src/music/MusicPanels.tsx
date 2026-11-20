@@ -1,6 +1,6 @@
 import {useEffect,useState,type ReactNode} from 'react';
 import type {Loop,MusicTransport} from './audio';
-import {BAR,GENRES,INSTRUMENTS,KEYS,LENGTHS,MOODS,PPQ,PROGRAMS,SCALES,TRACK_COUNTS,clamp,pitchName,tickToSec,type Config,type Note,type Song,type Track} from './song';
+import {ARRANGEMENTS,BAR,GENRES,INSTRUMENTS,KEYS,LENGTHS,MELODY_STYLES,MOODS,PPQ,PROGRAMS,SCALES,TRACK_COUNTS,clamp,pitchName,tickToSec,type Config,type Note,type Song,type Track} from './song';
 
 export function Select<T extends string|number>({label,value,items,change,format=String}:{
   label:string; value:T; items:readonly T[]; change:(value:T)=>void; format?:(value:T)=>string;
@@ -53,6 +53,13 @@ export function GeneratorPanel({config,change,generate,randomize,copy,reroll,sta
     <Select label="ジャンル" value={config.genre} items={GENRES} change={value=>edit('genre',value)}/>
     <NumberField label="作曲BPM" value={config.bpm} min={60} max={200} change={bpm}/>
     <Select label="雰囲気" value={config.mood} items={MOODS} change={value=>edit('mood',value)}/>
+    <div className="music-columns">
+      <Select label="曲構成" value={config.arrangement} items={ARRANGEMENTS}
+        change={value=>edit('arrangement',value)}/>
+      <Select label="メロディーの動き" value={config.melodyStyle} items={MELODY_STYLES}
+        change={value=>edit('melodyStyle',value)}/>
+    </div>
+    <p className="music-hint">曲構成で展開の盛り上がりを、メロディーの動きで音符の密度・音域の跳躍・音のつながりを変えられます。標準は従来の生成方式です。</p>
     <div className="music-columns">
       <Select label="キー" value={config.key} items={KEYS.map((_,i)=>i)} format={i=>KEYS[i]} change={value=>edit('key',value)}/>
       <Select label="長さ" value={config.bars} items={LENGTHS} format={n=>n+'小節（'+durationLabel(n,config.bpm)+'）'} change={value=>edit('bars',value)}/>
