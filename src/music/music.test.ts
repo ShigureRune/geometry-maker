@@ -191,7 +191,7 @@ describe('Seed Music Studio',()=>{
       expect(parseMusicProject(musicProjectText(song))).toEqual(song);
       return JSON.stringify(song.tracks.slice(0,4).map(track=>track.notes));
     });
-    expect(new Set(results).size).toBe(10);
+    expect(new Set(results).size).toBe(11);
   });
 
   it('supports arrangement and melodic variations while migrating old project JSON',()=>{
