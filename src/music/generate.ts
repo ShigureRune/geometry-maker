@@ -187,8 +187,12 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
           add(bar, step, step === 7 && contrast ? 46 : 42, 100, 42 + energy * 21 + rand() * 12);
       }
       // Four accelerating impacts in the last beat of every pre-climax build bar.
-      if (epic && build && !final) for (const step of [5,6,7])
-        add(bar,step,step===7?46:42,85,58+energy*25+step);
+      if (epic && build && !final) for (const step of [5,6,7]) {
+        const pitch=step===7?46:42;
+        const onset=bar*BAR+step*half+(step%2?Math.round(config.swing*.95):0);
+        if (!notes.some(note=>note.pitch===pitch && note.startTick===onset))
+          add(bar,step,pitch,85,58+energy*25+step);
+      }
     } else if (part === 'arp') {
       // Short notes cycle through the active chord, creating a distinct moving layer.
       if (intro && bar % 2) continue;
