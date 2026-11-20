@@ -1,0 +1,37 @@
+import {test,expect} from '@playwright/test';
+import {openSettingsCategory} from './settings-test-helper';
+
+test('explorer supports deep back/forward navigation and clears redo on new generation',async({page})=>{
+  test.setTimeout(75000);
+  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('./?legacy-ui=1');
+  await openSettingsCategory(page,'図形');
+  const seed=page.getByLabel('シード値',{exact:true});
+  await seed.fill('multi-history-source');await seed.press('Enter');
+  await page.getByRole('button',{name:'構図探索ボードを開く'}).click();
+  const dialog=page.getByRole('dialog',{name:'構図探索ボード'});
+  const values=async()=>dialog.locator('.seed-explorer-card code').allTextContents();
+  const first=await values();
+  await dialog.getByRole('button',{name:'ランダム案を8件'}).click();
+  const second=await values();
+  await dialog.getByRole('button',{name:'派生案を8件'}).click();
+  const third=await values();
+  await expect(dialog.getByText('探索履歴 3 / 3')).toBeVisible();
+  await dialog.getByRole('button',{name:'前の候補セット'}).click();
+  await expect(dialog.locator('.seed-explorer-card code')).toHaveText(second);
+  await dialog.getByRole('button',{name:'前の候補セット'}).click();
+  await expect(dialog.locator('.seed-explorer-card code')).toHaveText(first);
+  await expect(dialog.getByRole('button',{name:'前の候補セット'})).toBeDisabled();
+  await dialog.getByRole('button',{name:'次の候補セット'}).click();
+  await expect(dialog.locator('.seed-explorer-card code')).toHaveText(second);
+  await dialog.getByRole('button',{name:'次の候補セット'}).click();
+  await expect(dialog.locator('.seed-explorer-card code')).toHaveText(third);
+  await expect(dialog.getByRole('button',{name:'次の候補セット'})).toBeDisabled();
+  await dialog.getByRole('button',{name:'前の候補セット'}).click();
+  await dialog.getByRole('button',{name:'ランダム案を4件'}).click();
+  await expect(dialog.getByRole('button',{name:'次の候補セット'})).toBeDisabled();
+  await dialog.getByRole('button',{name:'探索ボードを閉じる'}).click();
+  await expect(seed).toHaveValue('multi-history-source');
+  expect(errors).toEqual([]);
+});
