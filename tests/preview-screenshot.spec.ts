@@ -45,6 +45,8 @@ test('screenshot opens real photo with preview portrait ratio and PNG save/X act
 });
 
 test('native share and X button pass the real PNG and capture-time seed together',async({page})=>{
+  // SVG rasterization can take longer under fully loaded GitHub CI workers.
+  test.setTimeout(100000);
   const seed='X用-紫雨+2026-🌌';
   await page.addInitScript(()=>{
     Object.defineProperty(navigator,'canShare',{configurable:true,value:({files}:ShareData)=>!!files?.length});
@@ -60,7 +62,12 @@ test('native share and X button pass the real PNG and capture-time seed together
   await page.getByLabel('クイック比率').selectOption('1:1');
   await page.getByRole('button',{name:'スクショ',exact:true}).click();
   const dialog=page.getByRole('dialog',{name:'スクショのプレビュー'});
-  await expect(dialog).toBeVisible();
+  try{await expect(dialog).toBeVisible({timeout:45000});}
+  catch(error){
+    console.log('Screenshot status:',await page.locator('.studio-screenshot-error').allTextContents());
+    console.log('Screenshot busy:',await page.getByRole('button',{name:'スクショ'}).textContent());
+    throw error;
+  }
   await expect(dialog.getByTestId('screenshot-image')).toHaveJSProperty('naturalHeight',1200);
   await expect(dialog.getByTestId('screenshot-share-text')).toContainText('シード値：'+seed);
   await dialog.getByRole('button',{name:'共有',exact:true}).click();
