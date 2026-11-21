@@ -5,6 +5,21 @@ import {validateNotes} from './project';
 import {BAR, DEFAULT_CONFIG, GENRES} from './song';
 
 describe('SEED EVOLUTION harmonic diversity', () => {
+  it('keeps seeded directional contours repeatable, bounded, and varied across seeds', () => {
+    const shapes=new Set<string>();
+    for(let i=0;i<256;i++){
+      const config={...DEFAULT_CONFIG,seed:'contour-shape-'+i};
+      const first=melodyBlueprint(config,'A');
+      const repeat=melodyBlueprint(config,'A');
+      expect(first.contour).toEqual(repeat.contour);
+      expect(first.contour).toHaveLength(12);
+      expect(first.contour[0]).toBe(0);
+      expect(first.contour.every(value=>Number.isInteger(value)&&value>=-3&&value<=3)).toBe(true);
+      shapes.add(first.contour.join(','));
+    }
+    expect(shapes.size).toBeGreaterThan(200);
+  });
+
   it('creates seed-distinct musical phrases with valid syncopation and cadential breathing', () => {
     const rhythms=new Set<string>(),identities=new Set<string>();
     for(let i=0;i<256;i++){
