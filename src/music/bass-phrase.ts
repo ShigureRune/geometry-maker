@@ -32,8 +32,8 @@ export function bassPhrase(config:Config,family:string,variation=0):BassPhrase{
   return Array.from({length:4},(_,bar)=>{
     const base=bar===0||bar===2?question:answer;
     const fill=bar===3&&config.density>=50;
-    let steps=base.filter((step,i)=>
-      i===0||random()<Math.min(.98,.49+config.density*.005+(fill?.08:0)));
+    let steps:number[]=base.filter((_,i)=>
+      i===0||random()<Math.min(.98,.49+config.density*.005+(fill ? .08 : 0)));
     if(fill&&random()<.5&&steps.at(-1)!<7)steps=[...steps,7];
     // Keep the downbeat, and avoid duplicate onsets before quantization.
     steps=[...new Set([0,...steps])].sort((a,b)=>a-b);
