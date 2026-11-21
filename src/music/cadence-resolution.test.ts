@@ -26,7 +26,7 @@ describe('SEED EVOLUTION: chord-aware phrase resolution', () => {
         if (!phraseNotes.length || bar === config.bars - 1) continue;
         const last = phraseNotes.at(-1)!;
         const chordPitches = chords.filter(n => Math.floor(n.startTick / BAR) === bar)
-          .map(n => n.pitch).sort((a,b) => a-b);
+          .map(n => n.pitch).filter((p,i,all) => all.indexOf(p) === i).sort((a,b) => a-b);
         expect(chordPitches.length).toBeGreaterThanOrEqual(3);
         expect([chordPitches[0]%12,chordPitches[2]%12]).toContain(last.pitch%12);
       }
