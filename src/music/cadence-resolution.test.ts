@@ -25,10 +25,12 @@ describe('SEED EVOLUTION: chord-aware phrase resolution', () => {
         const phraseNotes = melody.filter(n => Math.floor(n.startTick / BAR) === bar);
         if (!phraseNotes.length || bar === config.bars - 1) continue;
         const last = phraseNotes.at(-1)!;
-        const chordPitches = chords.filter(n => Math.floor(n.startTick / BAR) === bar)
-          .map(n => n.pitch).filter((p,i,all) => all.indexOf(p) === i).sort((a,b) => a-b);
-        expect(chordPitches.length).toBeGreaterThanOrEqual(3);
-        expect([chordPitches[0]%12,chordPitches[2]%12]).toContain(last.pitch%12);
+        // The chord track emits voices in harmony order; sorting by pitch
+        // destroys the root/third identity for inversions and octave shifts.
+        const chordVoices = chords.filter(n => Math.floor(n.startTick / BAR) === bar)
+          .filter(n => n.startTick === bar * BAR).slice(0, 3);
+        expect(chordVoices.length).toBe(3);
+        expect([chordVoices[0].pitch%12,chordVoices[2].pitch%12]).toContain(last.pitch%12);
       }
       if (seed < 3) expect(generateSong(config)).toEqual(song);
     }
