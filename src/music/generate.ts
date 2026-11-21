@@ -3,6 +3,7 @@ import {
   type Config, type Instrument, type Note, type Part, type Section, type Song, type Track,
 } from './song';
 import {generateEpicNotes} from './epic';
+import {melodyBlueprint} from './melody-phrase';
 
 const major = [0, 2, 4, 5, 7, 9, 11];
 const minor = [0, 2, 3, 5, 7, 8, 10];
@@ -129,25 +130,15 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   const notes: Note[] = [];
   const half = PPQ / 2;
   const mode = scales[config.scale];
-  const melodySteps = part === 'melody' && config.melodyStyle !== '標準'
-    ? config.melodyStyle === '歌う' ? [0,2,4,6] :
-      config.melodyStyle === '疾走' ? [0,1,2,3,4,5,6,7] : [0,2,3,5,7]
-    : style.melody;
-  // Stable phrase identities give each seed a distinct melodic contour, while
-  // repeated sections reuse their motif with controlled phrase development.
-  const phraseMotifs = new Map<string, number[]>();
-  const motifFor = (name: string) => {
-    const family = name.replace('′', '');
-    if (!phraseMotifs.has(family)) {
-      const phraseRand = musicRandom(JSON.stringify([MUSIC_VERSION, config.seed, 'motif', part, variation, family]));
-      const contour = Array.from({length: melodySteps.length}, (_, i) =>
-        i === 0 ? 0 : Math.floor(phraseRand() * 7) - 3);
-      phraseMotifs.set(family, contour);
-    }
-    return phraseMotifs.get(family)!;
+  const blueprints = new Map<string, ReturnType<typeof melodyBlueprint>>();
+  const phraseFor=(sectionName:string)=>{
+    const family=sectionName.replace('′','');
+    let phrase=blueprints.get(family);
+    if(!phrase){phrase=melodyBlueprint(config,family,variation);blueprints.set(family,phrase);}
+    return phrase;
   };
   const add = (bar: number, step: number, pitch: number, length: number, velocity: number) => {
-    const micro = step % 2 ? Math.round(config.swing * .95) : 0;
+    const micro = Number.isInteger(step) && step % 2 ? Math.round(config.swing * .95) : 0;
     const startTick = bar * BAR + step * half + micro;
     const durationTicks = Math.max(1, Math.min(Math.round(length), (bar + 1) * BAR - startTick));
     notes.push({id: part + '-' + notes.length, pitch, startTick, durationTicks,
@@ -189,42 +180,42 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       });
     } else if (part === 'melody') {
       if (intro && bar !== 0 && bar % 2 !== 0) continue;
-      const extraDensity = config.melodyStyle === '疾走' ? .23 : config.melodyStyle === '歌う' ? -.10 : 0;
-      // A seed-specific rhythmic identity is reused within a section family,
-      // with small bar-level variations. Anchor beat zero and keep onsets unique.
-      const rhythmRand = musicRandom(JSON.stringify([
-        MUSIC_VERSION, config.seed, 'rhythm', variation, section.name.replace('′', ''),
-      ]));
-      const rhythmPattern = Array.from({length: 8}, (_, step) =>
-        step === 0 || rhythmRand() < (.35 + config.density * .005));
-      const rhythmPhase = (bar - section.startBar) % 4;
-      const steps = final ? [0] : melodySteps
-        .filter((step, i) => i === 0 || (rhythmPattern[step] && rand() < density + .26 + extraDensity))
-        .map((step, i) => i === 0 || rhythmPhase !== 3 ? step : Math.min(7, step + (step % 2 === 0 ? 1 : 0)))
-        .filter((step, i, all) => all.indexOf(step) === i)
-        .sort((a, b) => a - b);
-      steps.forEach((step, i) => {
-        const motif = motifFor(section.name);
-        const localPhraseBar = (bar - section.startBar) % 4;
-        const motifValue = motif[(i + (localPhraseBar === 3 ? 1 : 0)) % motif.length];
-        // Answer phrases rise/fall relative to their opening; section repeats
-        // retain their recognizable contour instead of drawing unrelated notes.
-        const phraseDevelopment = localPhraseBar === 1 ? 2 : localPhraseBar === 2 ? -2 : 0;
-        const jump = config.melodyStyle === '跳躍' ? (bar%2===0?6:-5)+3*motifValue :
-          config.melodyStyle === '歌う' ? motifValue : 2*motifValue;
-        const target = (config.mood === '暗い' ? 63 : 68) + (contrast ? 4 : 0) + jump + phraseDevelopment + (epic && contrast ? 5 : 0);
-        const accent = step % 4 === 0 || i === 0 || final;
-        const tones = accent ? (final ? [config.key] : harmony.map(p => p % 12)) : mode.map(p => (p + config.key) % 12);
-        const result = Array.from({length: 29}, (_, index) => index + 56).filter(p => tones.includes(p % 12))
-          .sort((a,b) => {
-            const continuity = config.melodyStyle === '跳躍' ? .11 : config.melodyStyle === '歌う' ? .9 : .55;
-            return (Math.abs(a - target) + Math.abs(a - previous) * continuity) -
-              (Math.abs(b - target) + Math.abs(b - previous) * continuity);
+      const blueprint=phraseFor(section.name);
+      const phraseBar=(bar-section.startBar)%4;
+      const motif=blueprint.contour;
+      const phraseSteps=blueprint.bars[phraseBar];
+      // A rest is meaningful: preserve the question/answer cell and allow
+      // occasional omissions without throwing away the first strong beat.
+      const steps=final?[0]:phraseSteps.filter((step,i)=>
+        (i===0||config.melodyStyle==='疾走'||rand()<Math.min(.98,.78+energy*.13)) &&
+        (!intro||i<2) && (!outro||i<3));
+      const onset=(step:number)=>step*half+(Number.isInteger(step)&&step%2?Math.round(config.swing*.95):0);
+      steps.forEach((step,i)=>{
+        const motifValue=motif[(i+phraseBar*2)%motif.length];
+        // The same four-bar idea returns, while B-family answers emphasize
+        // a contrasting register and the third phrase bar briefly recedes.
+        const development=phraseBar===1?2:phraseBar===2?-2:0;
+        const jump=config.melodyStyle==='跳躍'?(phraseBar%2===0?5:-4)+motifValue*3:
+          config.melodyStyle==='歌う'?motifValue:motifValue*2;
+        const target=(config.mood==='暗い'?63:68)+blueprint.register+
+          (contrast?4:0)+jump+development;
+        const accent=step===0||step===4||final;
+        const cadence=phraseBar===3&&i===steps.length-1;
+        const tones=accent||cadence
+          ? (final?[config.key]:harmony.map(p=>p%12))
+          : mode.map(p=>(p+config.key)%12);
+        const candidate=Array.from({length:29},(_,index)=>index+56)
+          .filter(p=>tones.includes(p%12))
+          .sort((left,right)=>{
+            const continuity=config.melodyStyle==='跳躍'?.11:config.melodyStyle==='歌う'?.9:.55;
+            return (Math.abs(left-target)+Math.abs(left-previous)*continuity)-
+              (Math.abs(right-target)+Math.abs(right-previous)*continuity);
           });
-        const pitch = result[!accent && config.complexity > 65 && bar % 4 === 3 && rand() > .57 ? 1 : 0] ?? result[0];
-        previous = pitch;
-        add(bar, step, pitch, final ? BAR * .88 : ((steps[i+1] ?? 8) - step) * half - 106,
-          66 + energy * 25 + rand() * 8 + (accent ? 6 : 0));
+        const pitch=candidate[!accent&&config.complexity>65&&phraseBar===3&&rand()>.57?1:0]??candidate[0];
+        previous=pitch;
+        const duration=final?BAR*.88:Math.max(1,
+          onset(steps[i+1]??8)-onset(step)-(cadence?18:Math.round(110-70*blueprint.articulation)));
+        add(bar,step,pitch,duration,66+energy*25+rand()*8+(accent?6:0));
       });
     } else if (part === 'drums') {
       style.kicks.forEach((step, i) => {
