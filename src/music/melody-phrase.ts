@@ -61,10 +61,19 @@ export function melodyBlueprint(config:Config, family:string, variation=0):Melod
     steps.sort((a,b)=>a-b);
     return steps.length?steps:[0];
   });
-  // Characterful intervals, but not unrestricted chromatic leaps.
+  // Seed-selected phrase shapes make the melodic direction audible rather
+  // than relying on independent random jumps. Keep all offsets within [-3,3]
+  // so chord-aware pitch resolution in generate.ts remains authoritative.
+  const shape=Math.floor(rand()*4); // rising, falling, arch, or repeated
   const contour=Array.from({length:12},(_,i)=>{
-    const signed=Math.floor(rand()*7)-3;
-    return i===0?0:signed;
+    if(i===0)return 0;
+    const position=i%6;
+    const direction=shape===0 ? position-2
+      : shape===1 ? 2-position
+      : shape===2 ? 3-Math.abs(position-3)*2
+      : (i%3===0 ? 1 : 0);
+    const ornament=Math.floor(rand()*3)-1;
+    return Math.max(-3,Math.min(3,direction+ornament));
   });
   return {
     bars,
