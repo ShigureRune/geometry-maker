@@ -85,10 +85,19 @@ describe('SEED EVOLUTION harmonic diversity', () => {
       const config = {...DEFAULT_CONFIG, seed: 'evolution-' + i, bars: 32 as const};
       const song = generateSong(config);
       const chordNotes = song.tracks.find(track => track.id === 'chords')!.notes;
+      // Index chord roots once: filtering all chord notes for every bar made this
+      // population test sensitive to shared CI runner load and Vitest's 5s limit.
+      const lowestPitchByTick = new Map<number, number>();
+      for (const note of chordNotes) {
+        const previous = lowestPitchByTick.get(note.startTick);
+        if (previous === undefined || note.pitch < previous) {
+          lowestPitchByTick.set(note.startTick, note.pitch);
+        }
+      }
       const roots = Array.from({length: config.bars}, (_, bar) => {
-        const notes = chordNotes.filter(note => note.startTick === bar * BAR);
-        expect(notes.length).toBeGreaterThan(0);
-        return Math.min(...notes.map(note => note.pitch)) % 12;
+        const lowest = lowestPitchByTick.get(bar * BAR);
+        expect(lowest).toBeDefined();
+        return lowest! % 12;
       });
       expect(roots[roots.length - 1]).toBe(config.key);
       fingerprints.add(roots.join(','));
