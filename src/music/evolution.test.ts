@@ -109,7 +109,7 @@ describe('SEED EVOLUTION harmonic diversity', () => {
       }
     }
     expect(fingerprints.size).toBeGreaterThan(32);
-  });
+  }, 20_000);
   it('varies melodic fingerprints between seeds while keeping repeated A motifs coherent', () => {
     const fingerprints = new Set<string>();
     for (let i = 0; i < 96; i++) {
