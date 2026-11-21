@@ -25,10 +25,11 @@ describe('SEED EVOLUTION: chord-aware phrase resolution', () => {
         const phraseNotes = melody.filter(n => Math.floor(n.startTick / BAR) === bar);
         if (!phraseNotes.length || bar === config.bars - 1) continue;
         const last = phraseNotes.at(-1)!;
-        // The chord track emits voices in harmony order; sorting by pitch
-        // destroys the root/third identity for inversions and octave shifts.
-        const chordVoices = chords.filter(n => Math.floor(n.startTick / BAR) === bar)
-          .filter(n => n.startTick === bar * BAR).slice(0, 3);
+        // Output notes are sorted by noteOrder, not harmony voice order.
+        // Generated IDs retain insertion order, even for octave shifts.
+        const chordVoices = chords.filter(n => n.startTick === bar * BAR)
+          .sort((a,b) => Number(a.id.split('-').at(-1)) - Number(b.id.split('-').at(-1)))
+          .slice(0, 3);
         expect(chordVoices.length).toBe(3);
         expect([chordVoices[0].pitch%12,chordVoices[2].pitch%12]).toContain(last.pitch%12);
       }
