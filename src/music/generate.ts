@@ -186,7 +186,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       const phraseSteps=blueprint.bars[phraseBar];
       // A rest is meaningful: preserve the question/answer cell and allow
       // occasional omissions without throwing away the first strong beat.
-      const steps=final?[0]:phraseSteps.filter((step,i)=>
+      const steps=final?[0]:phraseSteps.filter((_,i)=>
         (i===0||config.melodyStyle==='疾走'||rand()<Math.min(.98,.78+energy*.13)) &&
         (!intro||i<2) && (!outro||i<3));
       const onset=(step:number)=>step*half+(Number.isInteger(step)&&step%2?Math.round(config.swing*.95):0);
