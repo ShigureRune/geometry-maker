@@ -1,8 +1,62 @@
 import {describe, expect, it} from 'vitest';
 import {generateSong} from './generate';
+import {melodyBlueprint} from './melody-phrase';
+import {validateNotes} from './project';
 import {BAR, DEFAULT_CONFIG, GENRES} from './song';
 
 describe('SEED EVOLUTION harmonic diversity', () => {
+  it('creates seed-distinct musical phrases with valid syncopation and cadential breathing', () => {
+    const rhythms=new Set<string>(),identities=new Set<string>();
+    for(let i=0;i<256;i++){
+      const config={...DEFAULT_CONFIG,seed:'phrase-diversity-'+i,bars:32 as const,density:72};
+      const phrase=melodyBlueprint(config,'A');
+      const repeat=melodyBlueprint(config,'A');
+      expect(phrase).toEqual(repeat);
+      expect(phrase.bars).toHaveLength(4);
+      for(const steps of phrase.bars){
+        expect(steps.length).toBeGreaterThan(0);
+        expect(steps.every((step,index)=>step>=0&&step<8&&(index===0||step>steps[index-1]))).toBe(true);
+      }
+      const rhythm=phrase.bars.map(steps=>steps.join(',')).join('|');
+      rhythms.add(rhythm);
+      identities.add(rhythm+'|'+phrase.contour.join(',')+'|'+phrase.register);
+    }
+    // A large fraction of different seeds have distinct *rhythmic* identities
+    // even without comparing pitch, key or the generated harmony.
+    expect(rhythms.size).toBeGreaterThan(115);
+    expect(identities.size).toBeGreaterThan(245);
+  });
+
+  it('keeps 256 full scores reproducible, bounded and harmonically coherent',()=>{
+    const identities=new Set<string>();
+    for(let i=0;i<256;i++){
+      const config={...DEFAULT_CONFIG,genre:'シネマティック' as const,
+        seed:'full-phrase-'+i,bars:16 as const,trackCount:8 as const,
+        density:65,complexity:72,swing:80};
+      const song=generateSong(config);
+      const melody=song.tracks.find(track=>track.id==='melody')!.notes;
+      expect(()=>validateNotes(melody,song.totalTicks)).not.toThrow();
+      expect(melody.every(note=>note.pitch>=56&&note.pitch<=84)).toBe(true);
+      const chords=song.tracks.find(track=>track.id==='chords')!.notes;
+      const last=melody.at(-1)!;
+      expect(last.pitch%12).toBe(config.key);
+      expect(chords.some(note=>note.startTick===15*BAR&&note.pitch%12===config.key)).toBe(true);
+      const signature=melody.slice(0,32).map(note=>
+        [Math.round(note.startTick/120),note.pitch].join(':')).join('|');
+      identities.add(signature);
+      if(i<16)expect(generateSong(config).tracks[0].notes).toEqual(melody);
+    }
+    expect(identities.size).toBeGreaterThan(245);
+  });
+
+  it('distinguishes lyrical and fast-paced rhythmic phrasing for the same seed',()=>{
+    const common={...DEFAULT_CONFIG,seed:'style-identity',bars:16 as const};
+    const lyrical=melodyBlueprint({...common,melodyStyle:'歌う'},'A');
+    const fast=melodyBlueprint({...common,melodyStyle:'疾走'},'A');
+    expect(fast.bars.flat().length).toBeGreaterThan(lyrical.bars.flat().length*2);
+    expect(fast).not.toEqual(lyrical);
+  });
+
   it('reproduces the same score exactly for the same seed across genres', () => {
     for (const genre of GENRES) {
       const config = {...DEFAULT_CONFIG, genre, seed: 'repeatable-evolution', bars: 32 as const};
