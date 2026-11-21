@@ -4,6 +4,7 @@ import {
 } from './song';
 import {generateEpicNotes} from './epic';
 import {melodyBlueprint} from './melody-phrase';
+import {bassPhrase} from './bass-phrase';
 
 const major = [0, 2, 4, 5, 7, 9, 11];
 const minor = [0, 2, 3, 5, 7, 8, 10];
@@ -130,6 +131,13 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   const notes: Note[] = [];
   const half = PPQ / 2;
   const mode = scales[config.scale];
+  const bassMotifs = new Map<string, ReturnType<typeof bassPhrase>>();
+  const bassFor=(sectionName:string)=>{
+    const family=sectionName.replace('′','');
+    let phrase=bassMotifs.get(family);
+    if(!phrase){phrase=bassPhrase(config,family,variation);bassMotifs.set(family,phrase);}
+    return phrase;
+  };
   const blueprints = new Map<string, ReturnType<typeof melodyBlueprint>>();
   const phraseFor=(sectionName:string)=>{
     const family=sectionName.replace('′','');
@@ -173,10 +181,24 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         if (epic) add(bar,step,clamp(harmony[0]-12,0,127),length,60+energy*24);
       });
     } else if (part === 'bass') {
-      const hits = final || (intro && bar === 0) ? [0] : style.bass.filter((_, i) => i === 0 || rand() < (epic ? Math.min(1,density+(.25*progress)) : density));
-      hits.forEach((step, i) => {
-        const tone = i === 0 || rand() > config.complexity * .007 ? harmony[0] : harmony[i % harmony.length];
-        add(bar, step, 34 + ((tone - 34) % 12), ((hits[i+1] ?? 8) - step) * half - 105, 64 + energy * 24 + rand() * 6);
+      // The root carries each chord; offbeat fifths/thirds give the phrase a
+      // seeded character without breaking the harmonic foundation.
+      const phrase=bassFor(section.name);
+      const motif=phrase[(bar-section.startBar)%4];
+      const hits=final || (intro && bar===0)
+        ? [{step:0,chordTone:0 as const,octave:false}]
+        : intro ? motif.filter((beat,i)=>i===0||beat.step<=4)
+        : motif;
+      hits.forEach((hit,i) => {
+        const tone=harmony[hit.chordTone]??harmony[0];
+        const pitch=clamp(34+((tone-34)%12)+(hit.octave?12:0),34,59);
+        // Shorten before the next onset; swing cannot create same-pitch overlaps.
+        const remaining=((hits[i+1]?.step??8)-hit.step)*half;
+        const nextSwing=hits[i+1]?.step%2 ? Math.round(config.swing*.95) : 0;
+        const currentSwing=hit.step%2 ? Math.round(config.swing*.95) : 0;
+        const length=Math.max(1,remaining+nextSwing-currentSwing-105);
+        add(bar,hit.step,pitch,final?BAR-90:length,
+          64+energy*24+rand()*6+(i===0?6:0));
       });
     } else if (part === 'melody') {
       if (intro && bar !== 0 && bar % 2 !== 0) continue;
