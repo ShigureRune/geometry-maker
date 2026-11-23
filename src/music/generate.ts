@@ -187,9 +187,13 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         : phrase.bars[phraseBar].map(beat=>({...beat}));
       const voiced=voicedChord(harmony,previousVoicing,phrase.texture);
       previousVoicing=voiced;
+      const chordOnset=(step:number)=>step*half+
+        (Number.isInteger(step)&&step%2?Math.round(config.swing*.95):0);
       hits.forEach((hit,i)=>{
         const next=hits[i+1]?.step??8;
-        const available=(next-hit.step)*half;
+        // Measure the actual swung distance: odd eighth notes can arrive
+        // late, making an otherwise valid note overlap its following hit.
+        const available=chordOnset(next)-chordOnset(hit.step);
         const length=final?BAR-90:Math.max(1,Math.round(available*hit.gate)-35);
         voiced.forEach((pitch,voice)=>{
           const velocity=(52+energy*20)*hit.accent+rand()*6+(voice===0?4:0);
