@@ -237,7 +237,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
         // while ordinary notes retain their seed-selected melodic contour.
         // Prefer a nearby chord tone: avoid octave leaps at every cadence.
         const cadenceCandidates=cadence && !final
-          ? candidate.filter(p=>[harmony[0]%12,harmony[2]%12].includes(p%12))
+          ? candidate.filter(p=>[harmony[0]%12,harmony[1]%12].includes(p%12))
           : candidate;
         const resolved=cadenceCandidates.length
           ? [...cadenceCandidates].sort((a,b)=>
