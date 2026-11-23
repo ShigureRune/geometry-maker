@@ -5,6 +5,7 @@ import {
 import {generateEpicNotes} from './epic';
 import {melodyBlueprint} from './melody-phrase';
 import {bassPhrase} from './bass-phrase';
+import {chordPhrase,voicedChord} from './chord-phrase';
 
 const major = [0, 2, 4, 5, 7, 9, 11];
 const minor = [0, 2, 3, 5, 7, 8, 10];
@@ -131,6 +132,13 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
   const notes: Note[] = [];
   const half = PPQ / 2;
   const mode = scales[config.scale];
+  const chordMotifs = new Map<string, ReturnType<typeof chordPhrase>>();
+  const chordFor=(sectionName:string)=>{
+    const family=sectionName.replace('′','');
+    let phrase=chordMotifs.get(family);
+    if(!phrase){phrase=chordPhrase(config,family,variation);chordMotifs.set(family,phrase);}
+    return phrase;
+  };
   const bassMotifs = new Map<string, ReturnType<typeof bassPhrase>>();
   const bassFor=(sectionName:string)=>{
     const family=sectionName.replace('′','');
@@ -153,6 +161,7 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
       velocity: clamp(Math.round(velocity), 1, 127)});
   };
   let previous = 65 + config.key;
+  let previousVoicing:number[]|undefined;
   for (let bar = 0; bar < config.bars; bar++) {
     const section = sections.find(s => bar >= s.startBar && bar < s.startBar + s.bars)!;
     const intro = section.name === 'Intro', outro = section.name === 'Outro', contrast = section.name.startsWith('B');
@@ -171,14 +180,25 @@ function generateNotes(part: Part, config: Config, sections: Section[], variatio
     const harmony = chords[bar];
     const final = bar === config.bars - 1;
     if (part === 'chords') {
-      const hits = intro || final || density < .45 ? [0] : style.chordHits;
-      hits.forEach((step, i) => {
-        const length = final ? BAR : Math.min(((hits[i+1] ?? 8) - step) * half - 100, config.genre === 'テクノ' ? 180 : BAR);
-        harmony.forEach((pitch, voice) => add(bar, step,
-          pitch - (voice > 1 && (contrast || config.mood === '暗い') ? 12 : 0),
-          length, 52 + energy * 20 + rand() * 6));
-        // Low tonic octaves anchor the harmony like trailer brass/cellos.
-        if (epic) add(bar,step,clamp(harmony[0]-12,0,127),length,60+energy*24);
+      const phrase=chordFor(section.name);
+      const phraseBar=(bar-section.startBar)%4;
+      const hits: {step:number;gate:number;accent:number}[] = intro || outro || final || density<.45
+        ? [{step:0,gate:final ? .94 : .92,accent:1}]
+        : phrase.bars[phraseBar].map(beat=>({...beat}));
+      const voiced=voicedChord(harmony,previousVoicing,phrase.texture);
+      previousVoicing=voiced;
+      const chordOnset=(step:number)=>step*half+
+        (Number.isInteger(step)&&step%2?Math.round(config.swing*.95):0);
+      hits.forEach((hit,i)=>{
+        const next=hits[i+1]?.step??8;
+        // Measure the actual swung distance: odd eighth notes can arrive
+        // late, making an otherwise valid note overlap its following hit.
+        const available=chordOnset(next)-chordOnset(hit.step);
+        const length=final?BAR-90:Math.max(1,Math.round(available*hit.gate)-35);
+        voiced.forEach((pitch,voice)=>{
+          const velocity=(52+energy*20)*hit.accent+rand()*6+(voice===0?4:0);
+          add(bar,hit.step,pitch,length,velocity);
+        });
       });
     } else if (part === 'bass') {
       // The root carries each chord; offbeat fifths/thirds give the phrase a
